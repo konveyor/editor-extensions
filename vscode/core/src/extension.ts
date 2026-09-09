@@ -33,7 +33,6 @@ import {
   getConfigAutoAcceptOnSave,
   getConfigAgentMode,
   getConfigBatchReviewMode,
-  getConfigExperimentalChatEnabled,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -126,7 +125,6 @@ class VsCodeExtension {
       featureState: { agentMode: getConfigAgentMode() },
       isBatchReviewMode: getConfigBatchReviewMode(),
       pendingBatchReview: [],
-      experimentalChatEnabled: getConfigExperimentalChatEnabled(),
       modelSupportsTools: true,
     };
 
@@ -651,27 +649,6 @@ class VsCodeExtension {
             this.state.logger.info(`Batch review mode changed to ${getConfigBatchReviewMode()}`);
           }
 
-          if (event.affectsConfiguration(`${EXTENSION_NAME}.experimentalChat.enabled`)) {
-            const newValue = getConfigExperimentalChatEnabled();
-            this.state.mutate((draft) => {
-              draft.experimentalChatEnabled = newValue;
-            });
-            this.state.logger.info(`Experimental chat updated from settings: ${newValue}`);
-
-            if (newValue && !this.state.featureClients.get("agentClient")) {
-              vscode.window
-                .showInformationMessage(
-                  "Experimental Chat enabled. Reload the window to start the agent backend.",
-                  "Reload Window",
-                )
-                .then((selection) => {
-                  if (selection === "Reload Window") {
-                    vscode.commands.executeCommand("workbench.action.reloadWindow");
-                  }
-                });
-            }
-          }
-
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {
             const newAgentMode = getConfigAgentMode();
             this.state.mutate((draft) => {
@@ -867,12 +844,10 @@ class VsCodeExtension {
 
   private registerWebviewProvider(): void {
     const sidebarProvider = new KonveyorGUIWebviewViewProvider(this.state, "sidebar");
-    const resolutionViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "resolution");
     const profilesViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "profiles");
     const hubViewProvider = new KonveyorGUIWebviewViewProvider(this.state, "hub");
 
     this.state.webviewProviders.set("sidebar", sidebarProvider);
-    this.state.webviewProviders.set("resolution", resolutionViewProvider);
     this.state.webviewProviders.set("profiles", profilesViewProvider);
     this.state.webviewProviders.set("hub", hubViewProvider);
 
@@ -880,11 +855,6 @@ class VsCodeExtension {
       vscode.window.registerWebviewViewProvider(
         KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
         sidebarProvider,
-        { webviewOptions: { retainContextWhenHidden: true } },
-      ),
-      vscode.window.registerWebviewViewProvider(
-        KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-        resolutionViewProvider,
         { webviewOptions: { retainContextWhenHidden: true } },
       ),
       vscode.window.registerWebviewViewProvider(
@@ -1449,15 +1419,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
       healthCheckRegistry,
     );
     await extension.initialize();
-
-    // Auto-reveal the chat sidebar on first activation so new users discover it
-    const hasShownChat = context.globalState.get<boolean>("konveyor.hasShownChatView");
-    if (!hasShownChat) {
-      context.globalState.update("konveyor.hasShownChatView", true);
-      vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`).then(undefined, () => {
-        logger.debug("Chat view not available for auto-reveal");
-      });
-    }
 
     // Create and return the API for language extensions
     const api = createCoreApi(providerRegistry, healthCheckRegistry, EXTENSION_VERSION);

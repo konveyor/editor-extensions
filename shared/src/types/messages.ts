@@ -59,7 +59,6 @@ export interface StateChangeData {
   solutionScope?: Scope;
   isBatchReviewMode?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
-  experimentalChatEnabled?: boolean;
   modelSupportsTools?: boolean;
 
   // Server

@@ -126,7 +126,7 @@ test.describe.serial(
         FixTypes.Incident
       );
 
-      const resolutionView = await vsCode.getView(KAIViews.resolutionDetails);
+      const resolutionView = await vsCode.openMigrationChatInEditor();
       const actionButton = resolutionView.getByRole('button', {
         name: new RegExp(accept ? 'Accept' : 'Reject'),
       });

@@ -14,6 +14,8 @@ export interface AgentStateChangeMessage {
   type: "AGENT_STATE_CHANGE";
   agentState: AgentState;
   agentError?: string;
+  /** Whether Agent Mode is enabled (genai.agentMode). Included so every webview tracks the single source of truth. */
+  agentMode?: boolean;
   timestamp: string;
 }
 

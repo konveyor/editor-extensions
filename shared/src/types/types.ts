@@ -1,4 +1,4 @@
-export type WebviewType = "sidebar" | "resolution" | "profiles" | "hub" | "chat";
+export type WebviewType = "sidebar" | "profiles" | "hub" | "chat";
 
 export interface Incident {
   uri: string;
@@ -179,7 +179,6 @@ export interface ExtensionData {
   featureState: Record<string, unknown>;
   isBatchReviewMode: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
-  experimentalChatEnabled: boolean;
   modelSupportsTools: boolean;
 }
 

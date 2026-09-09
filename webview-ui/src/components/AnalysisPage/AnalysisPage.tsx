@@ -43,7 +43,6 @@ import {
   Icon,
 } from "@patternfly/react-core";
 import ClockIcon from "@patternfly/react-icons/dist/esm/icons/clock-icon";
-import CommentsIcon from "@patternfly/react-icons/dist/esm/icons/comments-icon";
 
 import {
   openFile,
@@ -51,7 +50,6 @@ import {
   runAnalysis,
   stopServer,
   getSuccessRate,
-  openResolutionPanel,
   openChatPanel,
   setAgentMode,
 } from "../../hooks/actions";
@@ -102,7 +100,7 @@ const AnalysisPage: React.FC = () => {
   const serverRunning = serverState === "running";
   const isServerToggleDisabled = isAnalyzing || isAnalysisScheduled;
   const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
-  const isAgentMode = useExtensionStore((state) => state.agentConfig?.agentMode ?? false);
+  const isAgentMode = useExtensionStore((state) => state.isAgentMode);
 
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
@@ -178,30 +176,18 @@ const AnalysisPage: React.FC = () => {
                           />
                         </ToolbarItem>
                         {!isGenAIDisabled && (
-                          <>
-                            <ToolbarItem>
-                              <div className="agent-mode-wrapper">
-                                <Switch
-                                  id="agent-mode-switch"
-                                  isChecked={isAgentMode}
-                                  label="Agent Mode"
-                                  onChange={(_event, checked) => dispatch(setAgentMode(checked))}
-                                  aria-label="Toggle Agent Mode"
-                                  isReversed
-                                />
-                              </div>
-                            </ToolbarItem>
-                            <ToolbarItem>
-                              <Button
-                                id="open-chat-button"
-                                variant="secondary"
-                                icon={<CommentsIcon />}
-                                onClick={() => dispatch(openChatPanel())}
-                              >
-                                Migration Chat
-                              </Button>
-                            </ToolbarItem>
-                          </>
+                          <ToolbarItem>
+                            <div className="agent-mode-wrapper">
+                              <Switch
+                                id="agent-mode-switch"
+                                isChecked={isAgentMode}
+                                label="Agent Mode"
+                                onChange={(_event, checked) => dispatch(setAgentMode(checked))}
+                                aria-label="Toggle Agent Mode"
+                                isReversed
+                              />
+                            </div>
+                          </ToolbarItem>
                         )}
                         <ToolbarItem>
                           <ConfigButton
@@ -437,10 +423,10 @@ const AnalysisPage: React.FC = () => {
                   </Title>
                   <Button
                     variant="primary"
-                    onClick={() => dispatch(openResolutionPanel())}
+                    onClick={() => dispatch(openChatPanel())}
                     style={{ marginTop: "1rem" }}
                   >
-                    Open Resolution Panel
+                    Open Migration Chat
                   </Button>
                 </div>
               </Backdrop>

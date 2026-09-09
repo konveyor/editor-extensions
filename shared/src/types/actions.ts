@@ -22,7 +22,6 @@ export const DELETE_PROFILE = "DELETE_PROFILE";
 export const UPDATE_PROFILE = "UPDATE_PROFILE";
 export const QUICK_RESPONSE = "QUICK_RESPONSE";
 export const OPEN_FILE_IN_EDITOR = "OPEN_FILE_IN_EDITOR";
-export const OPEN_RESOLUTION_PANEL = "OPEN_RESOLUTION_PANEL";
 export const OPEN_CHAT_PANEL = "OPEN_CHAT_PANEL";
 export const SET_AGENT_MODE = "SET_AGENT_MODE";
 export const OPEN_HUB_SETTINGS = "OPEN_HUB_SETTINGS";
@@ -65,7 +64,6 @@ export type WebviewActionType =
   | typeof OPEN_PROFILE_MANAGER
   | typeof QUICK_RESPONSE
   | typeof OPEN_FILE_IN_EDITOR
-  | typeof OPEN_RESOLUTION_PANEL
   | typeof OPEN_CHAT_PANEL
   | typeof SET_AGENT_MODE
   | typeof OPEN_HUB_SETTINGS

@@ -1,4 +1,4 @@
-import { MessageTypes, AgentMessageTypes } from "@editor-extensions/shared";
+import { MessageTypes, AgentMessageTypes, type ExtensionData } from "@editor-extensions/shared";
 import { KonveyorGUIWebviewViewProvider } from "../KonveyorGUIWebviewViewProvider";
 import { type ExtensionStore } from "./extensionStore";
 import * as vscode from "vscode";
@@ -64,8 +64,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   // Labels
   "availableTargets",
   "availableSources",
-  // Feature flags
-  "experimentalChatEnabled",
 ];
 
 /** Keys that, when changed, should fire the onDidChange event for the issue view tree. */
@@ -240,19 +238,23 @@ export function setupSyncBridges(
   );
 
   // --- Agent state bridge ---
-  // Watches agentState and agentError, sends a self-contained AGENT_STATE_CHANGE message.
-  // Keeps all agent messaging outside of the core STATE_CHANGE channel.
+  // Watches agentState, agentError and agentMode, sends a self-contained
+  // AGENT_STATE_CHANGE message. Keeps all agent messaging outside of the core
+  // STATE_CHANGE channel. agentMode rides along so the analysis toolbar switch
+  // and the chat page always reflect featureState.agentMode, whether it was
+  // changed from a webview or from the VS Code settings UI.
+  const agentSlice = (s: ExtensionData) => ({
+    agentState: s.featureState?.agentState,
+    agentError: s.featureState?.agentError,
+    agentMode: s.featureState?.agentMode,
+  });
+  const agentSliceEqual = (a: ReturnType<typeof agentSlice>, b: ReturnType<typeof agentSlice>) =>
+    a.agentState === b.agentState && a.agentError === b.agentError && a.agentMode === b.agentMode;
   unsubscribers.push(
     store.subscribe(
-      (s) => ({
-        agentState: s.featureState?.agentState,
-        agentError: s.featureState?.agentError,
-      }),
+      agentSlice,
       (current, previous) => {
-        if (
-          current.agentState === previous.agentState &&
-          current.agentError === previous.agentError
-        ) {
+        if (agentSliceEqual(current, previous)) {
           return;
         }
 
@@ -260,12 +262,11 @@ export function setupSyncBridges(
           type: AgentMessageTypes.AGENT_STATE_CHANGE,
           agentState: current.agentState,
           agentError: current.agentError,
+          agentMode: current.agentMode,
           timestamp: new Date().toISOString(),
         });
       },
-      {
-        equalityFn: (a, b) => a.agentState === b.agentState && a.agentError === b.agentError,
-      },
+      { equalityFn: agentSliceEqual },
     ),
   );
 

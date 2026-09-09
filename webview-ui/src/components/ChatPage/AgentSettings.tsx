@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { OPEN_NATIVE_CONFIG, SET_EXPERIMENTAL_CHAT } from "@editor-extensions/shared";
+import { OPEN_NATIVE_CONFIG } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
 import { PROVIDERS, type ProviderOption } from "./providerOptions";
 
@@ -10,11 +10,12 @@ interface AgentSettingsProps {
 const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const agentConfig = useExtensionStore((s) => s.agentConfig);
   const agentState = useExtensionStore((s) => s.agentState);
-  const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
+  // Agent Mode is toggled from the analysis view toolbar; here it only decides
+  // whether "Apply" configures the ACP agent or the direct LLM client.
+  const agentModeEnabled = useExtensionStore((s) => s.isAgentMode);
 
   const [selectedProvider, setSelectedProvider] = useState(agentConfig?.provider ?? "");
   const [modelInput, setModelInput] = useState(agentConfig?.model ?? "");
-  const [agentModeEnabled, setAgentModeEnabled] = useState(agentConfig?.agentMode ?? false);
   const [extensionStates, setExtensionStates] = useState<Record<string, boolean>>({});
   const [credentialInputs, setCredentialInputs] = useState<Record<string, string>>({});
   const [showModelSuggestions, setShowModelSuggestions] = useState(false);
@@ -23,7 +24,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
     if (agentConfig) {
       setSelectedProvider(agentConfig.provider);
       setModelInput(agentConfig.model);
-      setAgentModeEnabled(agentConfig.agentMode);
       const states: Record<string, boolean> = {};
       for (const ext of agentConfig.capabilities) {
         states[ext.id] = ext.enabled;
@@ -80,7 +80,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         payload: {
           provider: selectedProvider,
           model: modelInput,
-          agentMode: agentModeEnabled,
           extensions: extensionPayload,
           ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
         },
@@ -91,7 +90,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         payload: {
           provider: selectedProvider,
           model: modelInput,
-          agentMode: agentModeEnabled,
           ...(hasCredentialValues ? { credentials: credentialInputs } : {}),
         },
       });
@@ -103,7 +101,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
   const hasChanges =
     selectedProvider !== (agentConfig?.provider ?? "") ||
     modelInput !== (agentConfig?.model ?? "") ||
-    agentModeEnabled !== (agentConfig?.agentMode ?? false) ||
     Object.values(credentialInputs).some((v) => v.length > 0) ||
     agentConfig?.capabilities.some((ext) => extensionStates[ext.id] !== ext.enabled);
 
@@ -125,9 +122,19 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
           className="agent-settings__btn agent-settings__btn--primary"
           onClick={handleApplyAndRestart}
           disabled={!selectedProvider || !modelInput}
-          title={agentModeEnabled ? (!hasChanges ? "No changes to apply" : "Apply changes and restart agent") : "Apply model configuration"}
+          title={
+            agentModeEnabled
+              ? !hasChanges
+                ? "No changes to apply"
+                : "Apply changes and restart agent"
+              : "Apply model configuration"
+          }
         >
-          {agentModeEnabled ? (agentState === "running" ? "Apply & Restart" : "Apply & Start") : "Apply"}
+          {agentModeEnabled
+            ? agentState === "running"
+              ? "Apply & Restart"
+              : "Apply & Start"
+            : "Apply"}
         </button>
       </div>
 
@@ -224,64 +231,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         <div className="agent-settings__credential-hint">No API key required</div>
       )}
 
-      {/* Agent Mode — always visible */}
-      <div className="agent-settings__section">
-        <div className="agent-settings__section-divider" />
-        <div className="agent-settings__permission-row">
-          <div>
-            <span className="agent-settings__permission-label">Agent Mode</span>
-            <div className="agent-settings__agent-mode-hint">
-              {agentModeEnabled
-                ? "Full autonomy — agent explores and fixes broadly"
-                : "Focused fix — agent addresses specific incidents only"}
-            </div>
-          </div>
-          <button
-            className={`agent-settings__toggle ${agentModeEnabled ? "agent-settings__toggle--on" : ""}`}
-            onClick={() => setAgentModeEnabled((prev) => !prev)}
-            role="switch"
-            aria-checked={agentModeEnabled}
-            aria-label="Toggle Agent Mode"
-          >
-            <span className="agent-settings__toggle-track">
-              <span className="agent-settings__toggle-thumb" />
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Experimental Chat */}
-      <div className="agent-settings__section">
-        <div className="agent-settings__permission-row">
-          <div>
-            <span className="agent-settings__permission-label">Experimental Chat</span>
-            <div className="agent-settings__agent-mode-hint">
-              {experimentalChatEnabled
-                ? "Agent-powered chat with start/stop controls"
-                : "Enable to use the full AI agent chat experience"}
-            </div>
-          </div>
-          <button
-            className={`agent-settings__toggle ${experimentalChatEnabled ? "agent-settings__toggle--on" : ""}`}
-            onClick={() => {
-              const newValue = !experimentalChatEnabled;
-              useExtensionStore.getState().setExperimentalChatEnabled(newValue);
-              window.vscode.postMessage({
-                type: SET_EXPERIMENTAL_CHAT,
-                payload: { enabled: newValue },
-              });
-            }}
-            role="switch"
-            aria-checked={experimentalChatEnabled}
-            aria-label="Toggle Experimental Chat"
-          >
-            <span className="agent-settings__toggle-track">
-              <span className="agent-settings__toggle-thumb" />
-            </span>
-          </button>
-        </div>
-      </div>
-
       {agentModeEnabled && (
         <>
           {/* Extensions */}
@@ -321,9 +270,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
               <div className="agent-settings__section-divider" />
               <button
                 className="agent-settings__link-btn"
-                onClick={() =>
-                  window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })
-                }
+                onClick={() => window.vscode.postMessage({ type: OPEN_NATIVE_CONFIG, payload: {} })}
               >
                 Open native configuration file
               </button>
@@ -331,7 +278,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
           )}
         </>
       )}
-
     </div>
   );
 };
