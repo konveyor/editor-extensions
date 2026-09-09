@@ -1,4 +1,5 @@
 import expect from "expect";
+import * as fs from "fs";
 import * as http from "http";
 import * as os from "os";
 import * as path from "path";
@@ -11,6 +12,7 @@ import {
   McpBridgeServer,
   McpBridgeServerConfig,
   incidentMatchesFile,
+  resolveMcpServerEntry,
   resolveWithinRoots,
 } from "../mcpBridgeServer";
 
@@ -539,5 +541,40 @@ describe("McpBridgeServer", () => {
       expect((res.json() as { error: string }).error).toMatch(/exceeds/);
       expect(received).toEqual([]);
     });
+  });
+});
+
+describe("resolveMcpServerEntry", () => {
+  const extensionRoot = path.join(os.tmpdir(), "konveyor-bridge-test-ext");
+  const context = (mcpServer?: string) => ({
+    asAbsolutePath: (p: string) => path.resolve(extensionRoot, p),
+    extension: {
+      packageJSON: {
+        includedAssetPaths: mcpServer ? { mcpServer } : ({} as Record<string, string>),
+      },
+    },
+  });
+
+  beforeEach(() => {
+    fs.rmSync(extensionRoot, { recursive: true, force: true });
+    fs.mkdirSync(path.join(extensionRoot, "assets", "mcp-server"), { recursive: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(extensionRoot, { recursive: true, force: true });
+  });
+
+  it("returns the bundled entrypoint when it exists", () => {
+    const entry = path.join(extensionRoot, "assets", "mcp-server", "index.js");
+    fs.writeFileSync(entry, "");
+    expect(resolveMcpServerEntry(context("./assets/mcp-server"))).toBe(entry);
+  });
+
+  it("returns null when the bundle is missing", () => {
+    expect(resolveMcpServerEntry(context("./assets/mcp-server"))).toBeNull();
+  });
+
+  it("returns null when package.json declares no mcpServer asset", () => {
+    expect(resolveMcpServerEntry(context())).toBeNull();
   });
 });
