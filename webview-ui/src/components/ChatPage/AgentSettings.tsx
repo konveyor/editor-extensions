@@ -106,6 +106,10 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
 
   const providerEnvVars = currentProviderOption?.envVars ?? [];
   const hasStoredCreds = agentConfig?.hasStoredCredentials ?? false;
+  // Required fields may be left blank only when a stored value can be kept.
+  const missingRequired = providerEnvVars.filter(
+    (envVar) => envVar.required && !credentialInputs[envVar.key] && !hasStoredCreds,
+  );
 
   return (
     <div className="agent-settings">
@@ -121,13 +125,15 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
         <button
           className="agent-settings__btn agent-settings__btn--primary"
           onClick={handleApplyAndRestart}
-          disabled={!selectedProvider || !modelInput}
+          disabled={!selectedProvider || !modelInput || missingRequired.length > 0}
           title={
-            agentModeEnabled
-              ? !hasChanges
-                ? "No changes to apply"
-                : "Apply changes and restart agent"
-              : "Apply model configuration"
+            missingRequired.length > 0
+              ? `Required: ${missingRequired.map((v) => v.label).join(", ")}`
+              : agentModeEnabled
+                ? !hasChanges
+                  ? "No changes to apply"
+                  : "Apply changes and restart agent"
+                : "Apply model configuration"
           }
         >
           {agentModeEnabled
@@ -207,6 +213,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onClose }) => {
               <div key={envVar.key} className="agent-settings__credential-field">
                 <label className="agent-settings__credential-label" htmlFor={`cred-${envVar.key}`}>
                   {envVar.label}
+                  {envVar.required && !hasStoredCreds && " *"}
                 </label>
                 <input
                   id={`cred-${envVar.key}`}

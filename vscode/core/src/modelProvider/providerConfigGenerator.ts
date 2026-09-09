@@ -2,7 +2,16 @@ import { stringify } from "yaml";
 
 interface ProviderMapping {
   langchainProvider: string;
+  /** UI credential key → environment key written to provider-settings.yaml */
   envVarMap: Record<string, string>;
+  /**
+   * UI credential key → LangChain constructor arg. Some providers need
+   * non-env settings (Azure's deployment name / API version) that the
+   * DirectLLMClient only reads from `active.args`.
+   */
+  argsFromEnv?: Record<string, string>;
+  /** UI credential keys that must be present for the provider to initialise. */
+  requiredEnvVars?: string[];
   extraArgs?: Record<string, unknown>;
 }
 
@@ -29,10 +38,25 @@ const PROVIDER_MAP: Record<string, ProviderMapping> = {
   },
   azure: {
     langchainProvider: "AzureChatOpenAI",
+    // Env keys match what Goose/OpenCode's Azure providers read from the
+    // spawn environment; the direct LangChain client needs them as args.
     envVarMap: {
       AZURE_OPENAI_API_KEY: "AZURE_OPENAI_API_KEY",
       AZURE_OPENAI_ENDPOINT: "AZURE_OPENAI_ENDPOINT",
+      AZURE_OPENAI_DEPLOYMENT_NAME: "AZURE_OPENAI_DEPLOYMENT_NAME",
+      AZURE_OPENAI_API_VERSION: "AZURE_OPENAI_API_VERSION",
     },
+    argsFromEnv: {
+      AZURE_OPENAI_ENDPOINT: "azureOpenAIEndpoint",
+      AZURE_OPENAI_DEPLOYMENT_NAME: "azureOpenAIApiDeploymentName",
+      AZURE_OPENAI_API_VERSION: "azureOpenAIApiVersion",
+    },
+    requiredEnvVars: [
+      "AZURE_OPENAI_API_KEY",
+      "AZURE_OPENAI_ENDPOINT",
+      "AZURE_OPENAI_DEPLOYMENT_NAME",
+      "AZURE_OPENAI_API_VERSION",
+    ],
   },
   groq: {
     langchainProvider: "ChatOpenAI",
@@ -105,15 +129,26 @@ export function generateProviderSettingsYaml(
   }
 
   const environment: Record<string, string> = {};
+  const providerArgs: Record<string, unknown> = {};
   if (credentials) {
     for (const [uiKey, yamlKey] of Object.entries(mapping.envVarMap)) {
       if (credentials[uiKey]) {
         environment[yamlKey] = credentials[uiKey];
       }
     }
+    for (const [uiKey, argKey] of Object.entries(mapping.argsFromEnv ?? {})) {
+      if (credentials[uiKey]) {
+        providerArgs[argKey] = credentials[uiKey];
+      }
+    }
   }
 
-  const args: Record<string, unknown> = { model, ...mapping.extraArgs };
+  const missing = (mapping.requiredEnvVars ?? []).filter((key) => !credentials?.[key]);
+  if (missing.length > 0) {
+    throw new Error(`${uiProviderId} requires: ${missing.join(", ")}`);
+  }
+
+  const args: Record<string, unknown> = { model, ...providerArgs, ...mapping.extraArgs };
 
   const doc: Record<string, unknown> = {
     environment: {},
