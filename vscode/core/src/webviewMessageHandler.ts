@@ -31,6 +31,7 @@ import {
   MessageTypes,
   AgentMessageTypes,
   OPEN_RESOLUTION_PANEL,
+  OPEN_CHAT_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
   SYNC_HUB_PROFILES,
@@ -578,6 +579,9 @@ const actions: {
   },
   [OPEN_RESOLUTION_PANEL]() {
     executeExtensionCommand("showResolutionPanel");
+  },
+  [OPEN_CHAT_PANEL]() {
+    executeExtensionCommand("showChatPanel");
   },
   [STOP_WORKFLOW]: async (_payload, state, logger) => {
     logger.info("Stop workflow requested by user");

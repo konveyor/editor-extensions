@@ -268,7 +268,7 @@
       },
       {
         "view": "konveyor-core.issueView",
-        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Open Migration Chat](command:konveyor-core.openChat)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
         "when": "workspaceFolderCount != 0 && konveyor-core.hasProviders"
       }
     ],
@@ -291,8 +291,13 @@
           "when": "view == konveyor-core.issueView"
         },
         {
-          "command": "konveyor-core.expandAllIssues",
+          "command": "konveyor-core.openChat",
           "group": "navigation@3",
+          "when": "view == konveyor-core.issueView"
+        },
+        {
+          "command": "konveyor-core.expandAllIssues",
+          "group": "navigation@4",
           "when": "view == konveyor-core.issueView"
         }
       ],

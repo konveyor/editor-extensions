@@ -43,6 +43,7 @@ import {
   Icon,
 } from "@patternfly/react-core";
 import ClockIcon from "@patternfly/react-icons/dist/esm/icons/clock-icon";
+import CommentsIcon from "@patternfly/react-icons/dist/esm/icons/comments-icon";
 
 import {
   openFile,
@@ -51,6 +52,8 @@ import {
   stopServer,
   getSuccessRate,
   openResolutionPanel,
+  openChatPanel,
+  setAgentMode,
 } from "../../hooks/actions";
 import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStore } from "../../store/store";
@@ -99,6 +102,7 @@ const AnalysisPage: React.FC = () => {
   const serverRunning = serverState === "running";
   const isServerToggleDisabled = isAnalyzing || isAnalysisScheduled;
   const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
+  const isAgentMode = useExtensionStore((state) => state.agentConfig?.agentMode ?? false);
 
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
@@ -174,10 +178,30 @@ const AnalysisPage: React.FC = () => {
                           />
                         </ToolbarItem>
                         {!isGenAIDisabled && (
-                          <ToolbarItem>
-                            <div>
-                            </div>
-                          </ToolbarItem>
+                          <>
+                            <ToolbarItem>
+                              <div className="agent-mode-wrapper">
+                                <Switch
+                                  id="agent-mode-switch"
+                                  isChecked={isAgentMode}
+                                  label="Agent Mode"
+                                  onChange={(_event, checked) => dispatch(setAgentMode(checked))}
+                                  aria-label="Toggle Agent Mode"
+                                  isReversed
+                                />
+                              </div>
+                            </ToolbarItem>
+                            <ToolbarItem>
+                              <Button
+                                id="open-chat-button"
+                                variant="secondary"
+                                icon={<CommentsIcon />}
+                                onClick={() => dispatch(openChatPanel())}
+                              >
+                                Migration Chat
+                              </Button>
+                            </ToolbarItem>
+                          </>
                         )}
                         <ToolbarItem>
                           <ConfigButton
