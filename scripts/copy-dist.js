@@ -375,10 +375,10 @@ await copy({
       dest: `dist/${CSHARP_EXTENSION_NAME}/`,
     },
 
-    // seed assets - c-sharp-analyzer-provider binaries
+    // seed assets - c-sharp-analyzer-provider self-contained publish directories
     {
       context: "downloaded_assets/c-sharp-analyzer-provider",
-      src: ["*/c-sharp-analyzer-provider*"],
+      src: ["**/*"],
       dest: `dist/${CSHARP_EXTENSION_NAME}/assets/c-sharp-analyzer-provider`,
     },
 

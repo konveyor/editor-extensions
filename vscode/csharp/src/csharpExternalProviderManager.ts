@@ -105,8 +105,9 @@ export class CSharpExternalProviderManager implements vscode.Disposable {
       "../../downloaded_assets/c-sharp-analyzer-provider";
 
     const platformArch = `${platform}-${arch}`;
-    const binaryName =
-      platform === "win32" ? "c-sharp-analyzer-provider-cli.exe" : "c-sharp-analyzer-provider-cli";
+    // The provider ships as a self-contained .NET publish directory; the
+    // entrypoint sits alongside its runtime and dependency assemblies.
+    const binaryName = platform === "win32" ? "CSharpProvider.exe" : "CSharpProvider";
 
     const binaryPath = this.context.asAbsolutePath(
       path.join(baseAssetPath, platformArch, binaryName),
