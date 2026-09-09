@@ -141,16 +141,17 @@ export const agentMessageHandlers: Record<
       });
       logger.info(`Agent config updated: provider=${payload.provider}, model=${payload.model}`);
 
-      if (payload.credentials && Object.keys(payload.credentials).length > 0) {
-        const { loadAgentCredentials } = await import("../../utilities/agentCredentialStorage");
-        const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
-        const merged = { ...existing, ...payload.credentials };
-        const cleaned: Record<string, string> = {};
-        for (const [k, v] of Object.entries(merged)) {
-          if (v) {
-            cleaned[k] = v;
-          }
+      const { loadAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+      const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
+      const merged = { ...existing, ...(payload.credentials ?? {}) };
+      const cleaned: Record<string, string> = {};
+      for (const [k, v] of Object.entries(merged)) {
+        if (v) {
+          cleaned[k] = v;
         }
+      }
+
+      if (payload.credentials && Object.keys(payload.credentials).length > 0) {
         await saveAgentCredentials(state.extensionContext, cleaned);
         logger.info(`Agent credentials saved (${Object.keys(cleaned).length} keys)`);
 
@@ -158,26 +159,24 @@ export const agentMessageHandlers: Record<
         if (agentClient) {
           agentClient.updateModelEnv(cleaned);
         }
+      }
 
-        // Also write provider-settings.yaml so the DirectLLMClient fallback
-        // works when the agent hasn't started yet (e.g., before a reload)
-        try {
-          const { generateProviderSettingsYaml } =
-            await import("../../modelProvider/providerConfigGenerator");
-          const { paths } = await import("../../paths");
-          const vscode = await import("vscode");
-          // Use the merged set so re-entering a single field keeps the rest
-          const yamlContent = generateProviderSettingsYaml(
-            payload.provider,
-            payload.model,
-            cleaned,
-          );
-          const encoder = new TextEncoder();
-          await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
-          logger.info("Also updated provider-settings.yaml for DirectLLMClient fallback");
-        } catch (err) {
-          logger.warn("Failed to update provider-settings.yaml from agent config:", err);
-        }
+      // Always rewrite provider-settings.yaml from the full credential set so the
+      // DirectLLMClient (non-agent fallback and the activation health check) sees
+      // the same provider, model and keys the agent backend uses — even when the
+      // user only changed provider/model and left the stored credentials alone.
+      try {
+        const { generateProviderSettingsYaml } =
+          await import("../../modelProvider/providerConfigGenerator");
+        const { paths } = await import("../../paths");
+        const vscode = await import("vscode");
+        const yamlContent = generateProviderSettingsYaml(payload.provider, payload.model, cleaned);
+        const encoder = new TextEncoder();
+        await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+        logger.info("Updated provider-settings.yaml from agent config");
+        await state.reloadModelProvider?.();
+      } catch (err) {
+        logger.warn("Failed to update provider-settings.yaml from agent config:", err);
       }
 
       const agentClient = getAgentClient(state);

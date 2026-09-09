@@ -170,9 +170,8 @@ const ChatPage: React.FC = () => {
       : "Not configured";
 
   const providerNotConfigured = configErrors.some((e) => e.type === "provider-not-configured");
-  const providerConnectionFailed = configErrors.some(
-    (e) => e.type === "provider-connection-failed",
-  );
+  const providerConnectionError = configErrors.find((e) => e.type === "provider-connection-failed");
+  const providerConnectionFailed = providerConnectionError !== undefined;
   const genaiDisabled = configErrors.some((e) => e.type === "genai-disabled");
 
   const renderItems = useMemo((): RenderItem[] => {
@@ -611,6 +610,11 @@ const ChatPage: React.FC = () => {
                 <div className="chat-error-banner">
                   <div className="chat-error-banner__message">
                     Failed to connect to the LLM provider. Check your credentials and try again.
+                    {providerConnectionError?.error && (
+                      <div className="chat-error-banner__detail">
+                        {providerConnectionError.error}
+                      </div>
+                    )}
                   </div>
                   <div className="chat-error-banner__hint">
                     <button
