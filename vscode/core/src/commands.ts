@@ -166,6 +166,17 @@ const commandsMap: (
         logger.error("Chat view not available");
       }
     },
+    // Open the chat with its provider settings panel showing. This is the
+    // resolution path for provider config errors on the analysis page.
+    [`${EXTENSION_NAME}.openChatSettings`]: async () => {
+      await vscode.commands.executeCommand(`${EXTENSION_NAME}.openChat`);
+      const { AgentMessageTypes } = await import("@editor-extensions/shared");
+      // The provider queues the message until the webview reports ready.
+      state.webviewProviders?.get("chat")?.sendMessageToWebview({
+        type: AgentMessageTypes.AGENT_SHOW_SETTINGS,
+        timestamp: new Date().toISOString(),
+      });
+    },
     // Pop the chat out of the secondary sidebar into an editor tab. Same as the
     // "Move to editor" control inside the chat; exposed as a command so it can be
     // driven from the palette and by the e2e suite.

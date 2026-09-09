@@ -81,6 +81,8 @@ interface ExtensionStore {
   agentState: AgentState;
   agentError?: string;
   agentConfig: AgentConfig | null;
+  /** Bumped when the extension asks the chat to open its settings panel. */
+  chatSettingsRequest: number;
 
   setRuleSets: (ruleSets: RuleSet[]) => void;
   setEnhancedIncidents: (incidents: EnhancedIncident[]) => void;
@@ -126,6 +128,7 @@ interface ExtensionStore {
 
   // Agent chat setters
   setAgentConfig: (config: AgentConfig | null) => void;
+  requestChatSettings: () => void;
   setAgentMessages: (messages: AgentChatMessage[]) => void;
   setAgentState: (state: AgentState) => void;
   setAgentError: (error: string | undefined) => void;
@@ -209,6 +212,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       agentState: "stopped" as AgentState,
       agentError: undefined,
       agentConfig: null,
+      chatSettingsRequest: 0,
 
       setRuleSets: (ruleSets) =>
         set((state) => {
@@ -412,6 +416,11 @@ export const useExtensionStore = create<ExtensionStore>()(
         }),
 
       // Agent chat setters
+      requestChatSettings: () =>
+        set((state) => {
+          state.chatSettingsRequest += 1;
+        }),
+
       setAgentConfig: (config) =>
         set((state) => {
           state.agentConfig = config;

@@ -53,6 +53,11 @@
         "category": "Konveyor"
       },
       {
+        "command": "konveyor-core.openChatSettings",
+        "title": "Configure Migration Chat Provider",
+        "category": "Konveyor"
+      },
+      {
         "command": "konveyor-core.openProfilesPanel",
         "title": "Manage Analysis Profile",
         "category": "Konveyor",
@@ -319,6 +324,10 @@
       ],
       "konveyor-core.submenu": [],
       "commandPalette": [
+        {
+          "command": "konveyor-core.openChatSettings",
+          "when": "never"
+        },
         {
           "command": "konveyor-core.expandSingleIssue",
           "when": "never"

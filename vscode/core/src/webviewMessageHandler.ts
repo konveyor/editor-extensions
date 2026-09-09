@@ -30,6 +30,7 @@ import {
   ExtensionData,
   MessageTypes,
   OPEN_CHAT_PANEL,
+  OPEN_CHAT_SETTINGS,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
   SYNC_HUB_PROFILES,
@@ -577,6 +578,9 @@ const actions: {
   },
   [OPEN_CHAT_PANEL]() {
     executeExtensionCommand("openChat");
+  },
+  [OPEN_CHAT_SETTINGS]() {
+    executeExtensionCommand("openChatSettings");
   },
   [STOP_WORKFLOW]: async (_payload, state, logger) => {
     logger.info("Stop workflow requested by user");

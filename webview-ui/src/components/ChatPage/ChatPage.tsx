@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Chatbot,
   ChatbotContent,
@@ -58,6 +58,14 @@ const ChatPage: React.FC = () => {
 
   const configErrors = useExtensionStore((s) => s.configErrors);
   const modelSupportsTools = useExtensionStore((s) => s.modelSupportsTools);
+  // The analysis page's provider error alert and walkthrough open the chat with
+  // the settings panel showing; the extension bumps this counter after focusing us.
+  const chatSettingsRequest = useExtensionStore((s) => s.chatSettingsRequest);
+  useEffect(() => {
+    if (chatSettingsRequest > 0) {
+      setShowSettings(true);
+    }
+  }, [chatSettingsRequest]);
   const chatMessages = useExtensionStore((s) => s.chatMessages);
   const solutionScope = useExtensionStore((s) => s.solutionScope);
   const isFetchingSolution = useExtensionStore((s) => s.isFetchingSolution);
