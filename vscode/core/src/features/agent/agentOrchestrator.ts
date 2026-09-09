@@ -55,7 +55,7 @@ export class AgentOrchestrator {
       return;
     }
 
-    const agentMode = this.state.data.featureState?.agentMode !== false;
+    const agentMode = this.state.data.featureState?.agentMode === true;
 
     this.initializeState();
     executeExtensionCommand("openChat");
