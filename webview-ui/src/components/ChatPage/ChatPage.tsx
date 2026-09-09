@@ -59,11 +59,13 @@ const ChatPage: React.FC = () => {
   const configErrors = useExtensionStore((s) => s.configErrors);
   const modelSupportsTools = useExtensionStore((s) => s.modelSupportsTools);
   // The analysis page's provider error alert and walkthrough open the chat with
-  // the settings panel showing; the extension bumps this counter after focusing us.
+  // the settings panel showing. The request arrives via initial data or the
+  // agent state bridge, and is acknowledged so it doesn't re-fire on remount.
   const chatSettingsRequest = useExtensionStore((s) => s.chatSettingsRequest);
   useEffect(() => {
     if (chatSettingsRequest > 0) {
       setShowSettings(true);
+      window.vscode.postMessage({ type: "CHAT_SETTINGS_SHOWN", payload: {} });
     }
   }, [chatSettingsRequest]);
   const chatMessages = useExtensionStore((s) => s.chatMessages);

@@ -6,8 +6,6 @@ export const AgentMessageTypes = {
   AGENT_CHAT_STREAMING_UPDATE: "AGENT_CHAT_STREAMING_UPDATE",
   AGENT_TOOL_CALL: "AGENT_TOOL_CALL",
   AGENT_CONFIG_UPDATE: "AGENT_CONFIG_UPDATE",
-  /** Ask the chat webview to open its provider settings panel. */
-  AGENT_SHOW_SETTINGS: "AGENT_SHOW_SETTINGS",
 } as const;
 
 export type AgentMessageType = (typeof AgentMessageTypes)[keyof typeof AgentMessageTypes];
@@ -18,6 +16,8 @@ export interface AgentStateChangeMessage {
   agentError?: string;
   /** Whether Agent Mode is enabled (genai.agentMode). Included so every webview tracks the single source of truth. */
   agentMode?: boolean;
+  /** Non-zero when the extension has asked the chat to open its settings panel. */
+  chatSettingsRequest?: number;
   timestamp: string;
 }
 
@@ -58,18 +58,12 @@ export interface AgentConfigUpdateMessage {
   timestamp: string;
 }
 
-export interface AgentShowSettingsMessage {
-  type: "AGENT_SHOW_SETTINGS";
-  timestamp: string;
-}
-
 export type AgentWebviewMessage =
   | AgentStateChangeMessage
   | AgentChatStateChangeMessage
   | AgentChatStreamingUpdateMessage
   | AgentToolCallMessage
-  | AgentConfigUpdateMessage
-  | AgentShowSettingsMessage;
+  | AgentConfigUpdateMessage;
 
 export function isAgentStateChange(msg: any): msg is AgentStateChangeMessage {
   return msg?.type === AgentMessageTypes.AGENT_STATE_CHANGE;
@@ -89,8 +83,4 @@ export function isAgentToolCall(msg: any): msg is AgentToolCallMessage {
 
 export function isAgentConfigUpdate(msg: any): msg is AgentConfigUpdateMessage {
   return msg?.type === AgentMessageTypes.AGENT_CONFIG_UPDATE;
-}
-
-export function isAgentShowSettings(msg: any): msg is AgentShowSettingsMessage {
-  return msg?.type === AgentMessageTypes.AGENT_SHOW_SETTINGS;
 }
