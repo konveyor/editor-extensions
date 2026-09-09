@@ -272,7 +272,7 @@ test.describe.serial('Golang Extension - E2E Workflow', { tag: ['@tier2'] }, () 
     await fixButton.click();
     console.log('Fix button clicked for autoscaling v2beta1 migration issue');
 
-    const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
+    const resolutionView = await vscodeApp.openMigrationChatInEditor();
     await vscodeApp.waitDefault();
 
     // Wait for solution generation to complete (loading indicator disappears)
@@ -352,7 +352,7 @@ test.describe.serial('Golang Extension - E2E Workflow', { tag: ['@tier2'] }, () 
     await fixButton.click();
     console.log('Fix button clicked for client-go dependency issue');
 
-    const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
+    const resolutionView = await vscodeApp.openMigrationChatInEditor();
     await vscodeApp.waitDefault();
 
     // Wait for solution generation to complete (loading indicator disappears)

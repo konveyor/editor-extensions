@@ -23,7 +23,6 @@ const DEV_SERVER_ROOT = "http://localhost:5173/out/webview";
 
 export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
   public static readonly SIDEBAR_VIEW_TYPE = `${EXTENSION_NAME}.analysisView`;
-  public static readonly RESOLUTION_VIEW_TYPE = `${EXTENSION_NAME}.resolutionView`;
   public static readonly PROFILES_VIEW_TYPE = `${EXTENSION_NAME}.profilesView`;
   public static readonly HUB_VIEW_TYPE = `${EXTENSION_NAME}.hubView`;
   public static readonly CHAT_VIEW_TYPE = `${EXTENSION_NAME}.chatView`;
@@ -117,11 +116,6 @@ export class KonveyorGUIWebviewViewProvider implements WebviewViewProvider {
           return {
             viewType: KonveyorGUIWebviewViewProvider.SIDEBAR_VIEW_TYPE,
             title: `${EXTENSION_SHORT_NAME} Analysis View`,
-          };
-        case "resolution":
-          return {
-            viewType: KonveyorGUIWebviewViewProvider.RESOLUTION_VIEW_TYPE,
-            title: `${EXTENSION_SHORT_NAME} Resolution Details`,
           };
         case "profiles":
           return {

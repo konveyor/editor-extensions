@@ -48,7 +48,9 @@ const ChatPage: React.FC = () => {
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const { containerRef, isTooNarrow } = useContainerWidth(MIN_USABLE_WIDTH);
 
-  const experimentalChatEnabled = useExtensionStore((s) => s.experimentalChatEnabled);
+  // Agent Mode (genai.agentMode) enables the live agent: status/start/stop controls,
+  // the agent message stream and the free-form input. Off = fix workflow only.
+  const isAgentMode = useExtensionStore((s) => s.isAgentMode);
   const agentState = useExtensionStore((s) => s.agentState);
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
@@ -349,12 +351,9 @@ const ChatPage: React.FC = () => {
         );
       }
 
-      const thinkingBlocks =
-        msg.contentBlocks?.filter((b) => b.type === "thinking") ?? [];
-      const resourceLinks =
-        msg.contentBlocks?.filter((b) => b.type === "resource_link") ?? [];
-      const resourceBlocks =
-        msg.contentBlocks?.filter((b) => b.type === "resource") ?? [];
+      const thinkingBlocks = msg.contentBlocks?.filter((b) => b.type === "thinking") ?? [];
+      const resourceLinks = msg.contentBlocks?.filter((b) => b.type === "resource_link") ?? [];
+      const resourceBlocks = msg.contentBlocks?.filter((b) => b.type === "resource") ?? [];
 
       if (msg.isThinking && !msg.content) {
         const lastThinking = thinkingBlocks[thinkingBlocks.length - 1];
@@ -376,9 +375,7 @@ const ChatPage: React.FC = () => {
               ) : null,
             )}
             {resourceBlocks.map((block, i) =>
-              block.type === "resource" ? (
-                <ResourceBlock key={`rb-${i}`} block={block} />
-              ) : null,
+              block.type === "resource" ? <ResourceBlock key={`rb-${i}`} block={block} /> : null,
             )}
           </div>
         ) : undefined;
@@ -438,7 +435,7 @@ const ChatPage: React.FC = () => {
         <Chatbot displayMode={ChatbotDisplayMode.embedded}>
           <ChatbotContent>
             <div className="chat-page">
-              {experimentalChatEnabled && (
+              {isAgentMode && (
                 <div className="chat-status-bar">
                   <span
                     className={`chat-status-dot ${isRunning ? "running" : isStarting ? "starting" : isError ? "error" : "stopped"}`}
@@ -508,7 +505,7 @@ const ChatPage: React.FC = () => {
                 </div>
               )}
 
-              {!experimentalChatEnabled && (
+              {!isAgentMode && (
                 <div className="chat-status-bar">
                   <span className="chat-status-text">
                     Migration Assistant
@@ -527,11 +524,10 @@ const ChatPage: React.FC = () => {
 
               {showSettings && <AgentSettings onClose={() => setShowSettings(false)} />}
 
-              {experimentalChatEnabled && isError && agentError && (
+              {isAgentMode && isError && agentError && (
                 <div className="chat-error-banner">
                   <div className="chat-error-banner__message">{agentError}</div>
-                  {agentError.includes("binary not found") ||
-                  agentError.includes("ENOENT") ? (
+                  {agentError.includes("binary not found") || agentError.includes("ENOENT") ? (
                     <div className="chat-error-banner__actions">
                       <button
                         className="chat-error-banner__btn"
@@ -661,17 +657,33 @@ const ChatPage: React.FC = () => {
 
                   {!hasWorkflowContent && !hasAgentContent && !isProcessing && (
                     <div className="chat-agent-status">
-                      {experimentalChatEnabled && isRunning ? (
+                      {isAgentMode && isRunning ? (
                         <>
                           <p className="chat-agent-status__hint">
                             Ask the Migration Assistant anything, or try a suggestion:
                           </p>
                           <div className="chat-suggestions">
                             {[
-                              { label: "Run Analysis", prompt: "Run the Konveyor analyzer on my project and summarize the results." },
-                              { label: "Summarize Incidents", prompt: "What migration issues currently exist in this project? Give me a summary." },
-                              { label: "Plan Migration", prompt: "Help me plan a migration strategy for this project based on the analysis." },
-                              { label: "Explain a Rule", prompt: "Explain the most common migration rule violations in my project and how to fix them." },
+                              {
+                                label: "Run Analysis",
+                                prompt:
+                                  "Run the Konveyor analyzer on my project and summarize the results.",
+                              },
+                              {
+                                label: "Summarize Incidents",
+                                prompt:
+                                  "What migration issues currently exist in this project? Give me a summary.",
+                              },
+                              {
+                                label: "Plan Migration",
+                                prompt:
+                                  "Help me plan a migration strategy for this project based on the analysis.",
+                              },
+                              {
+                                label: "Explain a Rule",
+                                prompt:
+                                  "Explain the most common migration rule violations in my project and how to fix them.",
+                              },
                             ].map((s) => (
                               <button
                                 key={s.label}
@@ -695,8 +707,8 @@ const ChatPage: React.FC = () => {
                   )}
 
                   {renderChatMessages()}
-                  {experimentalChatEnabled && renderAgentMessages()}
-                  {experimentalChatEnabled && isAnalyzing && (
+                  {isAgentMode && renderAgentMessages()}
+                  {isAgentMode && isAnalyzing && (
                     <div className="chat-analysis-indicator">
                       <div className="chat-analysis-indicator__header">
                         <LoadingIndicator />
@@ -719,7 +731,7 @@ const ChatPage: React.FC = () => {
                       )}
                     </div>
                   )}
-                  {experimentalChatEnabled && isBusy && !isFetchingSolution && (
+                  {isAgentMode && isBusy && !isFetchingSolution && (
                     <div className="chat-response-indicator">
                       <span className="chat-response-indicator__dot" />
                       <span className="chat-response-indicator__dot" />
@@ -742,7 +754,9 @@ const ChatPage: React.FC = () => {
                     </div>
                   )}
                   {isFetchingSolution && (
-                    <div className={`chat-solution-indicator${hasPendingPermission ? " chat-solution-indicator--waiting" : ""}`}>
+                    <div
+                      className={`chat-solution-indicator${hasPendingPermission ? " chat-solution-indicator--waiting" : ""}`}
+                    >
                       <LoadingIndicator />
                       <span className="chat-solution-indicator__label">
                         {hasPendingPermission
@@ -756,14 +770,12 @@ const ChatPage: React.FC = () => {
             </div>
           </ChatbotContent>
 
-          {experimentalChatEnabled && isRunning ? (
+          {isAgentMode && isRunning ? (
             <ChatbotFooter>
               <div
                 className={`chat-input-area ${isBusy && !isFetchingSolution ? "chat-input-area--busy" : ""}`}
               >
-                {isBusy && !isFetchingSolution && (
-                  <div className="chat-input-area__progress" />
-                )}
+                {isBusy && !isFetchingSolution && <div className="chat-input-area__progress" />}
                 <textarea
                   ref={chatInputRef}
                   className="chat-input-area__textarea"

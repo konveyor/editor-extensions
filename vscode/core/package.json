@@ -45,7 +45,12 @@
         "command": "konveyor-core.openChat",
         "title": "Open Migration Chat",
         "category": "Konveyor",
-        "icon": "resources/icon.png"
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "konveyor-core.openChatInEditor",
+        "title": "Open Migration Chat in Editor",
+        "category": "Konveyor"
       },
       {
         "command": "konveyor-core.openProfilesPanel",
@@ -70,12 +75,6 @@
         "title": "Open Analysis View",
         "category": "Konveyor",
         "icon": "$(book)"
-      },
-      {
-        "command": "konveyor-core.showResolutionPanel",
-        "title": "Open Resolution View",
-        "category": "Konveyor",
-        "icon": "$(beaker)"
       },
       {
         "command": "konveyor-core.expandAllIssues",
@@ -268,17 +267,11 @@
       },
       {
         "view": "konveyor-core.issueView",
-        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Open Migration Chat](command:konveyor-core.openChat)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
+        "contents": "Welcome to Konveyor! Get started with your migration analysis.\n[Open Analysis Panel](command:konveyor-core.showAnalysisPanel)\n[Manage Profiles](command:konveyor-core.openProfilesPanel)\nFor more information, see the [Konveyor documentation](https://konveyor.io/docs).",
         "when": "workspaceFolderCount != 0 && konveyor-core.hasProviders"
       }
     ],
     "menus": {
-      "editor/title": [
-        {
-          "command": "konveyor-core.openChat",
-          "group": "navigation"
-        }
-      ],
       "view/title": [
         {
           "command": "konveyor-core.showAnalysisPanel",
@@ -286,18 +279,13 @@
           "when": "view == konveyor-core.issueView"
         },
         {
-          "command": "konveyor-core.showResolutionPanel",
+          "command": "konveyor-core.openChat",
           "group": "navigation@2",
           "when": "view == konveyor-core.issueView"
         },
         {
-          "command": "konveyor-core.openChat",
-          "group": "navigation@3",
-          "when": "view == konveyor-core.issueView"
-        },
-        {
           "command": "konveyor-core.expandAllIssues",
-          "group": "navigation@4",
+          "group": "navigation@3",
           "when": "view == konveyor-core.issueView"
         }
       ],
@@ -460,13 +448,6 @@
           "description": "HTTP protocol version for AI model provider connections",
           "scope": "window",
           "order": 27
-        },
-        "konveyor-core.experimentalChat.enabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "(Experimental) Enable AI chat sidebar powered by Goose agent. Requires reload.",
-          "scope": "window",
-          "order": 30
         },
         "konveyor-core.experimentalChat.agentBackend": {
           "type": "string",

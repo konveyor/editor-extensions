@@ -79,9 +79,6 @@ export const getConfigAutoAcceptOnSave = (): boolean =>
 export const getExcludedDiagnosticSources = (): string[] =>
   getConfigValue<string[]>("genai.excludedDiagnosticSources") ?? [];
 
-export const getConfigExperimentalChatEnabled = (): boolean =>
-  getConfigValue<boolean>("experimentalChat.enabled") ?? false;
-
 export const getConfigAgentBackend = (): string => {
   const value = getConfigValue<string>("experimentalChat.agentBackend");
   return value || "goose";
@@ -98,10 +95,6 @@ export function getConfigAgentMode(): boolean {
 
 export async function updateConfigAgentMode(value: boolean): Promise<void> {
   await updateConfigValue("genai.agentMode", value);
-}
-
-export async function updateConfigExperimentalChatEnabled(value: boolean): Promise<void> {
-  await updateConfigValue("experimentalChat.enabled", value);
 }
 
 /**

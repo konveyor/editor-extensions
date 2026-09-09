@@ -9,7 +9,6 @@ import {
   AGENT_OPEN_SETTINGS,
   AGENT_PERMISSION_RESPONSE,
   AGENT_CANCEL_GENERATION,
-  SET_EXPERIMENTAL_CHAT,
   SET_AGENT_MODE,
   OPEN_NATIVE_CONFIG,
   AgentMessageTypes,
@@ -81,7 +80,16 @@ export const agentMessageHandlers: Record<
   [AGENT_START]: async (_payload, state, logger) => {
     const agentClient = getAgentClient(state);
     if (!agentClient) {
+      // Agent Mode was turned on after activation, so the backend was never
+      // wired up. A reload is the only way to start it.
       logger.warn("AGENT_START: Agent client not available");
+      const selection = await vscode.window.showInformationMessage(
+        "Reload the window to start the agent backend.",
+        "Reload Window",
+      );
+      if (selection === "Reload Window") {
+        vscode.commands.executeCommand("workbench.action.reloadWindow");
+      }
       return;
     }
 
@@ -115,7 +123,6 @@ export const agentMessageHandlers: Record<
     payload: {
       provider: string;
       model: string;
-      agentMode?: boolean;
       extensions: Array<{ id: string; enabled: boolean }>;
       credentials?: Record<string, string>;
     },
@@ -184,22 +191,6 @@ export const agentMessageHandlers: Record<
 
       const updatedConfig = readAgentConfig();
       updatedConfig.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-      if (payload.agentMode !== undefined) {
-        updatedConfig.agentMode = payload.agentMode;
-        state.mutate((draft) => {
-          if (!draft.featureState) {
-            draft.featureState = {};
-          }
-          draft.featureState.agentMode = payload.agentMode;
-        });
-        // Persist to VS Code settings
-        try {
-          const { updateConfigAgentMode } = await import("../../utilities/configuration");
-          await updateConfigAgentMode(payload.agentMode);
-        } catch (err) {
-          logger.warn("Failed to persist agentMode to settings:", err);
-        }
-      }
       const timestamp = new Date().toISOString();
       for (const provider of state.webviewProviders.values()) {
         provider.sendMessageToWebview({
@@ -304,6 +295,7 @@ export const agentMessageHandlers: Record<
           type: AgentMessageTypes.AGENT_STATE_CHANGE,
           agentState: currentAgentState,
           agentError,
+          agentMode: config.agentMode,
           timestamp,
         });
       });
@@ -369,66 +361,22 @@ export const agentMessageHandlers: Record<
     logger.info(`SET_AGENT_MODE: ${enabled}`);
 
     try {
-      const { updateConfigAgentMode } = await import("../../utilities/configuration");
-      // Persisting the setting triggers the configuration watcher in extension.ts,
-      // which updates featureState.agentMode and offers a reload when the agent
-      // backend needs to be started.
-      await updateConfigAgentMode(enabled);
-
+      // featureState.agentMode is the single source of truth; the agent state
+      // bridge pushes it to every webview. Persisting the setting also fires the
+      // configuration watcher in extension.ts, which offers a window reload when
+      // the agent backend needs to be started.
       state.mutate((draft) => {
         if (!draft.featureState) {
           draft.featureState = {};
         }
         draft.featureState.agentMode = enabled;
       });
-
-      // Push the new mode to every webview so the analysis toolbar switch and the
-      // chat settings panel stay in sync.
-      const { readAgentConfig } = await import("../../agentConfigReader");
-      const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
-      const config = readAgentConfig();
-      config.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-      config.agentMode = enabled;
-      const timestamp = new Date().toISOString();
-      state.webviewProviders.forEach((provider) => {
-        provider.sendMessageToWebview({
-          type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
-          config,
-          timestamp,
-        });
-      });
+      const { updateConfigAgentMode } = await import("../../utilities/configuration");
+      await updateConfigAgentMode(enabled);
     } catch (err) {
       logger.error("SET_AGENT_MODE failed:", err);
     }
   },
-  [SET_EXPERIMENTAL_CHAT]: async ({ enabled }: { enabled: boolean }, state, logger) => {
-    logger.info(`SET_EXPERIMENTAL_CHAT: ${enabled}`);
-
-    try {
-      const { updateConfigExperimentalChatEnabled } = await import("../../utilities/configuration");
-      await updateConfigExperimentalChatEnabled(enabled);
-
-      state.mutate((draft) => {
-        draft.experimentalChatEnabled = enabled;
-      });
-
-      if (enabled && !getAgentClient(state)) {
-        vscode.window
-          .showInformationMessage(
-            "Experimental Chat enabled. Reload the window to start the agent backend.",
-            "Reload Window",
-          )
-          .then((selection) => {
-            if (selection === "Reload Window") {
-              vscode.commands.executeCommand("workbench.action.reloadWindow");
-            }
-          });
-      }
-    } catch (err) {
-      logger.error("SET_EXPERIMENTAL_CHAT failed:", err);
-    }
-  },
-
   [OPEN_NATIVE_CONFIG]: async (_payload, state, logger) => {
     try {
       const fs = await import("fs");

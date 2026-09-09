@@ -329,6 +329,16 @@ export abstract class VSCode {
     }
   }
 
+  /**
+   * The Migration Chat lives in the secondary sidebar, which getView() cannot
+   * address (it locates webviews by their editor tab). Pop it out into an
+   * editor tab so it can be driven like the other Konveyor views.
+   */
+  public async openMigrationChatInEditor(): Promise<FrameLocator> {
+    await this.executeQuickCommand(`${VSCode.COMMAND_CATEGORY}: Open Migration Chat in Editor`);
+    return this.getView(KAIViews.migrationAssistant);
+  }
+
   public async getView(view: (typeof KAIViews)[keyof typeof KAIViews]): Promise<FrameLocator> {
     await this.window.locator(`div.tab.active[aria-label="${view}"]`).waitFor();
     await this.executeQuickCommand('View: Close Other Editors in Group');
@@ -384,14 +394,12 @@ export abstract class VSCode {
     }
 
     if (resolutionAction) {
-      const resolutionView = await this.getView(KAIViews.resolutionDetails);
+      const resolutionView = await this.openMigrationChatInEditor();
       const actionLocator = resolutionView.getByRole('button', {
         name: new RegExp(resolutionAction),
       });
-      const headerLocator = resolutionView.locator('h1.pf-v6-c-title.pf-m-2xl', {
-        hasText: 'Generative AI Results',
-      });
-      await expect(headerLocator.locator('.loading-indicator')).toHaveCount(0, {
+      // The chat shows a "Working on migration fix..." indicator while a solution is generated
+      await expect(resolutionView.locator('.chat-solution-indicator')).toHaveCount(0, {
         timeout: 600_000,
       }); // 10 minutes
 
@@ -414,20 +422,17 @@ export abstract class VSCode {
       });
 
       const fixedFiles: string[] = [];
-      // Parse the "(current of total)" from the header to get file count
-      const reviewHeaderLocator = resolutionView.locator(
-        '.batch-review-expandable-header .batch-review-title'
-      );
+      // The compact batch review header shows "current / total"; the file name sits beside it
+      const reviewHeaderLocator = resolutionView.locator('.cbr--expanded .cbr__title');
+      const reviewFileLocator = resolutionView.locator('.cbr--expanded .cbr__file-name');
       // 60 secs timeout as responses can take some time specially when updating large files or in slow network environments
       await reviewHeaderLocator.waitFor({ state: 'visible', timeout: 60_000 });
-      let headerText = await reviewHeaderLocator.textContent();
-      const match = headerText && headerText.match(/\((\d+)\s+of\s+(\d+)\)/);
+      const headerText = await reviewHeaderLocator.textContent();
+      const match = headerText && headerText.match(/(\d+)\s*\/\s*(\d+)/);
       const totalFiles = match ? parseInt(match[2], 10) : 1;
       console.log('Total files found to accept solutions for: ', totalFiles);
       for (let i = 0; i < totalFiles; i++) {
-        headerText = await reviewHeaderLocator.textContent();
-        const fileNameMatch = headerText && headerText.match(/^Reviewing:\s*([^(]+)\s*\(/);
-        const fileToFix = fileNameMatch && fileNameMatch[1] ? fileNameMatch[1].trim() : '';
+        const fileToFix = ((await reviewFileLocator.textContent()) ?? '').trim();
         console.log('Reviewing file: ', fileToFix);
         fixedFiles.push(fileToFix);
         await actionLocator.waitFor({ state: 'visible', timeout: 10000 });

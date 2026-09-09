@@ -64,7 +64,8 @@ interface ExtensionStore {
   availableSources: string[];
 
   // Feature flags
-  experimentalChatEnabled: boolean;
+  /** genai.agentMode — mirrors featureState.agentMode on the extension side. */
+  isAgentMode: boolean;
   modelSupportsTools: boolean;
 
   // Batch review state
@@ -121,7 +122,7 @@ interface ExtensionStore {
   setOidcTokenExpiry: (expiry: number | null) => void;
   setFocusedViolationFilter: (filter: string | null) => void;
   setIsWebEnvironment: (isWeb: boolean) => void;
-  setExperimentalChatEnabled: (enabled: boolean) => void;
+  setIsAgentMode: (enabled: boolean) => void;
 
   // Agent chat setters
   setAgentConfig: (config: AgentConfig | null) => void;
@@ -192,7 +193,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       availableSources: [],
 
       // Feature flags
-      experimentalChatEnabled: false,
+      isAgentMode: false,
       modelSupportsTools: true,
 
       // Batch review state
@@ -405,9 +406,9 @@ export const useExtensionStore = create<ExtensionStore>()(
           state.isWebEnvironment = isWeb;
         }),
 
-      setExperimentalChatEnabled: (enabled) =>
+      setIsAgentMode: (enabled) =>
         set((state) => {
-          state.experimentalChatEnabled = enabled;
+          state.isAgentMode = enabled;
         }),
 
       // Agent chat setters

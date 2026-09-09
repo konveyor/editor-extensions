@@ -89,7 +89,7 @@ providers.forEach((config) => {
         await fixButton.click();
         console.log('Fix button clicked');
 
-        const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
+        const resolutionView = await vscodeApp.openMigrationChatInEditor();
         await vscodeApp.waitDefault();
 
         await vscodeApp.getWindow().screenshot({

@@ -161,6 +161,9 @@ export function useVSCodeMessageHandler() {
         if (isAgentStateChange(message)) {
           store.setAgentState(message.agentState);
           store.setAgentError(message.agentError);
+          if (message.agentMode !== undefined) {
+            store.setIsAgentMode(message.agentMode);
+          }
           return;
         }
 

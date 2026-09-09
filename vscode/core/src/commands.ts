@@ -156,12 +156,27 @@ const commandsMap: (
   [command: string]: (...args: any) => any;
 } = (state, logger) => {
   return {
+    // The Migration Chat is the solution surface: the agent orchestrator opens it
+    // when a fix starts, and this is the single manual entry point (sidebar view
+    // title and command palette).
     [`${EXTENSION_NAME}.openChat`]: async () => {
       try {
         await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
       } catch {
         logger.error("Chat view not available");
       }
+    },
+    // Pop the chat out of the secondary sidebar into an editor tab. Same as the
+    // "Move to editor" control inside the chat; exposed as a command so it can be
+    // driven from the palette and by the e2e suite.
+    [`${EXTENSION_NAME}.openChatInEditor`]: async () => {
+      const chatProvider = state.webviewProviders?.get("chat");
+      if (!chatProvider) {
+        logger.error("Chat view not available");
+        return;
+      }
+      chatProvider.showWebviewPanel();
+      await vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
     },
     [`${EXTENSION_NAME}.openProfilesPanel`]: async () => {
       const provider = state.webviewProviders.get("profiles");
@@ -551,19 +566,6 @@ const commandsMap: (
     [`${EXTENSION_NAME}.cleanRuleSets`]: () => cleanRuleSets(state),
     [`${EXTENSION_NAME}.loadStaticResults`]: loadStaticResults,
     [`${EXTENSION_NAME}.loadResultsFromDataFolder`]: loadResultsFromDataFolder,
-    [`${EXTENSION_NAME}.showResolutionPanel`]: () => {
-      const resolutionProvider = state.webviewProviders?.get("resolution");
-      resolutionProvider?.showWebviewPanel();
-    },
-    [`${EXTENSION_NAME}.showChatPanel`]: async () => {
-      try {
-        await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);
-      } catch {
-        logger.warn("Chat view not available, falling back to resolution panel");
-        const resolutionProvider = state.webviewProviders?.get("resolution");
-        resolutionProvider?.showWebviewPanel();
-      }
-    },
     [`${EXTENSION_NAME}.showAnalysisPanel`]: () => {
       const resolutionProvider = state.webviewProviders?.get("sidebar");
       resolutionProvider?.showWebviewPanel();

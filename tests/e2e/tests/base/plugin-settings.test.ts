@@ -243,8 +243,8 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await fixButton.click();
     console.log('Fix button clicked');
 
-    let resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-    await expect(resolutionView.locator('.batch-review-title').first()).toBeVisible({
+    let resolutionView = await vscodeApp.openMigrationChatInEditor();
+    await expect(resolutionView.locator('.cbr__title').first()).toBeVisible({
       timeout: 60_000,
     });
 
@@ -289,8 +289,8 @@ test.describe.serial('Plugin Settings - Analyze on Save', { tag: ['@tier1'] }, (
     await fixButton.click();
     console.log('Fix button clicked (second run)');
 
-    resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
-    await expect(resolutionView.locator('.batch-review-title').first()).toBeVisible({
+    resolutionView = await vscodeApp.openMigrationChatInEditor();
+    await expect(resolutionView.locator('.cbr__title').first()).toBeVisible({
       timeout: 60_000,
     });
 

@@ -29,8 +29,6 @@ import {
   ScopeWithKonveyorContext,
   ExtensionData,
   MessageTypes,
-  AgentMessageTypes,
-  OPEN_RESOLUTION_PANEL,
   OPEN_CHAT_PANEL,
   OPEN_HUB_SETTINGS,
   UPDATE_HUB_CONFIG,
@@ -577,11 +575,8 @@ const actions: {
   [GET_SUCCESS_RATE]() {
     executeExtensionCommand("getSuccessRate");
   },
-  [OPEN_RESOLUTION_PANEL]() {
-    executeExtensionCommand("showResolutionPanel");
-  },
   [OPEN_CHAT_PANEL]() {
-    executeExtensionCommand("showChatPanel");
+    executeExtensionCommand("openChat");
   },
   [STOP_WORKFLOW]: async (_payload, state, logger) => {
     logger.info("Stop workflow requested by user");
@@ -608,28 +603,15 @@ const actions: {
     logger.info("Workflow stopped successfully");
   },
   UPDATE_MODEL_PROVIDER_CONFIG: async (payload, state, logger) => {
-    const { provider, model, credentials, agentMode } = payload as {
+    const { provider, model, credentials } = payload as {
       provider: string;
       model: string;
       credentials?: Record<string, string>;
-      agentMode?: boolean;
     };
 
-    logger.info("Updating model provider config from chat UI", { provider, model, agentMode });
+    logger.info("Updating model provider config from chat UI", { provider, model });
 
     try {
-      if (agentMode !== undefined) {
-        const { updateConfigAgentMode } = await import("./utilities/configuration");
-        await updateConfigAgentMode(agentMode);
-
-        state.mutate((draft) => {
-          if (!draft.featureState) {
-            draft.featureState = {};
-          }
-          draft.featureState.agentMode = agentMode;
-        });
-      }
-
       const hasCredentials = credentials && Object.values(credentials).some((v) => v.length > 0);
 
       if (provider && model && hasCredentials) {
@@ -642,28 +624,6 @@ const actions: {
         vscode.window.showInformationMessage(
           `Model configuration updated: ${provider} / ${model}. Reloading provider...`,
         );
-      } else if (agentMode !== undefined) {
-        vscode.window.showInformationMessage(`Agent mode ${agentMode ? "enabled" : "disabled"}.`);
-      }
-
-      if (agentMode !== undefined) {
-        try {
-          const { readAgentConfig } = await import("./agentConfigReader");
-          const { hasAgentCredentials } = await import("./utilities/agentCredentialStorage");
-          const updatedConfig = readAgentConfig();
-          updatedConfig.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-          updatedConfig.agentMode = agentMode;
-          const timestamp = new Date().toISOString();
-          for (const webviewProvider of state.webviewProviders.values()) {
-            webviewProvider.sendMessageToWebview({
-              type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
-              config: updatedConfig,
-              timestamp,
-            });
-          }
-        } catch (err) {
-          logger.warn("Failed to broadcast agent config update:", err);
-        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

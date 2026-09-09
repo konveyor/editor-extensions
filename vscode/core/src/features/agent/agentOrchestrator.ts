@@ -58,7 +58,7 @@ export class AgentOrchestrator {
     const agentMode = this.state.data.featureState?.agentMode !== false;
 
     this.initializeState();
-    executeExtensionCommand("showChatPanel");
+    executeExtensionCommand("openChat");
 
     this.logger.info("AgentOrchestrator: starting", {
       incidentsCount: this.incidents.length,

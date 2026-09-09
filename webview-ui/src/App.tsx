@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
 import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
-import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType, ExtensionData } from "@editor-extensions/shared";
 import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
 import { HubSettingsPage } from "./components/HubSettings/HubSettingsPage";
@@ -52,7 +51,7 @@ const App: React.FC = () => {
         oidcUsername: windowData.oidcUsername ?? "",
         oidcTokenExpiry: windowData.oidcTokenExpiry ?? null,
         isWebEnvironment: windowData.isWebEnvironment ?? false,
-        experimentalChatEnabled: windowData.experimentalChatEnabled ?? false,
+        isAgentMode: (windowData.featureState?.agentMode as boolean | undefined) ?? false,
         modelSupportsTools: windowData.modelSupportsTools ?? true,
         isBatchReviewMode: windowData.isBatchReviewMode ?? false,
         pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
@@ -76,7 +75,6 @@ const App: React.FC = () => {
   return (
     <div>
       {currentView === "sidebar" && <AnalysisPage />}
-      {currentView === "resolution" && <ResolutionPage />}
       {currentView === "profiles" && <ProfileManagerPage />}
       {currentView === "hub" && <HubSettingsPage />}
       {currentView === "chat" && <ChatPage />}
