@@ -595,6 +595,34 @@ class VsCodeExtension {
         }),
       );
 
+      // The editor save event only covers edits made inside VS Code. Watch the
+      // file itself so hand edits, deletions and external writes re-run the
+      // health check and surface (or clear) the provider config error.
+      // The yaml lives in global storage, outside the workspace, so the watcher
+      // needs an explicit base directory.
+      const settingsYaml = paths().settingsYaml;
+      const settingsWatcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(
+          vscode.Uri.joinPath(settingsYaml, ".."),
+          pathlib.basename(settingsYaml.fsPath),
+        ),
+      );
+      let settingsReloadTimer: NodeJS.Timeout | undefined;
+      const scheduleProviderReload = () => {
+        if (settingsReloadTimer) {
+          clearTimeout(settingsReloadTimer);
+        }
+        settingsReloadTimer = setTimeout(() => {
+          settingsReloadTimer = undefined;
+          this.state.logger.info("provider-settings.yaml changed on disk, re-checking provider");
+          void this.state.reloadModelProvider?.();
+        }, 500);
+      };
+      settingsWatcher.onDidCreate(scheduleProviderReload);
+      settingsWatcher.onDidChange(scheduleProviderReload);
+      settingsWatcher.onDidDelete(scheduleProviderReload);
+      this.listeners.push(settingsWatcher);
+
       this.listeners.push(
         vscode.workspace.onDidChangeConfiguration(async (event) => {
           this.state.logger.info("Configuration modified!");
