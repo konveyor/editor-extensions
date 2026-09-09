@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Fixed packaging and launching of the C# analyzer provider after it moved to a self-contained .NET publish directory with a CSharpProvider entrypoint.
+extensions:
+  - csharp

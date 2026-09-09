@@ -579,40 +579,43 @@ const actions = [
       }),
     })),
 
-  // Extract c-sharp-analyzer-provider binaries to platform-specific directories
+  // Extract c-sharp-analyzer-provider publish directories to platform-specific directories
   async () => ({
     id: "c-sharp-analyzer-provider binaries",
     meta: await unpackAssets({
-      title: "c-sharp-analyzer-provider binary",
+      title: "c-sharp-analyzer-provider publish directory",
       sourceDirectory: join(DOWNLOAD_CACHE, "csharp-provider-assets"),
       targetDirectory: ({ platform, arch }) =>
         join(DOWNLOAD_DIR, "c-sharp-analyzer-provider", `${platform}-${arch}`),
 
-      globs: ["c-sharp-analyzer-provider-cli*"],
+      // The provider is a self-contained .NET publish directory: the
+      // `CSharpProvider` entrypoint (`CSharpProvider.exe` on Windows) plus its
+      // runtime and dependency assemblies. Keep the whole tree.
+      globs: ["**/*"],
       assets: [
         {
           name: "c-sharp-analyzer-provider-linux-x86_64.tar.gz",
           platform: "linux",
           arch: "x64",
-          chmod: true,
+          chmod: ["CSharpProvider"],
         },
         {
           name: "c-sharp-analyzer-provider-linux-aarch64.tar.gz",
           platform: "linux",
           arch: "arm64",
-          chmod: true,
+          chmod: ["CSharpProvider"],
         },
         {
           name: "c-sharp-analyzer-provider-darwin-x86_64.tar.gz",
           platform: "darwin",
           arch: "x64",
-          chmod: true,
+          chmod: ["CSharpProvider"],
         },
         {
           name: "c-sharp-analyzer-provider-darwin-aarch64.tar.gz",
           platform: "darwin",
           arch: "arm64",
-          chmod: true,
+          chmod: ["CSharpProvider"],
         },
         { name: "c-sharp-analyzer-provider-windows-x86_64.zip", platform: "win32", arch: "x64" },
         { name: "c-sharp-analyzer-provider-windows-aarch64.zip", platform: "win32", arch: "arm64" },

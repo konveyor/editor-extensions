@@ -35,9 +35,16 @@ export async function unpackTarGz({ sourceFile, globs = ["**/*"], targetDirector
       z: true,
       cwd: targetDirectory,
       filter: (path) => {
-        const isMatch = matcher(path);
+        // Archives created with `tar czf ... .` prefix every entry with "./",
+        // which micromatch never matches. Normalize before matching and skip
+        // the bare root directory entry.
+        const normalized = path.replace(/^\.\/+/, "");
+        if (normalized === "") {
+          return false;
+        }
+        const isMatch = matcher(normalized);
         if (isMatch) {
-          meta.fileSet.push(path);
+          meta.fileSet.push(normalized);
         }
         return isMatch;
       },
@@ -104,7 +111,7 @@ export async function unpackZip({ sourceFile, context, globs = ["**/*"], targetD
  *  context?: string,
  *  globs?: string[],
  *  targetDirectory: string,
- *  chmod: boolean,
+ *  chmod: boolean | string[],
  * }} args
  */
 export async function unpackAsset({ sourceFile, context, globs, targetDirectory, chmod }) {
@@ -124,8 +131,11 @@ export async function unpackAsset({ sourceFile, context, globs, targetDirectory,
     }
 
     if (chmod) {
+      // `chmod: true` marks every top-level entry executable; an array of globs
+      // limits it to the matching extracted files (e.g. a single entrypoint).
       const extractedFiles = await fs.readdir(targetDirectory);
-      for (const file of extractedFiles) {
+      const chmodFiles = Array.isArray(chmod) ? micromatch(extractedFiles, chmod) : extractedFiles;
+      for (const file of chmodFiles) {
         console.log(`chmod o+x ${blue(file)}`);
         chmodOwnerPlusX(join(targetDirectory, file));
       }
