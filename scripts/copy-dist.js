@@ -48,6 +48,7 @@ await copy({
           ...(originalIncludedKai && { kai: "./assets/kai" }),
           openSourceLabelsFile: "./assets/opensource-labels-file/maven.default.index",
           rulesets: "./assets/rulesets",
+          mcpServer: "./assets/mcp-server",
         };
 
         // Override realm configuration based on environment variable
@@ -122,6 +123,14 @@ await copy({
       context: "downloaded_assets",
       src: "collect-assets-meta.json",
       dest: `dist/${CORE_EXTENSION_NAME}/assets`,
+    },
+
+    // MCP server - a single self-contained bundle (tsup inlines every runtime
+    // dependency) that coding agents spawn with `node` to reach the bridge
+    {
+      context: "mcp-server/dist",
+      src: ["index.js"],
+      dest: `dist/${CORE_EXTENSION_NAME}/assets/mcp-server`,
     },
   ],
 });

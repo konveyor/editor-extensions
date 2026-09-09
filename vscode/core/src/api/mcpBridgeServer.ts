@@ -17,6 +17,7 @@
 
 import * as http from "http";
 import * as path from "path";
+import { existsSync } from "fs";
 import { randomBytes, timingSafeEqual } from "crypto";
 import winston from "winston";
 import type { EnhancedIncident, RuleSet } from "@editor-extensions/shared";
@@ -37,6 +38,27 @@ export interface FileChange {
   /** Absolute, normalized path inside one of the configured workspace roots. */
   path: string;
   content: string;
+}
+
+/**
+ * Locate the bundled MCP server entrypoint that coding agents spawn with
+ * `node`. The directory comes from `includedAssetPaths.mcpServer` in the
+ * extension's package.json, which points at `mcp-server/dist` when running
+ * from source and at `assets/mcp-server` inside an installed VSIX.
+ *
+ * Returns `null` when the bundle is missing so callers can surface a clear
+ * error instead of handing the agent a dangling path.
+ */
+export function resolveMcpServerEntry(context: {
+  asAbsolutePath(relativePath: string): string;
+  extension: { packageJSON: { includedAssetPaths?: Record<string, string> } };
+}): string | null {
+  const dir = context.extension.packageJSON.includedAssetPaths?.mcpServer;
+  if (!dir) {
+    return null;
+  }
+  const entry = path.join(context.asAbsolutePath(dir), "index.js");
+  return existsSync(entry) ? entry : null;
 }
 
 export interface McpBridgeServerConfig {

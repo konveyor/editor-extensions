@@ -3,6 +3,7 @@ description: >
   Add MCP server package and VS Code bridge for exposing Konveyor analysis tools
   to external coding agents (Goose, OpenCode). Includes bearer token authentication,
   workspace path containment for file writes, body size limits, request timeouts,
-  and input validation.
+  and input validation. The MCP server is bundled into a single self-contained
+  file and shipped inside the core extension VSIX.
 extensions:
   - core
