@@ -63,6 +63,11 @@ export const openChatPanel = (): WebviewAction<WebviewActionType, unknown> => ({
   payload: {},
 });
 
+export const openChatSettings = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OPEN_CHAT_SETTINGS",
+  payload: {},
+});
+
 export const setAgentMode = (enabled: boolean): WebviewAction<WebviewActionType, unknown> => ({
   type: "SET_AGENT_MODE",
   payload: { enabled },
