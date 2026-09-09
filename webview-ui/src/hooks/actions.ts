@@ -63,6 +63,16 @@ export const openResolutionPanel = (): WebviewAction<WebviewActionType, unknown>
   payload: {},
 });
 
+export const openChatPanel = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OPEN_CHAT_PANEL",
+  payload: {},
+});
+
+export const setAgentMode = (enabled: boolean): WebviewAction<WebviewActionType, unknown> => ({
+  type: "SET_AGENT_MODE",
+  payload: { enabled },
+});
+
 export const stopWorkflow = (): WebviewAction<WebviewActionType, unknown> => ({
   type: "STOP_WORKFLOW",
   payload: {},

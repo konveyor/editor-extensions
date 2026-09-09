@@ -10,6 +10,7 @@ import {
   AGENT_PERMISSION_RESPONSE,
   AGENT_CANCEL_GENERATION,
   SET_EXPERIMENTAL_CHAT,
+  SET_AGENT_MODE,
   OPEN_NATIVE_CONFIG,
   AgentMessageTypes,
 } from "@editor-extensions/shared";
@@ -364,6 +365,42 @@ export const agentMessageHandlers: Record<
     }
   },
 
+  [SET_AGENT_MODE]: async ({ enabled }: { enabled: boolean }, state, logger) => {
+    logger.info(`SET_AGENT_MODE: ${enabled}`);
+
+    try {
+      const { updateConfigAgentMode } = await import("../../utilities/configuration");
+      // Persisting the setting triggers the configuration watcher in extension.ts,
+      // which updates featureState.agentMode and offers a reload when the agent
+      // backend needs to be started.
+      await updateConfigAgentMode(enabled);
+
+      state.mutate((draft) => {
+        if (!draft.featureState) {
+          draft.featureState = {};
+        }
+        draft.featureState.agentMode = enabled;
+      });
+
+      // Push the new mode to every webview so the analysis toolbar switch and the
+      // chat settings panel stay in sync.
+      const { readAgentConfig } = await import("../../agentConfigReader");
+      const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+      const config = readAgentConfig();
+      config.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
+      config.agentMode = enabled;
+      const timestamp = new Date().toISOString();
+      state.webviewProviders.forEach((provider) => {
+        provider.sendMessageToWebview({
+          type: AgentMessageTypes.AGENT_CONFIG_UPDATE,
+          config,
+          timestamp,
+        });
+      });
+    } catch (err) {
+      logger.error("SET_AGENT_MODE failed:", err);
+    }
+  },
   [SET_EXPERIMENTAL_CHAT]: async ({ enabled }: { enabled: boolean }, state, logger) => {
     logger.info(`SET_EXPERIMENTAL_CHAT: ${enabled}`);
 
