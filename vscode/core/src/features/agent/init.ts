@@ -60,7 +60,20 @@ export async function initializeAgent(
   ctx: FeatureContext,
   agentClient: AcpClient,
 ): Promise<vscode.Disposable> {
-  const { McpBridgeServer } = await import("../../api/mcpBridgeServer");
+  const { McpBridgeServer, resolveMcpServerEntry } = await import("../../api/mcpBridgeServer");
+
+  const workspaceRoots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+  if (workspaceRoots.length === 0) {
+    throw new Error("Agent backend requires an open workspace folder");
+  }
+
+  const mcpServerEntry = resolveMcpServerEntry(ctx.extensionContext);
+  if (!mcpServerEntry) {
+    throw new Error(
+      "Konveyor MCP server bundle not found (expected under includedAssetPaths.mcpServer); " +
+        "run `npm run build -w mcp-server` when developing from source",
+    );
+  }
 
   const disposables: vscode.Disposable[] = [];
 
@@ -70,6 +83,7 @@ export async function initializeAgent(
   const mcpBridgeServer = new McpBridgeServer({
     store: ctx.store,
     logger: ctx.logger,
+    workspaceRoots,
     runAnalysis: async () => {
       const analyzerClient = ctx.extensionState.analyzerClient;
       if (!analyzerClient) {
@@ -136,15 +150,6 @@ export async function initializeAgent(
   disposables.push({ dispose: () => mcpBridgeServer.dispose() });
 
   // Configure MCP servers on the agent client before starting
-  const { join } = await import("path");
-  const mcpServerEntry = join(
-    ctx.extensionContext.extensionPath,
-    "..",
-    "..",
-    "mcp-server",
-    "dist",
-    "index.js",
-  );
   agentClient.setMcpServers([
     {
       name: "konveyor",
