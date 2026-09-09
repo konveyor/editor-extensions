@@ -93,7 +93,7 @@ export const getConfigAgentBinaryPath = (): string | null =>
 // ─── Agent settings (persisted) ──────────────────────────────────────
 
 export function getConfigAgentMode(): boolean {
-  return getConfigValue<boolean>("genai.agentMode") ?? true;
+  return getConfigValue<boolean>("genai.agentMode") ?? false;
 }
 
 export async function updateConfigAgentMode(value: boolean): Promise<void> {

@@ -286,7 +286,7 @@ export const agentMessageHandlers: Record<
       const { hasAgentCredentials } = await import("../../utilities/agentCredentialStorage");
       const config = readAgentConfig();
       config.hasStoredCredentials = await hasAgentCredentials(state.extensionContext);
-      config.agentMode = (state.store.getState().featureState?.agentMode as boolean) ?? true;
+      config.agentMode = (state.store.getState().featureState?.agentMode as boolean) ?? false;
       const timestamp = new Date().toISOString();
 
       const currentAgentState =
