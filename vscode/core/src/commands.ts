@@ -570,6 +570,9 @@ const commandsMap: (
         return;
       }
       await copySampleProviderSettings(true);
+      // The sample has no key, so the provider is now unconfigured: re-run the
+      // health check so the analysis page and chat show the config error.
+      await state.reloadModelProvider?.();
       const settingsDocument = await workspace.openTextDocument(paths().settingsYaml);
       window.showTextDocument(settingsDocument);
     },
