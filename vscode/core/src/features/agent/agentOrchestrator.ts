@@ -323,6 +323,10 @@ export class AgentOrchestrator {
   private initializeState(): void {
     const scope: Scope = { incidents: this.incidents };
 
+    const clientId = uuidv4();
+    this.state.hubConnectionManager.getSolutionServerClient()?.setClientId(clientId);
+    this.logger.debug("Client ID set", { clientId });
+
     this.state.modifiedFiles.clear();
 
     this.state.mutate((draft) => {
