@@ -99,7 +99,9 @@ test.describe.serial(
     });
 
     test.afterAll(async () => {
-      await vsCode.closeVSCode();
+      // beforeAll may have thrown before vsCode was assigned; without this
+      // guard the hook's own TypeError replaces the real failure.
+      await vsCode?.closeVSCode();
     });
 
     /**

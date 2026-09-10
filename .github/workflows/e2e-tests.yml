@@ -365,6 +365,23 @@ jobs:
           name: downloaded-assets
           path: ./downloaded_assets
 
+      # The infra action already proved the NodePort reachable right after it
+      # was created, but the tests only touch it ~10 minutes later. When that
+      # connection times out we cannot tell from the artifacts whether the
+      # NodePort died in between or only Node's fetch could not reach it, so
+      # probe it here - from the same host, immediately before the tests.
+      - name: Verify llemulator NodePort is still reachable
+        continue-on-error: true
+        run: |
+          echo "=== Probing ${TEST_LLEMULATOR_URL} from the runner ==="
+          curl -fsS --max-time 10 -X POST "${TEST_LLEMULATOR_URL}/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer dummy-key-for-llemulator" \
+            -d '{"model":"gpt-4o","messages":[{"role":"user","content":"probe"}]}' \
+            && echo "" && echo "✓ NodePort reachable"
+        env:
+          TEST_LLEMULATOR_URL: ${{ steps.infra.outputs.llemulator_url }}
+
       - name: Run infrastructure tests
         run: npx playwright test --grep "@requires-minikube" --grep-invert "@tier3"
         working-directory: ./tests
@@ -433,6 +450,21 @@ jobs:
         run: |
           echo "=== Collecting infrastructure logs and diagnostics ==="
           mkdir -p tests/test-output/k8s-logs
+
+          # Host-side network state. The cluster dumps below only ever show a
+          # healthy cluster when the runner cannot reach a NodePort, so capture
+          # the half of the path that lives outside the node as well.
+          {
+            echo "--- minikube ip / version ---"; minikube ip; minikube version --short
+            echo "--- runtime ---"; minikube ssh -- "cat /etc/crictl.yaml" 2>&1
+            echo "--- host routes ---"; ip route
+            echo "--- docker networks ---"; docker network ls; docker ps --format '{{.Names}}\t{{.Ports}}'
+            echo "--- host probe of the NodePort ---"
+            curl -sS -o /dev/null -w 'http_code=%{http_code} connect=%{time_connect}s total=%{time_total}s\n' \
+              --max-time 10 "$(minikube ip):30089/v1/chat/completions" 2>&1
+            echo "--- node-side NodePort rules ---"
+            minikube ssh -- "sudo iptables -t nat -L KUBE-NODEPORTS -n" 2>&1
+          } > tests/test-output/k8s-logs/host-network.txt 2>&1 || true
 
           # Collect deployment information
           echo "Collecting deployment status..."
