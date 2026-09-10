@@ -116,8 +116,16 @@ export async function handleFileResponse(
       (msg) => msg.messageToken === messageToken,
     );
 
-    if (messageIndex === -1) {
-      logger.error("Message token not found in chatMessages:", {
+    // Batch review files are tracked in pendingBatchReview rather than
+    // chatMessages, so fall back to that queue. Without this, accepting a
+    // batch-reviewed change would return early here and never apply the file
+    // or notify the solution server (leaving solutions stuck as "pending").
+    const pendingReviewFile = state.data.pendingBatchReview?.find(
+      (f) => f.messageToken === messageToken,
+    );
+
+    if (messageIndex === -1 && !pendingReviewFile) {
+      logger.error("Message token not found in chatMessages or pendingBatchReview:", {
         messageToken,
         totalChatMessages: state.data.chatMessages.length,
         chatMessageTokens: state.data.chatMessages.map((m) => m.messageToken),
@@ -131,16 +139,20 @@ export async function handleFileResponse(
         (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
       );
 
-      if (!fileMessage) {
+      // The change metadata lives on the chat message for the legacy flow and
+      // on the pendingBatchReview entry for the batch review flow.
+      const changeSource =
+        (fileMessage?.value as ModifiedFileMessageValue | undefined) ?? pendingReviewFile;
+
+      if (!changeSource) {
         throw new Error(`No changes found for file: ${path}`);
       }
 
-      const fileValue = fileMessage.value as ModifiedFileMessageValue;
-      const isNew = fileValue.isNew;
-      const isDeleted = fileValue.isDeleted;
+      const isNew = changeSource.isNew;
+      const isDeleted = changeSource.isDeleted;
 
       // Content is already normalized at the source (processModifiedFile.ts)
-      const fileContent = content || fileValue.content;
+      const fileContent = content || changeSource.content;
 
       try {
         if (isDeleted) {
