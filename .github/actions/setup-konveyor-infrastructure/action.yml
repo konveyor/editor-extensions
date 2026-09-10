@@ -48,6 +48,13 @@ runs:
       with:
         cpus: "max"
         memory: "8000"
+        # minikube 1.39.0 (2026-09-02) changed the default container runtime
+        # from docker to containerd, and setup-minikube tracks latest. Under
+        # containerd the host can no longer reach the llemulator NodePort
+        # (connect timeout), while anything in the node's own netns - the
+        # apiserver on 8443, ingress-nginx hostPort 443 - keeps working.
+        # Pin the runtime we were green on until the containerd path is fixed.
+        container-runtime: "docker"
 
     - name: Setup Namespace and Secrets
       shell: bash
