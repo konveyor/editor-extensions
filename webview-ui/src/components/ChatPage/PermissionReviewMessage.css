@@ -1,0 +1,229 @@
+/* ─── Wrapper ──────────────────────────────────────────────────── */
+
+.prm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+/* ─── Meta row (avatar + name + timestamp) ─────────────────────── */
+
+.prm__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prm__avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.prm__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground, #ccc);
+}
+
+.prm__timestamp {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground, #888);
+}
+
+/* ─── Card ─────────────────────────────────────────────────────── */
+
+.prm__card {
+  border: 1px solid var(--vscode-panel-border, #333);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--vscode-editor-background, #1e1e1e);
+}
+
+/* ─── Card header ──────────────────────────────────────────────── */
+
+.prm__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vscode-sideBar-background, #252526);
+  border-bottom: 1px solid var(--vscode-panel-border, #333);
+}
+
+.prm__card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.prm__action-label {
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  color: var(--vscode-foreground, #ccc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prm__card-stats {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.prm__stat {
+  font-size: 10px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-weight: 600;
+}
+
+.prm__stat--add {
+  color: #4caf50;
+}
+
+.prm__stat--del {
+  color: #f44336;
+}
+
+/* ─── Diff ─────────────────────────────────────────────────────── */
+
+.prm__diff {
+  max-height: 300px;
+  overflow: auto;
+}
+
+.prm__diff-pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.prm__line {
+  display: flex;
+  line-height: 1.5;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  padding: 0 12px 0 0;
+  border-left: 3px solid transparent;
+}
+
+.prm__line--addition {
+  background: rgba(76, 175, 80, 0.1);
+  border-left-color: #4caf50;
+}
+
+.prm__line--deletion {
+  background: rgba(244, 67, 54, 0.1);
+  border-left-color: #f44336;
+}
+
+.prm__line--context {
+  background: transparent;
+}
+
+.prm__line--hunk-header {
+  background: rgba(55, 148, 255, 0.06);
+  color: var(--vscode-descriptionForeground, #888);
+  font-style: italic;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-left-color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.prm__gutter {
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+  user-select: none;
+  color: var(--vscode-editorLineNumber-foreground, #666);
+  font-weight: 600;
+}
+
+.prm__line--addition .prm__gutter {
+  color: #4caf50;
+}
+
+.prm__line--deletion .prm__gutter {
+  color: #f44336;
+}
+
+.prm__code {
+  flex: 1;
+  white-space: pre;
+  min-width: 0;
+}
+
+.prm__line--addition .prm__code {
+  color: #6abf69;
+}
+
+.prm__line--deletion .prm__code {
+  color: #e57373;
+}
+
+.prm__line--context .prm__code {
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+/* ─── Actions ──────────────────────────────────────────────────── */
+
+.prm__actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--vscode-panel-border, #333);
+  background: var(--vscode-sideBar-background, #252526);
+}
+
+.prm__btn {
+  font-size: 11px;
+  padding: 4px 14px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition:
+    opacity 0.1s ease,
+    background-color 0.1s ease;
+}
+
+.prm__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.prm__btn--accept {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.prm__btn--accept:not(:disabled):hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.prm__btn--accept.prm__btn--selected {
+  background: #4caf50;
+  color: #fff;
+}
+
+.prm__btn--reject {
+  background: transparent;
+  color: var(--vscode-errorForeground, #f48771);
+  border: 1px solid var(--vscode-errorForeground, #f48771);
+}
+
+.prm__btn--reject:not(:disabled):hover {
+  background: rgba(244, 135, 113, 0.1);
+}
+
+.prm__btn--reject.prm__btn--selected {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: #f44336;
+  color: #f44336;
+}

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { ALL_REVISIONS } from "@editor-extensions/agentic";
 
-import { getConfigAnalyzeOnSave, getConfigAgentMode } from "../utilities";
+import { getConfigAnalyzeOnSave } from "../utilities";
 import { ExtensionState } from "../extensionState";
 import { BatchedAnalysisTrigger } from "./batchedAnalysisTrigger";
 
@@ -26,7 +26,7 @@ export const registerAnalysisTrigger = (
 
   vscode.workspace.onDidSaveTextDocument(
     async (d: vscode.TextDocument) => {
-      if (!getConfigAnalyzeOnSave() && !getConfigAgentMode()) {
+      if (!getConfigAnalyzeOnSave()) {
         return;
       }
 
@@ -51,7 +51,7 @@ export const registerAnalysisTrigger = (
 };
 
 export const runPartialAnalysis = async (state: ExtensionState, filePaths: vscode.Uri[]) => {
-  if (!getConfigAnalyzeOnSave() && !getConfigAgentMode()) {
+  if (!getConfigAnalyzeOnSave()) {
     return;
   }
 

@@ -138,7 +138,7 @@ test.describe.serial(
       await vscodeApp.searchAndRequestAction('', FixTypes.Incident);
 
       console.log('Verifying llemulator response...');
-      const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
+      const resolutionView = await vscodeApp.openMigrationChatInEditor();
       await expect(resolutionView.getByText('LLEMULATOR RESPONSE')).toBeVisible({ timeout: 60000 });
       console.log('Llemulator response verified successfully');
     });

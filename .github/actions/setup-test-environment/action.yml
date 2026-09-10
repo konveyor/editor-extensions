@@ -11,7 +11,11 @@ runs:
 
     - name: Install VSCode dependencies
       shell: bash
-      run: sudo apt-get update && sudo apt-get install -y wget
+      run: |
+        # The runner image ships Google's Chrome apt repo, which nothing here uses and
+        # which intermittently fails apt-get update with "Hash Sum mismatch".
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*.list /etc/apt/sources.list.d/google-chrome*.sources
+        sudo apt-get update && sudo apt-get install -y wget
 
     - name: Setup Java
       uses: actions/setup-java@v4

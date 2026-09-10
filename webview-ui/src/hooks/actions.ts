@@ -58,14 +58,19 @@ export const getSuccessRate = (): WebviewAction<WebviewActionType, unknown> => (
   payload: {},
 });
 
-export const toggleAgentMode = (): WebviewAction<WebviewActionType, unknown> => ({
-  type: "TOGGLE_AGENT_MODE",
+export const openChatPanel = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OPEN_CHAT_PANEL",
   payload: {},
 });
 
-export const openResolutionPanel = (): WebviewAction<WebviewActionType, unknown> => ({
-  type: "OPEN_RESOLUTION_PANEL",
+export const openChatSettings = (): WebviewAction<WebviewActionType, unknown> => ({
+  type: "OPEN_CHAT_SETTINGS",
   payload: {},
+});
+
+export const setAgentMode = (enabled: boolean): WebviewAction<WebviewActionType, unknown> => ({
+  type: "SET_AGENT_MODE",
+  payload: { enabled },
 });
 
 export const stopWorkflow = (): WebviewAction<WebviewActionType, unknown> => ({
