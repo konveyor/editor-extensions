@@ -1,0 +1,7 @@
+kind: bugfix
+description: >
+  Validate file types when selecting custom rules for a profile. The file
+  dialog now filters to YAML rule files, and any non-YAML files that slip
+  through (e.g. on platforms where dialog filters are not enforced) are
+  skipped with a warning instead of being silently added to the profile.
+  Folders are still accepted as rule directories.
