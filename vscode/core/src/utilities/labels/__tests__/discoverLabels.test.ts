@@ -173,6 +173,11 @@ describe("discoverLabels against real rulesets", () => {
   });
 
   it("should discover the same labels as a naive line-by-line scan", async function (this: Mocha.Context) {
+    // Unlike the rest of the suite this reads the real ruleset trees off disk —
+    // every .yaml twice, once here and once through discoverLabels. That is well
+    // over mocha's 2s default on a slow runner, so give it room.
+    this.timeout(60_000);
+
     if (existingDirs.length === 0) {
       this.skip();
     }
