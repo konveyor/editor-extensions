@@ -1,0 +1,4 @@
+kind: bugfix
+description: >
+  Fixed solution server success-rate tracking by restoring the per-session client ID
+  registration that was dropped in the pluggable agent backend refactor.
