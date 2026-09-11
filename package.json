@@ -71,7 +71,9 @@
     "package-go": "node ./scripts/package-extensions.js go",
     "package-csharp": "node ./scripts/package-extensions.js csharp",
     "package-pack": "node ./scripts/package-extensions.js konveyor",
-    "test": "npm run build && npm run test --workspaces --if-present",
+    "test": "npm run test:packaging && npm run build && npm run test --workspaces --if-present",
+    "test:packaging": "node --test scripts/packaging.test.js",
+    "check:vsix-size": "node scripts/check-vsix-size.js",
     "changelog:validate": "node scripts/changelog.js validate",
     "changelog:create": "node scripts/changelog.js create",
     "changelog:assemble": "node scripts/changelog.js assemble"
