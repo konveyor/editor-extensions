@@ -115,8 +115,21 @@ These command:
 - Copy everything needed for the vsix to the `dist/` folder
 - Package the contents of `dist/` into a vsix archive
 
-When packaging is complete, the vsix will be `dist/konveyor-ai-0.1.0.vsix` (version number will match
-the `vscode/package.json` version number).
+Packages are written to `dist/`, using each extension's name and version. C# produces
+six platform-specific files, such as `konveyor-csharp-0.8.0@linux-x64.vsix`, for
+`darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, `win32-arm64`, and `win32-x64`.
+Each includes the complete analyzer runtime for that platform. Other extensions produce
+universal files such as `konveyor-core-0.8.0.vsix`.
+
+The platform variants share one extension listing and version; the editor selects the
+matching package when installing from a registry. For manual/offline installation, choose
+the C# VSIX for the OS and architecture of the **extension host**. For SSH, containers, WSL,
+or other remote environments, this is the remote host, which may differ from your desktop.
+The analyzer remains bundled; its existing external-tool prerequisites still apply.
+
+Packaging checks every compressed VSIX against Open VSX's 262,144,000-byte (250 MiB)
+limit before publication. Run `npm run check:vsix-size` to recheck existing packages, or
+`npm run test:packaging` for packaging regression tests.
 
 ## Downloading the extension's runtime assets
 

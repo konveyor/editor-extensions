@@ -1,0 +1,6 @@
+kind: bugfix
+description: >
+  Publish C# as platform-specific packages with bundled analyzers to stay within
+  the Open VSX size limit. Validate all package sizes before publication.
+extensions:
+  - csharp

@@ -142,4 +142,8 @@ For complete guidelines including promotion criteria, tag combinations, and CI/C
 To get started, check out the E2E environment setup
 guide: [e2e-environment.md](docs/contrib/e2e-environment.md)
 
+### Platform-specific C# packages
 
+`set-latest-vsix-env.mjs` selects the C# VSIX for the current OS and architecture.
+Set `VSIX_TARGET` (for example, `linux-x64`) when the extension runs on a different
+host, such as Dev Spaces. Universal packages from older releases remain supported.
