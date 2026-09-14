@@ -67,7 +67,7 @@ jobs:
           JAVA_VSIX=$(ls ./dist/${JAVA_NAME}-*.vsix | head -n 1)
           JS_VSIX=$(ls ./dist/${JS_NAME}-*.vsix | head -n 1)
           GO_VSIX=$(ls ./dist/${GO_NAME}-*.vsix | head -n 1)
-          CSHARP_VSIX=$(ls ./dist/${CSHARP_NAME}-*.vsix | head -n 1)
+          CSHARP_VSIX=$(node scripts/select-vsix.js "$CSHARP_NAME" win32-x64)
 
           # Verify and output
           for vsix in "$CORE_VSIX" "$JAVA_VSIX" "$JS_VSIX" "$GO_VSIX" "$CSHARP_VSIX"; do

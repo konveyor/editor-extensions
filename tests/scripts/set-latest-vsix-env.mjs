@@ -1,4 +1,5 @@
 import { appendFileSync } from 'fs';
+import { selectVsixAsset } from '../../scripts/select-vsix.js';
 
 // Determine repo owner and extension prefix based on TEST_CATEGORY env var
 const testCategory = process.env.TEST_CATEGORY || 'konveyor';
@@ -17,6 +18,7 @@ const releaseTag = process.env.TEST_VERSION_TAG || 'development-builds';
  *     and TEST_CATEGORY.toLowerCase() as extension prefix
  *   - Otherwise, uses "konveyor" for both
  * - TEST_VERSION_TAG: Release tag to fetch from (default: "development-builds")
+ * - VSIX_TARGET: Extension host platform (defaults to the current OS/architecture)
  *
  * Generated env vars:
  * - CORE_VSIX_DOWNLOAD_URL ({prefix}-core-X.X.X*.vsix)
@@ -82,7 +84,14 @@ async function main() {
       .filter((a) => ext.pattern.test(a.name))
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    const asset = matchingAssets[0];
+    const asset =
+      ext.name === 'CSHARP' && matchingAssets.length
+        ? selectVsixAsset(
+            matchingAssets,
+            `${extensionPrefix}-csharp`,
+            process.env.VSIX_TARGET || `${process.platform}-${process.arch}`
+          )
+        : matchingAssets[0];
     if (!asset) {
       console.warn(`No .vsix asset found for ${ext.name}`);
       continue;
