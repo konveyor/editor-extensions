@@ -1,0 +1,10 @@
+kind: bugfix
+description: >
+  Fix VS Code Marketplace publishing by using the locked publishing tool dependencies.
+extensions:
+  - core
+  - java
+  - javascript
+  - go
+  - csharp
+  - konveyor
