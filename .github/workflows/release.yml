@@ -181,6 +181,9 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
+      - name: Install publishing dependencies
+        run: npm ci --ignore-scripts
+
       - name: Download VSIX artifacts
         uses: actions/download-artifact@v4
         with:
@@ -195,11 +198,11 @@ jobs:
           for vsix in ./artifacts/*.vsix; do
             if [ "${{ inputs.prerelease }}" = "true" ]; then
               echo "Publishing $(basename "$vsix") to Open VSX as pre-release"
-              npx ovsx publish --skip-duplicate --pre-release --packagePath "$vsix" \
+              ./node_modules/.bin/ovsx publish --skip-duplicate --pre-release --packagePath "$vsix" \
                 --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
             else
               echo "Publishing $(basename "$vsix") to Open VSX as stable release"
-              npx ovsx publish --skip-duplicate --packagePath "$vsix" \
+              ./node_modules/.bin/ovsx publish --skip-duplicate --packagePath "$vsix" \
                 --pat ${{ secrets.OVSX_MARKETPLACE_TOKEN }}
             fi
           done
