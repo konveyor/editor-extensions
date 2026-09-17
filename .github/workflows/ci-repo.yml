@@ -264,28 +264,30 @@ jobs:
 
       - name: Cleanup old development builds
         run: |
-          # Keep last N builds per extension type
+          # Keep last N builds per extension and platform, so six C# variants
+          # do not consume six slots in a single seven-artifact retention window.
           BUILDS_TO_KEEP=7
-
-          # Process each extension type
           for ext in konveyor-core konveyor konveyor-java konveyor-javascript konveyor-go konveyor-csharp; do
-            echo "Processing ${ext}..."
+            targets=("")
+            if [[ "$ext" == "konveyor-csharp" ]]; then
+              targets+=("@darwin-arm64" "@darwin-x64" "@linux-arm64" "@linux-x64" "@win32-arm64" "@win32-x64")
+            fi
+            for target in "${targets[@]}"; do
+              echo "Processing ${ext}${target}..."
+              assets=$(gh release view -R ${{ github.repository }} development-builds --json assets | \
+                jq -r --arg ext "$ext" --arg target "$target" '.assets[].name | select(test("^" + $ext + "-[0-9][^@]*" + $target + "\\.vsix$"))' | \
+                sort -r)
 
-            # Match pattern: {ext}-{version} where version starts with a digit
-            # This handles "konveyor-0.4.0..." and "konveyor-java-0.4.0..." correctly
-            assets=$(gh release view -R ${{ github.repository }} development-builds --json assets | \
-              jq -r ".assets[].name | select(test(\"^${ext}-[0-9]\"))" | \
-              sort -r)
-
-            count=0
-            for asset in $assets; do
-              count=$((count + 1))
-              if [ "$count" -gt "$BUILDS_TO_KEEP" ]; then
-                echo "Deleting old asset: $asset"
-                gh release delete-asset -y -R ${{ github.repository }} development-builds "$asset"
-              else
-                echo "Keeping: $asset"
-              fi
+              count=0
+              for asset in $assets; do
+                count=$((count + 1))
+                if [ "$count" -gt "$BUILDS_TO_KEEP" ]; then
+                  echo "Deleting old asset: $asset"
+                  gh release delete-asset -y -R ${{ github.repository }} development-builds "$asset"
+                else
+                  echo "Keeping: $asset"
+                fi
+              done
             done
           done
         env:

@@ -677,7 +677,7 @@ async function release() {
     // Package: Create .vsix files for each extension
     console.log("📦 Packaging extensions...");
     const preReleaseFlag = options.preRelease ? " --pre-release" : "";
-    run(`npm run package${preReleaseFlag}`, { dryRun: options.dryRun });
+    run(`npm run package --${preReleaseFlag}`, { dryRun: options.dryRun });
     console.log("   Packaging complete\n");
   } else {
     console.log("⏭️  Skipping build (--skip-build)\n");
@@ -726,6 +726,8 @@ async function release() {
         if (vsixFiles.length === 0) {
           console.log("   ⚠️  No VSIX files found in dist/\n");
         } else {
+          run("npm run check:vsix-size", { dryRun: options.dryRun });
+
           // Publish each extension
           for (const vsixFile of vsixFiles) {
             const vsixPath = path.join(distDir, vsixFile);

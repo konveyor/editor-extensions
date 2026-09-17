@@ -72,7 +72,9 @@
     "package-go": "node ./scripts/package-extensions.js go",
     "package-csharp": "node ./scripts/package-extensions.js csharp",
     "package-pack": "node ./scripts/package-extensions.js konveyor",
-    "test": "npm run build && npm run test --workspaces --if-present",
+    "test": "npm run test:packaging && npm run build && npm run test --workspaces --if-present",
+    "test:packaging": "node --test scripts/packaging.test.js",
+    "check:vsix-size": "node scripts/check-vsix-size.js",
     "changelog:validate": "node scripts/changelog.js validate",
     "changelog:create": "node scripts/changelog.js create",
     "changelog:assemble": "node scripts/changelog.js assemble",
@@ -111,7 +113,7 @@
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
     "mocha": "^10.8.2",
-    "ovsx": "^0.10.7",
+    "ovsx": "^1.2.0",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
     "tar": "^7.4.3",
@@ -125,6 +127,7 @@
     "wait-on": "^8.0.2"
   },
   "dependencies": {
+    "@langchain/anthropic": "~1.1.3",
     "@langchain/aws": "^1.2.2",
     "@langchain/core": "^1.1.7",
     "@langchain/deepseek": "^1.0.11",

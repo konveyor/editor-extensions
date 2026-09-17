@@ -1,7 +1,8 @@
 #! /usr/bin/env node
-import { execSync } from "child_process";
 import fs from "fs";
 import { cwdToProjectRoot } from "./_util.js";
+import { packageExtension as packageDirectory } from "./_package.js";
+import { checkVsixSizes } from "./check-vsix-size.js";
 
 cwdToProjectRoot();
 
@@ -17,13 +18,15 @@ if (isPreRelease) {
 
 if (extensionType) {
   // Package a specific extension
-  packageExtension(extensionType, isPreRelease);
+  await packageExtension(extensionType, isPreRelease);
 } else {
   // Package all extensions
-  packageAllExtensions(isPreRelease);
+  await packageAllExtensions(isPreRelease);
 }
 
-function packageExtension(type, preRelease = false) {
+await checkVsixSizes("dist");
+
+async function packageExtension(type, preRelease = false) {
   const packageJsonPath = `vscode/${type}/package.json`;
 
   if (!fs.existsSync(packageJsonPath)) {
@@ -46,11 +49,7 @@ function packageExtension(type, preRelease = false) {
   console.log(`Packaging ${extensionName}${preRelease ? " (pre-release)" : ""}...`);
 
   try {
-    const preReleaseFlag = preRelease ? " --pre-release" : "";
-    execSync(`vsce package${preReleaseFlag} --out ../`, {
-      cwd: extensionDir,
-      stdio: "inherit",
-    });
+    await packageDirectory(extensionDir, "dist", preRelease);
     console.log(`✓ ${extensionName} packaged successfully`);
   } catch (error) {
     console.error(`✗ Failed to package ${extensionName}`);
@@ -58,7 +57,7 @@ function packageExtension(type, preRelease = false) {
   }
 }
 
-function packageAllExtensions(preRelease = false) {
+async function packageAllExtensions(preRelease = false) {
   console.log("Packaging all extensions...\n");
 
   // Find all directories in dist/ that contain a package.json
@@ -89,17 +88,13 @@ function packageAllExtensions(preRelease = false) {
   console.log();
 
   // Package each extension
-  const preReleaseFlag = preRelease ? " --pre-release" : "";
   for (const extensionName of extensionDirs) {
     const extensionDir = `${distDir}/${extensionName}`;
 
     console.log(`Packaging ${extensionName}${preRelease ? " (pre-release)" : ""}...`);
 
     try {
-      execSync(`vsce package${preReleaseFlag} --out ../`, {
-        cwd: extensionDir,
-        stdio: "inherit",
-      });
+      await packageDirectory(extensionDir, distDir, preRelease);
       console.log(`✓ ${extensionName} packaged successfully\n`);
     } catch (error) {
       console.error(`✗ Failed to package ${extensionName}`);

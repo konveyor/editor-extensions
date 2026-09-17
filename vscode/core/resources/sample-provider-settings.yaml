@@ -64,6 +64,21 @@ models:
       # additionalModelRequestFields: <object>
       # configFilepath: <string>
 
+  Anthropic:
+    environment:
+      ANTHROPIC_API_KEY: "" # Required
+    provider: ChatAnthropic
+    args:
+      model: claude-sonnet-5 # Required
+
+      ## Following keys are optional & only exist for documentation purposes
+      # maxTokens: <number>
+      # maxRetries: <number>
+      # anthropicApiUrl: <string> # override the API base URL
+      # clientOptions: <object>   # passed through to the Anthropic SDK client
+      ## NOTE: sampling params (temperature/top_p/top_k) are rejected by current
+      ## Claude models (Sonnet 5, Opus 4.7/4.8, ...); only set them on older models.
+
   DeepSeek:
     environment:
       DEEPSEEK_API_KEY: "" # Required
