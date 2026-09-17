@@ -63,6 +63,20 @@ app.post("/v1/chat/completions", (req, res) => {
   }, 50);
 });
 
+// ---------- Anthropic (Messages API) ----------
+app.post("/v1/messages", (req, res) => {
+  res.json({
+    id: "msg_mock",
+    type: "message",
+    role: "assistant",
+    model: req.body?.model ?? "test-model",
+    content: [{ type: "text", text: "ok-anthropic" }],
+    stop_reason: "end_turn",
+    stop_sequence: null,
+    usage: { input_tokens: 1, output_tokens: 1 },
+  });
+});
+
 // ---------- Google GenAI ----------
 app.post("/v1beta/models/:model\\:generateContent", (req, res) => {
   res.json({ candidates: [{ content: { parts: [{ text: "ok-google" }] } }] });

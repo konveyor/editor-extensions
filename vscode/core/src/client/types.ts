@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 export type SupportedModelProviders =
   | "AzureChatOpenAI"
+  | "ChatAnthropic"
   | "ChatBedrock"
   | "ChatDeepSeek"
   | "ChatGoogleGenerativeAI"
