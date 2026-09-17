@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchFirstSuccessfulRun } from "./_github.js";
+import { fetchArtifactsForRun, fetchFirstSuccessfulRun } from "./_github.js";
 
 const HEAD_SHA = "e4e2467d96abcb3b01606397996007dad1877427";
 const OLD_SHA = "dfddc407d8c3095286317209ef30341816723215";
@@ -111,4 +111,28 @@ test("fails clearly when no recent successful run has downloadable artifacts", a
     fetchFirstSuccessfulRun(octokit, "main", "release-binaries.yml"),
     /None of the 2 most recent successful release-binaries.yml runs on main have downloadable artifacts/,
   );
+});
+
+test("reads every page of a run's artifacts", async () => {
+  const artifacts = Array.from({ length: 130 }, (_, i) => ({
+    name: `artifact-${i}`,
+    archive_download_url: `https://api.github.com/artifacts/${i}/zip`,
+    expired: i === 129,
+  }));
+  const pages = [];
+  const octokit = {
+    // GitHub returns 30 artifacts per page unless asked for more, and at most 100
+    request: async (route, { per_page = 30, page = 1 }) => {
+      pages.push(page);
+      const perPage = Math.min(per_page, 100);
+      const start = (page - 1) * perPage;
+      return { data: { artifacts: artifacts.slice(start, start + perPage) } };
+    },
+  };
+
+  const result = await fetchArtifactsForRun(octokit, 1);
+
+  assert.equal(result.length, 130);
+  assert.equal(result.at(-1).expired, true);
+  assert.deepEqual(pages, [1, 2]);
 });

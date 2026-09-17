@@ -179,19 +179,31 @@ export async function fetchFirstSuccessfulRunForPr(octokit, pr, workflowFile) {
 }
 
 /**
- * Fetch artifacts for a specific workflow run.
+ * Fetch all artifacts for a specific workflow run, reading every page of results.
  *
  * @param {Octokit} octokit Octokit configured for auth and the target owner/repo
  * @param {string} runId - ID of the workflow run.
  * @returns {Promise<Array<{ name, url, expired }>>} - List of artifacts with download URLs and whether they have expired.
  */
 export async function fetchArtifactsForRun(octokit, runId) {
-  const r = await octokit.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts", {
-    run_id: runId,
-  });
+  const perPage = 100;
+  const artifacts = [];
+  for (let page = 1; ; page++) {
+    const r = await octokit.request(
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts{?per_page,page}",
+      {
+        run_id: runId,
+        per_page: perPage,
+        page,
+      },
+    );
+    artifacts.push(...r.data.artifacts);
+    if (r.data.artifacts.length < perPage) {
+      break;
+    }
+  }
 
-  const data = r.data;
-  const downloadUrls = data.artifacts.map((artifact) => ({
+  const downloadUrls = artifacts.map((artifact) => ({
     name: artifact.name,
     url: artifact.archive_download_url,
     expired: artifact.expired,
