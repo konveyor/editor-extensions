@@ -60,6 +60,13 @@ export class AuthenticationManager {
     }
 
     const timeUntilRefresh = this.tokenExpiresAt - Date.now();
+    // Node's setTimeout stores its delay in a 32-bit signed int (max ~24.8 days).
+    // Longer delays fire after 1ms with a TimeoutOverflowWarning. A token that
+    // far from expiry won't need a refresh during a test run, so skip the timer.
+    const MAX_TIMER_MS = 2 ** 31 - 1;
+    if (timeUntilRefresh > MAX_TIMER_MS) {
+      return;
+    }
     this.refreshTimer = setTimeout(
       async () => {
         try {
