@@ -7,8 +7,8 @@ import { rm } from 'node:fs/promises';
 import process from 'process';
 import { expect } from '@playwright/test';
 import type { VSCode } from '../pages/vscode.page';
-import { LogEntry } from '../types/log-entry';
-import { HubConfiguration } from '../types/hub-configuration';
+import type { LogEntry } from '../types/log-entry';
+import type { HubConfiguration } from '../types/hub-configuration';
 
 // ============================================================================
 // Extension ID Configuration
