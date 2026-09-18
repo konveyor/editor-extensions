@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { viewType } from "./utils/vscode";
 import AnalysisPage from "./components/AnalysisPage/AnalysisPage";
-import ResolutionPage from "./components/ResolutionsPage/ResolutionsPage";
 import { WebviewType, ExtensionData } from "@editor-extensions/shared";
 import { ProfileManagerPage } from "./components/ProfileManager/ProfileManagerPage";
 import { HubSettingsPage } from "./components/HubSettings/HubSettingsPage";
+import ChatPage from "./components/ChatPage/ChatPage";
 import { getBrandName } from "./utils/branding";
 import { useVSCodeMessageHandler } from "./hooks/useVSCodeMessageHandler";
 import { useExtensionStore } from "./store/store";
@@ -36,19 +36,13 @@ const App: React.FC = () => {
         solutionScope: windowData.solutionScope,
         solutionServerEnabled: windowData.solutionServerEnabled ?? false,
         solutionServerConnected: windowData.solutionServerConnected ?? false,
-        isAgentMode: windowData.isAgentMode ?? false,
         isInTreeMode: windowData.isInTreeMode ?? false,
         workspaceRoot: windowData.workspaceRoot ?? "/",
         activeProfileId: windowData.activeProfileId ?? null,
-        isWaitingForUserInteraction: windowData.isWaitingForUserInteraction ?? false,
-        isProcessingQueuedMessages: windowData.isProcessingQueuedMessages ?? false,
         activeDecorators: windowData.activeDecorators ?? {},
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],
         configErrors: Array.isArray(windowData.configErrors) ? windowData.configErrors : [],
         chatMessages: Array.isArray(windowData.chatMessages) ? windowData.chatMessages : [],
-        pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
-          ? windowData.pendingBatchReview
-          : [],
         hubConfig: windowData.hubConfig,
         profileSyncEnabled: windowData.profileSyncEnabled ?? false,
         profileSyncConnected: windowData.profileSyncConnected ?? false,
@@ -57,6 +51,15 @@ const App: React.FC = () => {
         oidcUsername: windowData.oidcUsername ?? "",
         oidcTokenExpiry: windowData.oidcTokenExpiry ?? null,
         isWebEnvironment: windowData.isWebEnvironment ?? false,
+        isAgentMode: (windowData.featureState?.agentMode as boolean | undefined) ?? false,
+        isFreeformChat: (windowData.featureState?.freeformChat as boolean | undefined) ?? false,
+        chatSettingsRequest:
+          (windowData.featureState?.chatSettingsRequest as number | undefined) ?? 0,
+        modelSupportsTools: windowData.modelSupportsTools ?? true,
+        isBatchReviewMode: windowData.isBatchReviewMode ?? false,
+        pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
+          ? windowData.pendingBatchReview
+          : [],
       });
     }
   }, []);
@@ -75,9 +78,9 @@ const App: React.FC = () => {
   return (
     <div>
       {currentView === "sidebar" && <AnalysisPage />}
-      {currentView === "resolution" && <ResolutionPage />}
       {currentView === "profiles" && <ProfileManagerPage />}
       {currentView === "hub" && <HubSettingsPage />}
+      {currentView === "chat" && <ChatPage />}
     </div>
   );
 };

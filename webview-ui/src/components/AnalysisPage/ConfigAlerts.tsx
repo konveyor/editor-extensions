@@ -13,6 +13,7 @@ import {
   enableGenAI,
   retryProfileSync,
   syncHubProfiles,
+  openChatSettings,
 } from "../../hooks/actions";
 
 interface ConfigAlertsProps {
@@ -82,6 +83,11 @@ const ConfigAlerts: React.FC<ConfigAlertsProps> = ({
                   ) : error.type === "genai-disabled" ? (
                     <AlertActionLink onClick={() => dispatch(enableGenAI())}>
                       Enable GenAI
+                    </AlertActionLink>
+                  ) : error.type === "provider-connection-failed" ||
+                    error.type === "provider-not-configured" ? (
+                    <AlertActionLink onClick={() => dispatch(openChatSettings())}>
+                      Configure Provider
                     </AlertActionLink>
                   ) : undefined
                 }
