@@ -29,12 +29,14 @@ export async function fetchGitHubTagSha(octokit, tag) {
 }
 
 /**
- * Fetch the most recent successful workflow run for the branch head.
+ * Fetch the most recent successful workflow run for the branch head, falling back to the most
+ * recent successful run on the branch. Runs without downloadable artifacts are skipped.
  *
  * @param {Octokit} octokit Octokit configured for auth and the target owner/repo
- * @param {string} branch Name of the brach to check
+ * @param {string} branch Name of the branch to check
  * @param {string} workflowFile Name of the workflow file to check
- * @returns {Promise<{runId: string, headSha: string} | null>} - Object containing the workflow run ID and head SHA, or null if not found.
+ * @returns {Promise<{workflowRunId: number, workflowRunUrl: string, headSha: string}>} - Object containing the workflow run ID, API url and head SHA.
+ * @throws {Error} If none of the recent successful runs on the branch have downloadable artifacts.
  */
 export async function fetchFirstSuccessfulRun(octokit, branch, workflowFile) {
   const branchInfo = await octokit.request("GET /repos/{owner}/{repo}/branches/{branch}", {
@@ -42,71 +44,94 @@ export async function fetchFirstSuccessfulRun(octokit, branch, workflowFile) {
   });
   const headSha = branchInfo.data.commit.sha;
 
-  // First, try to find a successful run for the HEAD commit
+  // First, try to find a successful run for the HEAD commit. Filter on the branch too: pushing a
+  // tag for the same commit starts runs with that head_sha whose head_branch is the tag, and
+  // they are listed ahead of the branch's own run.
   const headWorkflowRunInfo = await octokit.request(
-    "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs{?head_sha,per_page}",
+    "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs{?head_sha,branch,per_page}",
     {
       workflow_id: workflowFile,
       head_sha: headSha,
+      branch,
       per_page: 1,
     },
   );
 
-  if (headWorkflowRunInfo.data.workflow_runs.length > 0) {
-    const workflowRun = headWorkflowRunInfo.data.workflow_runs.find(
-      (run) => run.head_branch === branch,
-    );
-    if (workflowRun && workflowRun.status === "completed" && workflowRun.conclusion === "success") {
-      return {
-        workflowRunId: workflowRun.id,
-        workflowRunUrl: workflowRun.url,
-        headSha: headSha,
-      };
-    }
-    if (workflowRun) {
-      console.warn(
-        `Workflow run ${workflowRun.id} for HEAD commit on ${branch} is not successful. status: ${workflowRun.status}, conclusion: ${workflowRun.conclusion}`,
-      );
-    }
-  }
-
-  if (
-    headWorkflowRunInfo.data.workflow_runs.length === 0 ||
-    !headWorkflowRunInfo.data.workflow_runs.find((run) => run.head_branch === branch)
-  ) {
+  const workflowRun = headWorkflowRunInfo.data.workflow_runs.find(
+    (run) => run.head_branch === branch,
+  );
+  if (!workflowRun) {
     console.warn(`No workflow runs found for HEAD commit ${headSha} on ${branch}.`);
+  } else if (workflowRun.status !== "completed" || workflowRun.conclusion !== "success") {
+    console.warn(
+      `Workflow run ${workflowRun.id} for HEAD commit on ${branch} is not successful. status: ${workflowRun.status}, conclusion: ${workflowRun.conclusion}`,
+    );
+  } else if (await hasDownloadableArtifacts(octokit, workflowRun.id)) {
+    return {
+      workflowRunId: workflowRun.id,
+      workflowRunUrl: workflowRun.url,
+      headSha: headSha,
+    };
+  } else {
+    console.warn(
+      `Workflow run ${workflowRun.id} for HEAD commit on ${branch} has no downloadable artifacts (expired or missing).`,
+    );
   }
 
-  // Fall back to finding the most recent successful run for the branch
+  // Fall back to the most recent successful run for the branch whose artifacts can be downloaded.
+  // This listing is not always complete or current, so its first run may be months old.
   console.log(`Falling back to most recent successful run on ${branch}...`);
   const recentWorkflowRunInfo = await octokit.request(
     "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs{?branch,status,per_page}",
     {
       workflow_id: workflowFile,
       branch: branch,
-      status: "completed",
+      status: "success",
       per_page: 10,
     },
   );
 
-  const successfulRun = recentWorkflowRunInfo.data.workflow_runs.find(
+  const successfulRuns = recentWorkflowRunInfo.data.workflow_runs.filter(
     (run) => run.conclusion === "success" && run.head_branch === branch,
   );
-
-  if (!successfulRun) {
-    console.error(`No successful workflow runs found on ${branch}.`);
-    return {};
+  if (successfulRuns.length === 0) {
+    throw new Error(`No successful ${workflowFile} runs found on ${branch}.`);
   }
 
-  console.log(
-    `Found successful workflow run ${successfulRun.id} from commit ${successfulRun.head_sha.substring(0, 7)}`,
-  );
+  for (const run of successfulRuns) {
+    const shortSha = run.head_sha.substring(0, 7);
+    if (!(await hasDownloadableArtifacts(octokit, run.id))) {
+      console.warn(
+        `Skipping workflow run ${run.id} from commit ${shortSha}: no downloadable artifacts (expired or missing).`,
+      );
+      continue;
+    }
 
-  return {
-    workflowRunId: successfulRun.id,
-    workflowRunUrl: successfulRun.url,
-    headSha: successfulRun.head_sha,
-  };
+    console.log(`Found successful workflow run ${run.id} from commit ${shortSha}`);
+    return {
+      workflowRunId: run.id,
+      workflowRunUrl: run.url,
+      headSha: run.head_sha,
+    };
+  }
+
+  throw new Error(
+    `None of the ${successfulRuns.length} most recent successful ${workflowFile} runs on ${branch} have downloadable artifacts. Run the workflow on ${branch} again to produce new ones.`,
+  );
+}
+
+/**
+ * Check that a workflow run has artifacts and that none of them have expired. GitHub removes
+ * artifacts when their retention period ends (90 days unless the workflow sets `retention-days`),
+ * and downloading one after that fails with `410 Gone`.
+ *
+ * @param {Octokit} octokit Octokit configured for auth and the target owner/repo
+ * @param {number} runId ID of the workflow run
+ * @returns {Promise<boolean>}
+ */
+async function hasDownloadableArtifacts(octokit, runId) {
+  const artifacts = await fetchArtifactsForRun(octokit, runId);
+  return artifacts.length > 0 && artifacts.every((artifact) => !artifact.expired);
 }
 
 /**
@@ -154,21 +179,34 @@ export async function fetchFirstSuccessfulRunForPr(octokit, pr, workflowFile) {
 }
 
 /**
- * Fetch artifacts for a specific workflow run.
+ * Fetch all artifacts for a specific workflow run, reading every page of results.
  *
  * @param {Octokit} octokit Octokit configured for auth and the target owner/repo
  * @param {string} runId - ID of the workflow run.
- * @returns {Promise<Array<{ name, url }>} - List of artifacts with download URLs.
+ * @returns {Promise<Array<{ name, url, expired }>>} - List of artifacts with download URLs and whether they have expired.
  */
 export async function fetchArtifactsForRun(octokit, runId) {
-  const r = await octokit.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts", {
-    run_id: runId,
-  });
+  const perPage = 100;
+  const artifacts = [];
+  for (let page = 1; ; page++) {
+    const r = await octokit.request(
+      "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts{?per_page,page}",
+      {
+        run_id: runId,
+        per_page: perPage,
+        page,
+      },
+    );
+    artifacts.push(...r.data.artifacts);
+    if (r.data.artifacts.length < perPage) {
+      break;
+    }
+  }
 
-  const data = r.data;
-  const downloadUrls = data.artifacts.map((artifact) => ({
+  const downloadUrls = artifacts.map((artifact) => ({
     name: artifact.name,
     url: artifact.archive_download_url,
+    expired: artifact.expired,
   }));
   return downloadUrls;
 }

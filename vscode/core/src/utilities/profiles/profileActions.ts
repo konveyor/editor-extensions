@@ -1,5 +1,6 @@
+import { basename } from "path";
 import { ExtensionState } from "src/extensionState";
-import { OpenDialogOptions, window } from "vscode";
+import { FileType, OpenDialogOptions, Uri, window, workspace } from "vscode";
 import { getUserProfiles, saveUserProfiles } from "./profileService";
 import { updateConfigErrors } from "../configuration";
 
@@ -9,7 +10,7 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
     canSelectFolders: true,
     canSelectFiles: true,
     openLabel: "Select Custom Rules",
-    filters: { "All Files": ["*"] },
+    filters: { "YAML rule files": ["yaml", "yml"] },
   };
 
   const fileUris = await window.showOpenDialog(options);
@@ -17,7 +18,32 @@ export async function handleConfigureCustomRules(profileId: string, state: Exten
     return;
   }
 
-  const customRules = fileUris.map((uri) => uri.fsPath);
+  // Dialog filters don't apply to folders and are not enforced on all
+  // platforms, so validate the selection: directories are accepted as rule
+  // directories, files must be YAML.
+  const validUris: Uri[] = [];
+  const skippedNames: string[] = [];
+  for (const uri of fileUris) {
+    const stat = await workspace.fs.stat(uri);
+    const isDirectory = (stat.type & FileType.Directory) !== 0;
+    const isYamlFile = uri.fsPath.endsWith(".yaml") || uri.fsPath.endsWith(".yml");
+    if (isDirectory || isYamlFile) {
+      validUris.push(uri);
+    } else {
+      skippedNames.push(basename(uri.fsPath));
+    }
+  }
+
+  if (skippedNames.length > 0) {
+    window.showWarningMessage(
+      `Skipped non-YAML file(s): ${skippedNames.join(", ")}. Custom rules must be .yaml or .yml files, or folders containing them.`,
+    );
+  }
+  if (validUris.length === 0) {
+    return;
+  }
+
+  const customRules = validUris.map((uri) => uri.fsPath);
 
   const profile = state.data.profiles.find((p) => p.id === profileId);
   if (!profile) {
