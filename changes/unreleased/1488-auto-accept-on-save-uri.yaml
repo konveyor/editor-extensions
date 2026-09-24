@@ -1,9 +1,0 @@
-kind: bugfix
-description: >
-  Fix "Auto Accept on Save" saving files with un-accepted inline diffs. The
-  save handler looked up the diff by its URI string but then tried to accept
-  it by filesystem path, so the accept silently no-oped and the file was saved
-  with the pending diff still in the buffer. The correct URI is now used, so
-  saving accepts and clears the diff as intended.
-extensions:
-  - core
