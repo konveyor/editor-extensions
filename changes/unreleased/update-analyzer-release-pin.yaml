@@ -1,0 +1,9 @@
+kind: bugfix
+description: >
+  Updated bundled analyzer components and rulesets to v0.11.0-beta.1, fixing stable release packaging with the current C# provider runtime.
+extensions:
+  - core
+  - java
+  - javascript
+  - go
+  - csharp
