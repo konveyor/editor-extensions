@@ -2,6 +2,16 @@
 
 All notable changes to the "konveyor-csharp" extension will be documented in this file.
 
+
+## [0.8.0] - 2026-09-24
+
+### Bug Fixes
+
+- Publish C# as platform-specific packages with bundled analyzers to stay within the Open VSX size limit. Validate all package sizes before publication. ([#1494](https://github.com/konveyor/editor-extensions/pull/1494))
+- Fixed packaging and launching of the C# analyzer provider after it moved to a self-contained .NET publish directory with a CSharpProvider entrypoint.
+- Updated bundled analyzer components and rulesets to v0.11.0-beta.1, fixing stable release packaging with the current C# provider runtime.
+
+
 ## [0.6.0] - 2026-07-03
 
 ### Bug Fixes

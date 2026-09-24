@@ -1,7 +1,0 @@
-kind: bugfix
-description: >
-  Build the label selector for hub-synced analysis profiles the same way the
-  hub's analyzer addon does, by ANDing source labels with target labels instead
-  of ORing every label together. Analyzing an application in the IDE with a
-  profile synced from the hub no longer reports a different set of issues than
-  running the same profile on the hub.
