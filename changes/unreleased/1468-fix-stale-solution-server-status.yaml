@@ -1,6 +1,0 @@
-kind: bugfix
-description: >
-  Update the Solution Server status chip when the MCP connection goes stale
-  and automatically reconnect. Connection failures detected mid-request are
-  now broadcast to the webview, and the health poll retries the connection
-  with backoff instead of stopping after repeated failures.

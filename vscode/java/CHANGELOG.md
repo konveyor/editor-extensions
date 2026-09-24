@@ -2,6 +2,14 @@
 
 All notable changes to the "konveyor-java" extension will be documented in this file.
 
+
+## [0.8.0] - 2026-09-24
+
+### Bug Fixes
+
+- Updated bundled analyzer components and rulesets to v0.11.0-beta.1, fixing stable release packaging with the current C# provider runtime.
+
+
 ## [0.6.0] - 2026-07-03
 
 ### Bug Fixes
