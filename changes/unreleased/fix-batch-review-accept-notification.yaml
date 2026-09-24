@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Fixed accepting or rejecting a batch-reviewed file change so it applies the
+  change and notifies the solution server, instead of returning early because
+  the file was tracked in the batch review queue rather than in chat messages.

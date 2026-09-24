@@ -18,7 +18,7 @@
     "*.{css,json,md,yaml,yml}": "prettier --write"
   },
   "dependencies": {
-    "@patternfly/chatbot": "^6.3.0",
+    "@patternfly/chatbot": "^6.5.0",
     "@patternfly/patternfly": "^6.3.0",
     "@patternfly/react-code-editor": "^6.0.0",
     "@patternfly/react-component-groups": "^6.2.1",
@@ -42,6 +42,7 @@
     "@types/vscode-webview": "^1.57.5",
     "global-jsdom": "^26.0.0",
     "jsdom": "^26.0.0",
-    "vite-plugin-static-copy": "^3.0.0"
+    "vite-plugin-static-copy": "^3.0.0",
+    "eslint-plugin-react-hooks": "^5.0.0"
   }
 }
