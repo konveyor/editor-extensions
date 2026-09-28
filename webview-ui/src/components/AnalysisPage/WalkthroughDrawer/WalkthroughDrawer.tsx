@@ -26,7 +26,7 @@ import { PencilAltIcon } from "@patternfly/react-icons";
 import { useExtensionStore } from "../../../store/store";
 import { sendVscodeMessage as dispatch } from "../../../utils/vscodeMessaging";
 import { TruncatedDescription } from "../../TruncatedDescription/TruncatedDescription";
-import { enableGenAI } from "../../../hooks/actions";
+import { enableGenAI, openChatSettings } from "../../../hooks/actions";
 import { getBrandName } from "../../../utils/branding";
 
 export function WalkthroughDrawer({
@@ -169,7 +169,7 @@ export function WalkthroughDrawer({
         ? genaiManagedByHubDescription
         : genaiDisabled
           ? "GenAI functionality is currently disabled in your settings."
-          : "Enable GenAI assistance using your API key.",
+          : "Choose a provider and model and enter your API key.",
       fullDescription: llmProxyAvailable
         ? genaiManagedByHubFullDescription
         : genaiDisabled
@@ -278,11 +278,8 @@ export function WalkthroughDrawer({
                             Enable GenAI
                           </Button>
                         ) : (
-                          <Button
-                            variant="link"
-                            onClick={() => dispatch({ type: "OPEN_GENAI_SETTINGS", payload: {} })}
-                          >
-                            Configure GenAI Settings
+                          <Button variant="link" onClick={() => dispatch(openChatSettings())}>
+                            Configure Provider
                           </Button>
                         )}
                       </StackItem>
