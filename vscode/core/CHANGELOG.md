@@ -2,6 +2,30 @@
 
 All notable changes to the "konveyor.konveyor-core" extension will be documented in this file.
 
+
+## [0.8.0] - 2026-09-24
+
+### New Features
+
+- Added native Anthropic API support via a ChatAnthropic model provider, so Claude models can be configured directly instead of only through AWS Bedrock or an OpenAI-compatible proxy. ([#1470](https://github.com/konveyor/editor-extensions/pull/1470))
+
+### Enhancements
+
+- Documented environment variables for configuring the extension in managed environments like Dev Spaces.
+
+### Bug Fixes
+
+- Update the Solution Server status chip when the MCP connection goes stale and automatically reconnect. Connection failures detected mid-request are now broadcast to the webview, and the health poll retries the connection with backoff instead of stopping after repeated failures. ([#1468](https://github.com/konveyor/editor-extensions/pull/1468))
+- Preserve Hub client instances across token refreshes instead of replacing them, so workflows keep a working solution server client (and its clientId session state), and rebuild the LLM proxy model provider with the refreshed token so solution generation no longer fails with 401 after a refresh. ([#1468](https://github.com/konveyor/editor-extensions/pull/1468))
+- Build the label selector for hub-synced analysis profiles the same way the hub's analyzer addon does, by ANDing source labels with target labels instead of ORing every label together. Analyzing an application in the IDE with a profile synced from the hub no longer reports a different set of issues than running the same profile on the hub. ([#1478](https://github.com/konveyor/editor-extensions/pull/1478))
+- Wipe a hub profile directory before extracting the bundle into it. Synced profiles are marked read-only, and tar will not overwrite a read-only file, so re-syncing left the old profile.yaml in place and any fix to the label selector never reached users who had already synced. ([#1484](https://github.com/konveyor/editor-extensions/pull/1484))
+- Fix "Auto Accept on Save" saving files with un-accepted inline diffs. The save handler looked up the diff by its URI string but then tried to accept it by filesystem path, so the accept silently no-oped and the file was saved with the pending diff still in the buffer. The correct URI is now used, so saving accepts and clears the diff as intended. ([#1488](https://github.com/konveyor/editor-extensions/pull/1488))
+- Validate file types when selecting custom rules for a profile. The file dialog now filters to YAML rule files, and any non-YAML files that slip through (e.g. on platforms where dialog filters are not enforced) are skipped with a warning instead of being silently added to the profile. Folders are still accepted as rule directories. ([#580](https://github.com/konveyor/editor-extensions/pull/580))
+- Fixed health poll aggressively reconnecting the solution server on the first transient failure, which disrupted other MCP clients sharing the same ingress.
+- Treat a Hub token without a known expiry (a PAT minted with no expiration/lifespan, or an OIDC token with no expires_in and no exp claim) as long-lived instead of already expired, so the refresh timer no longer falls into an immediate-refresh loop that mints tokens against the Hub at request speed and prevents connect() from ever completing.
+- Updated bundled analyzer components and rulesets to v0.11.0-beta.1, fixing stable release packaging with the current C# provider runtime.
+
+
 ## [0.6.0] - 2026-07-03
 
 ### Enhancements

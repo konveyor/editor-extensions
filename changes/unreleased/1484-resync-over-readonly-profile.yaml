@@ -1,6 +1,0 @@
-kind: bugfix
-description: >
-  Wipe a hub profile directory before extracting the bundle into it. Synced
-  profiles are marked read-only, and tar will not overwrite a read-only file,
-  so re-syncing left the old profile.yaml in place and any fix to the label
-  selector never reached users who had already synced.
