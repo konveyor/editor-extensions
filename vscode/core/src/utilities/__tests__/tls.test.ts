@@ -271,6 +271,7 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
     const certsDir = fs.mkdtempSync(pathlib.join(os.tmpdir(), "tls-proxy-test-"));
     let target: https.Server;
     let proxy: http.Server;
+    let tlsProxy: https.Server;
     let targetUrl: string;
     let tunnels: string[];
     let envSnapshot: Record<string, string | undefined>;
@@ -293,8 +294,7 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
       await new Promise<void>((resolve) => target.listen(0, "127.0.0.1", resolve));
       targetUrl = `https://localhost:${(target.address() as AddressInfo).port}/`;
 
-      proxy = http.createServer();
-      proxy.on("connect", (req, clientSocket, head) => {
+      const onConnect = (req: http.IncomingMessage, clientSocket: net.Socket, head: Buffer) => {
         tunnels.push(req.url ?? "");
         const [host, port] = (req.url ?? "").split(":");
         const upstream = net.connect(Number(port), host, () => {
@@ -305,8 +305,18 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
         });
         upstream.on("error", () => clientSocket.destroy());
         clientSocket.on("error", () => upstream.destroy());
-      });
+      };
+      proxy = http.createServer();
+      proxy.on("connect", onConnect);
       await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+
+      // An https:// proxy, signed by the same test CA as the target.
+      tlsProxy = https.createServer({
+        key: fs.readFileSync(pathlib.join(certsDir, "srv.key")),
+        cert: fs.readFileSync(pathlib.join(certsDir, "srv.crt")),
+      });
+      tlsProxy.on("connect", onConnect);
+      await new Promise<void>((resolve) => tlsProxy.listen(0, "127.0.0.1", resolve));
     });
 
     beforeEach(() => {
@@ -321,7 +331,7 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
     });
 
     after(async () => {
-      for (const server of [target, proxy]) {
+      for (const server of [target, proxy, tlsProxy]) {
         if (server?.listening) {
           server.closeAllConnections();
           await new Promise((r) => server.close(r));
@@ -359,6 +369,18 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
     it("still rejects an untrusted target certificate through the proxy", async () => {
       await expect(fetchThroughProxy(undefined, false)).rejects.toThrow("fetch failed");
       expect(tunnels).toHaveLength(1);
+    });
+
+    it("trusts CA_BUNDLE for an https:// proxy as well as the target", async () => {
+      process.env.HTTPS_PROXY = `https://localhost:${(tlsProxy.address() as AddressInfo).port}`;
+      expect(await fetchThroughProxy(pathlib.join(certsDir, "ca.crt"), false)).toBe("ok");
+      expect(tunnels).toHaveLength(1);
+    });
+
+    it("does not let ALLOW_INSECURE skip verifying an https:// proxy", async () => {
+      process.env.HTTPS_PROXY = `https://localhost:${(tlsProxy.address() as AddressInfo).port}`;
+      await expect(fetchThroughProxy(undefined, true)).rejects.toThrow("fetch failed");
+      expect(tunnels).toHaveLength(0);
     });
   },
 );

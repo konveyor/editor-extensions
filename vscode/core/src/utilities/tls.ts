@@ -124,13 +124,17 @@ export async function getDispatcherWithCertBundle(
     if (logger) {
       logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
     }
-    // ProxyAgent ignores `connect` TLS options; target TLS goes through `requestTls`.
+    // ProxyAgent ignores `connect` TLS options; target TLS goes through `requestTls`
+    // and, for an https:// proxy, the proxy's own TLS through `proxyTls`.
     return new ProxyAgent({
       uri: proxyUrl,
       allowH2,
       requestTls: {
         ca: allCerts,
         rejectUnauthorized: !insecure,
+      },
+      proxyTls: {
+        ca: allCerts,
       },
     }) as unknown as UndiciTypesDispatcher;
   }
