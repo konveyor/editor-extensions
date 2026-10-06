@@ -238,6 +238,51 @@ export interface ModelHealthCheckOptions {
   timeoutMs?: number;
 }
 
+export class ModelHealthCheckTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(
+      `Model health check exceeded its ${timeoutMs}ms budget. The endpoint accepted the ` +
+        `connection but did not respond in time - check the provider URL, proxy settings, and ` +
+        `that the model server is reachable.`,
+    );
+    this.name = "ModelHealthCheckTimeoutError";
+  }
+}
+
+/**
+ * Run `work` under a hard deadline.
+ *
+ * The per-call `timeout` option is forwarded to providers as a courtesy, but
+ * it cannot be relied on: several LangChain integrations do not plumb the
+ * abort signal all the way down. `@langchain/ollama`, for instance, awaits
+ * `client.chat()` with no signal and only checks `signal.aborted` after a
+ * chunk has already arrived, so a server that accepts the connection and
+ * stays silent is never bounded. Racing against a timer guarantees the budget
+ * holds regardless of SDK behavior; the abort signal still lets well-behaved
+ * clients release the underlying socket instead of leaking it.
+ */
+async function withDeadline<T>(
+  work: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+  budgetMs: number,
+): Promise<T> {
+  const controller = new AbortController();
+  let timer: NodeJS.Timeout | undefined;
+
+  const expiry = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new ModelHealthCheckTimeoutError(budgetMs));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([work(controller.signal), expiry]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Check if the model is connected and supports tools
  * @param streamingModel a streaming model
@@ -256,7 +301,16 @@ export async function runModelHealthCheck(
   // The three probes below run in sequence, so give them a shared deadline
   // rather than a per-request timeout - otherwise the worst case is 3x.
   const deadline = Date.now() + timeoutMs;
-  const remainingTimeout = (): number => Math.max(1_000, deadline - Date.now());
+
+  // Once the budget is gone, fail rather than granting each remaining probe a
+  // fresh floor; a floor would let a stalled endpoint overrun the budget.
+  const runProbe = <T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      return Promise.reject(new ModelHealthCheckTimeoutError(timeoutMs));
+    }
+    return withDeadline(work, remaining, timeoutMs);
+  };
 
   const response: ModelCapabilities = {
     supportsTools: false,
@@ -286,24 +340,33 @@ export async function runModelHealthCheck(
   }
 
   try {
-    let containsToolCall = false;
-    const stream = await runnable.stream([sys_message, human_message], {
-      timeout: remainingTimeout(),
-    });
-    if (stream) {
+    // Bound stream creation *and* consumption together. Bounding only the
+    // former leaves a server that opens the stream and then stalls unbounded.
+    const containsToolCall = await runProbe(async (signal) => {
+      const stream = await runnable.stream([sys_message, human_message], {
+        timeout: deadline - Date.now(),
+        signal,
+      });
+      if (!stream) {
+        return false;
+      }
       for await (const chunk of stream) {
         if (chunk.tool_calls && chunk.tool_calls.length > 0) {
-          containsToolCall = true;
-          break;
+          return true;
         }
       }
-      if (containsToolCall) {
-        response.supportsToolsInStreaming = true;
-        response.supportsTools = true;
-        return response;
-      }
+      return false;
+    });
+
+    if (containsToolCall) {
+      response.supportsToolsInStreaming = true;
+      response.supportsTools = true;
+      return response;
     }
   } catch (err) {
+    if (err instanceof ModelHealthCheckTimeoutError) {
+      throw err;
+    }
     // Expected when the server does not support tool calls while streaming
     // (vLLM without `--enable-auto-tool-choice`, for example). Log through the
     // logger rather than the console so it lands in the debug archive - this is
@@ -318,21 +381,29 @@ export async function runModelHealthCheck(
     if (nonStreamingModel.bindTools) {
       runnable = nonStreamingModel.bindTools([tool]);
     }
-    const res = await runnable.invoke([sys_message, human_message], {
-      timeout: remainingTimeout(),
-    });
+    const res = await runProbe((signal) =>
+      runnable.invoke([sys_message, human_message], {
+        timeout: deadline - Date.now(),
+        signal,
+      }),
+    );
     if (res.tool_calls && res.tool_calls.length > 0) {
       response.supportsTools = true;
     }
     return response;
   } catch (err) {
+    if (err instanceof ModelHealthCheckTimeoutError) {
+      throw err;
+    }
     logger?.info("Non-streaming client could not use tool calls", {
       error: describeErrorChain(err),
     });
   }
 
   // check if we are connected to the model, this will throw an error if not
-  await nonStreamingModel.invoke("a", { timeout: remainingTimeout() });
+  await runProbe((signal) =>
+    nonStreamingModel.invoke("a", { timeout: deadline - Date.now(), signal }),
+  );
 
   return response;
 }

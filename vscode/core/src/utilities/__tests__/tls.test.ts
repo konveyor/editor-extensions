@@ -305,6 +305,70 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
       );
     });
 
+    /**
+     * Provider settings win as a unit, across both casings. Resolving key by
+     * key let an uppercase process variable outrank a lowercase provider
+     * override, and `||` treated an intentional empty value as permission to
+     * fall back to the inherited proxy.
+     */
+    describe("mixed-case provider vs. process settings", () => {
+      it("lets a lowercase provider override beat an uppercase process variable", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(
+          resolveProxyEnv({ https_proxy: "http://yaml-proxy.example.com:9090" }).proxyUrl,
+        ).toBe("http://yaml-proxy.example.com:9090");
+      });
+
+      it("lets an uppercase provider override beat a lowercase process variable", () => {
+        process.env.https_proxy = "http://process-proxy.example.com:8080";
+
+        expect(
+          resolveProxyEnv({ HTTPS_PROXY: "http://yaml-proxy.example.com:9090" }).proxyUrl,
+        ).toBe("http://yaml-proxy.example.com:9090");
+      });
+
+      it("treats an explicit empty provider value as 'no proxy', not as fallback", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(resolveProxyEnv({ https_proxy: "", http_proxy: "" }).proxyUrl).toBeUndefined();
+      });
+
+      it("disables the proxy when only one empty provider key is set", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+        process.env.http_proxy = "http://process-proxy.example.com:8080";
+
+        // Any proxy key in the provider settings makes them authoritative, so
+        // the inherited values are not consulted at all.
+        expect(resolveProxyEnv({ https_proxy: "" }).proxyUrl).toBeUndefined();
+      });
+
+      it("falls back to the process environment when the provider sets no proxy key", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(resolveProxyEnv({ CA_BUNDLE: "/etc/ca.pem" }).proxyUrl).toBe(
+          "http://process-proxy.example.com:8080",
+        );
+      });
+
+      it("reports whether the provider settings decided the routing", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(resolveProxyEnv().fromProviderEnv).toBe(false);
+        expect(resolveProxyEnv({ CA_BUNDLE: "/etc/ca.pem" }).fromProviderEnv).toBe(false);
+        expect(resolveProxyEnv({ no_proxy: "model.internal" }).fromProviderEnv).toBe(true);
+        expect(resolveProxyEnv({ https_proxy: "" }).fromProviderEnv).toBe(true);
+      });
+
+      it("takes the bypass list from the provider settings when it defines one", () => {
+        process.env.NO_PROXY = "localhost";
+
+        const { noProxy } = resolveProxyEnv({ no_proxy: "model.internal.example.com" });
+        expect(shouldBypassProxy("https://model.internal.example.com/v1", noProxy)).toBe(true);
+        expect(shouldBypassProxy("https://localhost/v1", noProxy)).toBe(false);
+      });
+    });
+
     it("returns undefined rather than an empty string when nothing is configured", () => {
       const { proxyUrl, noProxy } = resolveProxyEnv();
 
@@ -338,7 +402,9 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
         NO_PROXY: "127.0.0.1",
       };
 
-      const handler = await getNodeHttpHandler(env, logger, "1.1", "http://127.0.0.1:8080");
+      // Proxy settings reach the handler via the provider-env parameter; the
+      // first argument carries CA/TLS settings only.
+      const handler = await getNodeHttpHandler({}, logger, "1.1", "http://127.0.0.1:8080", env);
       const config = await (handler as any).configProvider;
 
       expect(config.httpsAgent.constructor.name).not.toBe("HttpsProxyAgent");
@@ -351,10 +417,11 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
       };
 
       const handler = await getNodeHttpHandler(
-        env,
+        {},
         logger,
         "1.1",
         "https://bedrock-runtime.us-east-1.amazonaws.com",
+        env,
       );
       const config = await (handler as any).configProvider;
 

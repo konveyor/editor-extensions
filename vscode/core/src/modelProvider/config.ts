@@ -87,7 +87,10 @@ export async function getModelProviderFromConfig(
   ) as Record<string, string>;
   const mergedEnv = { ...processEnvFiltered, ...parsedConfig.env };
 
-  const modelCreator = ModelCreators[parsedConfig.config.provider](logger);
+  // Pass the raw provider environment alongside the merged one: proxy
+  // resolution needs to distinguish an explicit user override (including an
+  // empty value, which disables the proxy) from an inherited process variable.
+  const modelCreator = ModelCreators[parsedConfig.config.provider](logger, parsedConfig.env);
   const defaultArgs = modelCreator.defaultArgs();
   const configArgs = parsedConfig.config.args;
   //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs

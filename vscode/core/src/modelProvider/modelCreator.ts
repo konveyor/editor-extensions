@@ -22,21 +22,39 @@ import { sanitizeUrl } from "../utilities/networkDiagnostics";
 const defaultDispatcher = getGlobalDispatcher();
 const originalFetch = globalThis.fetch;
 
-export const ModelCreators: Record<string, (logger: Logger) => ModelCreator> = {
-  AzureChatOpenAI: (logger) => new AzureChatOpenAICreator(logger),
-  ChatAnthropic: (logger) => new ChatAnthropicCreator(logger),
-  ChatBedrock: (logger) => new ChatBedrockCreator(logger),
-  ChatDeepSeek: (logger) => new ChatDeepSeekCreator(logger),
-  ChatGoogleGenerativeAI: (logger) => new ChatGoogleGenerativeAICreator(logger),
-  ChatOllama: (logger) => new ChatOllamaCreator(logger),
-  ChatOpenAI: (logger) => new ChatOpenAICreator(logger),
+/**
+ * `providerEnv` is the raw `environment:` block from provider-settings.yaml,
+ * kept separate from the merged environment so proxy settings can tell an
+ * explicit user override (including an empty value) apart from an inherited
+ * process variable.
+ */
+export const ModelCreators: Record<
+  string,
+  (logger: Logger, providerEnv?: Record<string, string>) => ModelCreator
+> = {
+  AzureChatOpenAI: (logger, providerEnv) => new AzureChatOpenAICreator(logger, providerEnv),
+  ChatAnthropic: (logger, providerEnv) => new ChatAnthropicCreator(logger, providerEnv),
+  ChatBedrock: (logger, providerEnv) => new ChatBedrockCreator(logger, providerEnv),
+  ChatDeepSeek: (logger, providerEnv) => new ChatDeepSeekCreator(logger, providerEnv),
+  ChatGoogleGenerativeAI: (logger, providerEnv) =>
+    new ChatGoogleGenerativeAICreator(logger, providerEnv),
+  ChatOllama: (logger, providerEnv) => new ChatOllamaCreator(logger, providerEnv),
+  ChatOpenAI: (logger, providerEnv) => new ChatOpenAICreator(logger, providerEnv),
 };
 
 class AzureChatOpenAICreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
+    const fetchFn = await setupProviderTLS(
+      env,
+      this.logger,
+      extractProviderTargetUrl(args),
+      this.providerEnv,
+    );
     return new AzureChatOpenAI({
       openAIApiKey: env.AZURE_OPENAI_API_KEY,
       ...args,
@@ -71,10 +89,13 @@ class AzureChatOpenAICreator implements ModelCreator {
 }
 
 class ChatAnthropicCreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger);
+    const fetchFn = await setupProviderTLS(env, this.logger, undefined, this.providerEnv);
     return new ChatAnthropic({
       apiKey: env.ANTHROPIC_API_KEY,
       ...args,
@@ -103,7 +124,10 @@ class ChatAnthropicCreator implements ModelCreator {
 }
 
 class ChatBedrockCreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
     const bedrockEndpoint =
@@ -112,7 +136,7 @@ class ChatBedrockCreator implements ModelCreator {
         ? `https://bedrock-runtime.${env.AWS_DEFAULT_REGION}.amazonaws.com`
         : undefined);
 
-    await setupProviderTLS(env, this.logger, bedrockEndpoint);
+    await setupProviderTLS(env, this.logger, bedrockEndpoint, this.providerEnv);
 
     const config: ChatBedrockConverseInput = {
       ...args,
@@ -127,7 +151,13 @@ class ChatBedrockCreator implements ModelCreator {
 
     const httpProtocol = getConfigHttpProtocol();
     const httpVersion = httpProtocol === "http2" ? "2.0" : "1.1";
-    const requestHandler = await getNodeHttpHandler(env, this.logger, httpVersion, bedrockEndpoint);
+    const requestHandler = await getNodeHttpHandler(
+      env,
+      this.logger,
+      httpVersion,
+      bedrockEndpoint,
+      this.providerEnv,
+    );
     const runtimeClient = new BedrockRuntimeClient({
       region: env.AWS_DEFAULT_REGION,
       credentials: config.credentials,
@@ -151,10 +181,18 @@ class ChatBedrockCreator implements ModelCreator {
 }
 
 class ChatDeepSeekCreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
+    const fetchFn = await setupProviderTLS(
+      env,
+      this.logger,
+      extractProviderTargetUrl(args),
+      this.providerEnv,
+    );
     return new ChatDeepSeek({
       apiKey: env.DEEPSEEK_API_KEY,
       ...args,
@@ -181,10 +219,13 @@ class ChatDeepSeekCreator implements ModelCreator {
 }
 
 class ChatGoogleGenerativeAICreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
+    await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args), this.providerEnv);
     return new ChatGoogleGenerativeAI({
       apiKey: env.GOOGLE_API_KEY,
       ...args,
@@ -206,10 +247,18 @@ class ChatGoogleGenerativeAICreator implements ModelCreator {
 }
 
 class ChatOllamaCreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
+    const fetchFn = await setupProviderTLS(
+      env,
+      this.logger,
+      extractProviderTargetUrl(args),
+      this.providerEnv,
+    );
     return new ChatOllama({
       ...args,
       ...(fetchFn ? { fetch: fetchFn } : {}),
@@ -229,10 +278,18 @@ class ChatOllamaCreator implements ModelCreator {
 }
 
 class ChatOpenAICreator implements ModelCreator {
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly providerEnv: Record<string, string> = {},
+  ) {}
 
   async create(args: Record<string, any>, env: Record<string, string>): Promise<BaseChatModel> {
-    const fetchFn = await setupProviderTLS(env, this.logger, extractProviderTargetUrl(args));
+    const fetchFn = await setupProviderTLS(
+      env,
+      this.logger,
+      extractProviderTargetUrl(args),
+      this.providerEnv,
+    );
     return new ChatOpenAI({
       apiKey: env.OPENAI_API_KEY,
       ...args,
@@ -322,17 +379,56 @@ export function extractProviderTargetUrl(
   );
 }
 
+export interface ProviderDispatchPlan {
+  /** Whether the bundled undici dispatcher is required at all. */
+  needsCustomDispatcher: boolean;
+  /** Whether the provider's routing must be kept off the shared global dispatcher. */
+  scopeToModelClient: boolean;
+}
+
+/**
+ * Decide how a provider's connection should be dispatched.
+ *
+ * A proxy forces the custom dispatcher: undici does not read proxy
+ * environment variables on its own, so skipping it would drop the proxy and
+ * connect directly. Previously only HTTP/1 forced one, which meant HTTP/2
+ * with default TLS silently ignored any configured proxy.
+ *
+ * Routing chosen by provider settings is scoped to the model client, because
+ * the global dispatcher is shared with everything else in the extension host.
+ */
+export function planProviderDispatch(input: {
+  caBundle?: string;
+  insecure: boolean;
+  allowH2: boolean;
+  proxyUrl?: string;
+  fromProviderEnv: boolean;
+}): ProviderDispatchPlan {
+  return {
+    needsCustomDispatcher: !!input.caBundle || input.insecure || !input.allowH2 || !!input.proxyUrl,
+    scopeToModelClient: input.fromProviderEnv,
+  };
+}
+
 async function setupProviderTLS(
   env: Record<string, string>,
   logger: Logger,
   targetUrl?: string,
+  providerEnv?: Record<string, string>,
 ): Promise<FetchFn | undefined> {
   const httpProtocol = getConfigHttpProtocol();
   const allowH2 = httpProtocol === "http2";
   const { caBundle, insecure } = getCaBundleAndInsecure(env);
-  const needsCustomDispatcher = caBundle || insecure || !allowH2;
 
-  const { proxyUrl, noProxy } = resolveProxyEnv(env);
+  const { proxyUrl, noProxy, fromProviderEnv } = resolveProxyEnv(providerEnv);
+
+  const { needsCustomDispatcher, scopeToModelClient } = planProviderDispatch({
+    caBundle,
+    insecure,
+    allowH2,
+    proxyUrl,
+    fromProviderEnv,
+  });
 
   logger.info("Provider TLS config", {
     caBundle: caBundle ? `set (${caBundle})` : "not set",
@@ -345,6 +441,7 @@ async function setupProviderTLS(
     // that simply omits the target host is indistinguishable from a missing
     // one otherwise, and that ambiguity is what makes these reports expensive.
     noProxy: noProxy ?? "none",
+    proxySource: fromProviderEnv ? "provider-settings" : "process-environment",
     targetUrl: targetUrl ? sanitizeUrl(targetUrl) : "none",
     envKeys: Object.keys(env),
   });
@@ -362,11 +459,28 @@ async function setupProviderTLS(
       allowH2,
       logger,
       targetUrl,
-      env,
+      providerEnv,
     );
     const customFetch = getFetchWithDispatcher(dispatcher);
-    setGlobalDispatcher(dispatcher as any);
-    globalThis.fetch = customFetch as typeof globalThis.fetch;
+
+    // The global dispatcher and `globalThis.fetch` are shared with everything
+    // else in the extension host - notably Hub auth and token refresh, which
+    // only use a scoped fetch in insecure mode. Provider-specific proxy
+    // routing must not leak there, so when provider settings decided the proxy
+    // we install a separate global dispatcher that keeps process-level routing
+    // and reserve the provider's routing for the model client's own fetch.
+    const globalDispatcher = scopeToModelClient
+      ? await getDispatcherWithCertBundle(caBundle, insecure, allowH2, logger, undefined)
+      : dispatcher;
+
+    if (scopeToModelClient) {
+      logger.info(
+        "Provider proxy settings came from provider-settings.yaml; scoping them to model client requests",
+      );
+    }
+
+    setGlobalDispatcher(globalDispatcher as any);
+    globalThis.fetch = getFetchWithDispatcher(globalDispatcher) as typeof globalThis.fetch;
     return customFetch;
   } catch (error) {
     logger.error(error);

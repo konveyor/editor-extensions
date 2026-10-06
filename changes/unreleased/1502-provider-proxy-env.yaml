@@ -2,9 +2,13 @@ kind: bugfix
 description: >
   Honor proxy settings from the `environment:` block of provider-settings.yaml,
   which previously applied to CA_BUNDLE and ALLOW_INSECURE but silently ignored
-  HTTP_PROXY, HTTPS_PROXY and NO_PROXY. Setting a proxy variable to an empty
-  string there now disables the proxy for model provider connections. NO_PROXY
-  and no_proxy are also combined rather than letting the uppercase form shadow
-  the lowercase one, which could discard the bypass list that paired with the
-  active proxy setting. The resolved bypass list is now included in the
-  "Provider TLS config" log entry.
+  HTTP_PROXY, HTTPS_PROXY and NO_PROXY. Provider settings now take precedence as
+  a unit regardless of casing, so a lowercase override is no longer shadowed by
+  an inherited uppercase variable, and an explicit empty value disables the proxy
+  for provider traffic instead of falling back to the inherited one. A proxy now
+  also forces the custom dispatcher, so one configured with HTTP/2 and default
+  TLS settings is no longer discarded. Proxy settings from provider-settings.yaml
+  apply only to model requests and no longer re-route unrelated Hub traffic.
+  NO_PROXY and no_proxy are combined rather than letting the uppercase form
+  shadow the lowercase one. The resolved bypass list and its source are included
+  in the "Provider TLS config" log entry.

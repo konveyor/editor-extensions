@@ -120,9 +120,7 @@ Standard proxy environment variables are supported. The resolution order is
 the proxy.
 
 For model provider connections these may also be set in the `environment:`
-block of `provider-settings.yaml`, where they take precedence over the process
-environment. Setting a proxy variable to an empty string there disables the
-proxy for provider connections without affecting the rest of the IDE:
+block of `provider-settings.yaml`:
 
 ```yaml
 environment:
@@ -132,9 +130,22 @@ environment:
   # http_proxy: ""
 ```
 
+Provider settings take precedence as a unit. If the block defines **any** proxy
+variable, the inherited process values are not consulted at all — including
+when the value is an empty string, which is how you disable the proxy for
+provider traffic. Casing does not matter for precedence: a lowercase
+`https_proxy` in the block still overrides an inherited uppercase
+`HTTPS_PROXY`.
+
+Proxy settings that come from `provider-settings.yaml` apply **only** to model
+provider requests. Hub connections keep using the process-level proxy
+configuration, so bypassing the proxy for a directly reachable model does not
+also bypass it for Hub authentication and token refresh.
+
 If a provider connection is unexpectedly routed through a proxy, the
 `Provider TLS config` entry in the extension log reports the resolved
-`proxyUrl`, `noProxy`, and `targetUrl` values used for the decision.
+`proxyUrl`, `noProxy`, `proxySource`, and `targetUrl` values used for the
+decision.
 
 ## Path Exclusion
 
