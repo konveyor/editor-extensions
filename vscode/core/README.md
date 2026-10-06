@@ -138,9 +138,19 @@ provider traffic. Casing does not matter for precedence: a lowercase
 `HTTPS_PROXY`.
 
 Proxy settings that come from `provider-settings.yaml` apply **only** to model
-provider requests. Hub connections keep using the process-level proxy
-configuration, so bypassing the proxy for a directly reachable model does not
-also bypass it for Hub authentication and token refresh.
+provider requests. Global routing is always derived from the process
+environment, so Hub authentication and token refresh keep their inherited
+proxy behavior in both directions: pointing the model at a different proxy
+does not repoint the Hub, and disabling the model's proxy does not disable the
+Hub's. Process-level `NO_PROXY` is evaluated per destination, so a bypass
+entry for the Hub is honored even while other traffic is proxied.
+
+> **Known limitation.** Provider proxy overrides are applied to the HTTP client
+> the extension injects into each model SDK. A provider SDK that calls
+> `globalThis.fetch` directly instead of the injected client — the Google
+> GenAI SDK does this — will use the process-level proxy configuration rather
+> than the override. If you need a provider-specific proxy for such a model,
+> set it in the process environment instead.
 
 If a provider connection is unexpectedly routed through a proxy, the
 `Provider TLS config` entry in the extension log reports the resolved

@@ -33,6 +33,17 @@ const originalRequire = (Module.prototype as any).require;
       ProgressLocation: {
         Notification: 15,
       },
+      // Minimal configuration surface. Every getter returns the caller's
+      // default, so code under test sees stock settings rather than throwing
+      // on a missing `workspace`.
+      workspace: {
+        getConfiguration: (_section?: string) => ({
+          get: (_key: string, defaultValue?: any) => defaultValue,
+          has: (_key: string) => false,
+          inspect: (_key: string) => undefined,
+          update: (_key: string, _value: any) => Promise.resolve(),
+        }),
+      },
       // Add other vscode APIs as needed
     };
   }

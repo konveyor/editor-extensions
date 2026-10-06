@@ -1,7 +1,12 @@
 import tls from "node:tls";
 import fs from "fs/promises";
 import { Agent as HttpsAgent, type AgentOptions } from "node:https";
-import { Agent as UndiciAgent, ProxyAgent, fetch as undiciFetch } from "undici";
+import {
+  Agent as UndiciAgent,
+  Dispatcher as UndiciDispatcher,
+  ProxyAgent,
+  fetch as undiciFetch,
+} from "undici";
 import type { Dispatcher as UndiciTypesDispatcher } from "undici-types";
 import { NodeHttpHandler, NodeHttp2Handler } from "@smithy/node-http-handler";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -154,6 +159,72 @@ export function resolveProxyEnv(providerEnv?: Record<string, string>): ResolvedP
   };
 }
 
+/**
+ * Routes each request to the proxy or straight out, per destination.
+ *
+ * A `ProxyAgent` proxies unconditionally, so it can only be used when the
+ * destination is known up front and has already been checked against
+ * `NO_PROXY`. The global dispatcher serves every destination in the extension
+ * host - Hub auth and token refresh included - so it has to make that
+ * decision per request instead, or a `NO_PROXY` entry for the Hub is ignored.
+ */
+export class ProxyBypassDispatcher extends UndiciDispatcher {
+  constructor(
+    private readonly proxyAgent: UndiciTypesDispatcher,
+    private readonly directAgent: UndiciTypesDispatcher,
+    private readonly noProxy: string | undefined,
+  ) {
+    super();
+  }
+
+  /** Exposed so routing can be asserted without performing real I/O. */
+  dispatcherFor(origin: unknown): UndiciTypesDispatcher {
+    const url =
+      typeof origin === "string" ? origin : origin instanceof URL ? origin.href : undefined;
+    return shouldBypassProxy(url, this.noProxy) ? this.directAgent : this.proxyAgent;
+  }
+
+  dispatch(options: any, handler: any): boolean {
+    return (this.dispatcherFor(options?.origin) as any).dispatch(options, handler);
+  }
+
+  // Both agents must be torn down, and the base class declares callback
+  // overloads alongside the promise forms, so mirror the whole shape.
+  private settle(work: Promise<unknown>, callback?: () => void): Promise<void> | void {
+    const done = work.then(() => undefined);
+    if (callback) {
+      void done.then(callback, callback);
+      return;
+    }
+    return done;
+  }
+
+  close(): Promise<void>;
+  close(callback: () => void): void;
+  close(callback?: () => void): Promise<void> | void {
+    return this.settle(
+      Promise.all([(this.proxyAgent as any).close(), (this.directAgent as any).close()]),
+      callback,
+    );
+  }
+
+  destroy(): Promise<void>;
+  destroy(err: Error | null): Promise<void>;
+  destroy(callback: () => void): void;
+  destroy(err: Error | null, callback: () => void): void;
+  destroy(
+    errOrCallback?: Error | null | (() => void),
+    maybeCallback?: () => void,
+  ): Promise<void> | void {
+    const err = typeof errOrCallback === "function" ? null : (errOrCallback ?? null);
+    const callback = typeof errOrCallback === "function" ? errOrCallback : maybeCallback;
+    return this.settle(
+      Promise.all([(this.proxyAgent as any).destroy(err), (this.directAgent as any).destroy(err)]),
+      callback,
+    );
+  }
+}
+
 export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
@@ -193,23 +264,40 @@ export async function getDispatcherWithCertBundle(
     });
   }
 
+  const connect = { ca: allCerts, rejectUnauthorized: !insecure };
+
   if (proxyUrl && !bypassProxy) {
-    if (logger) {
-      logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
-    }
     // ProxyAgent ignores `connect` TLS options; target TLS goes through `requestTls`
     // and, for an https:// proxy, the proxy's own TLS through `proxyTls`.
-    return new ProxyAgent({
+    const proxyAgent = new ProxyAgent({
       uri: proxyUrl,
       allowH2,
-      requestTls: {
-        ca: allCerts,
-        rejectUnauthorized: !insecure,
-      },
+      requestTls: connect,
       proxyTls: {
         ca: allCerts,
       },
     }) as unknown as UndiciTypesDispatcher;
+
+    // No target URL means this dispatcher will serve many destinations (it is
+    // the global one), so `NO_PROXY` cannot be evaluated up front. Decide per
+    // request instead of proxying everything unconditionally.
+    if (!targetUrl && noProxy) {
+      if (logger) {
+        logger.info(
+          `Using proxy ${sanitizeUrl(proxyUrl)} with per-destination NO_PROXY=${noProxy}`,
+        );
+      }
+      return new ProxyBypassDispatcher(
+        proxyAgent,
+        new UndiciAgent({ connect, allowH2 }) as unknown as UndiciTypesDispatcher,
+        noProxy,
+      ) as unknown as UndiciTypesDispatcher;
+    }
+
+    if (logger) {
+      logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
+    }
+    return proxyAgent;
   }
 
   if (proxyUrl && bypassProxy && logger) {

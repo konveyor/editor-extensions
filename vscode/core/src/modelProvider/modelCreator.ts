@@ -380,37 +380,48 @@ export function extractProviderTargetUrl(
 }
 
 export interface ProviderDispatchPlan {
-  /** Whether the bundled undici dispatcher is required at all. */
-  needsCustomDispatcher: boolean;
-  /** Whether the provider's routing must be kept off the shared global dispatcher. */
+  /** Whether global routing needs the bundled undici dispatcher at all. */
+  needsGlobalDispatcher: boolean;
+  /** Whether the model client needs its own dispatcher, separate from the global one. */
   scopeToModelClient: boolean;
 }
 
 /**
  * Decide how a provider's connection should be dispatched.
  *
- * A proxy forces the custom dispatcher: undici does not read proxy
- * environment variables on its own, so skipping it would drop the proxy and
- * connect directly. Previously only HTTP/1 forced one, which meant HTTP/2
- * with default TLS silently ignored any configured proxy.
+ * Global routing is derived from the *process* environment alone. It is shared
+ * with everything else in the extension host - notably Hub auth and token
+ * refresh, which only use a scoped fetch in insecure mode - so provider
+ * settings must not influence it in either direction. Disabling the proxy for
+ * the model must not disable it for the Hub, and pointing the model at a
+ * different proxy must not repoint the Hub.
  *
- * Routing chosen by provider settings is scoped to the model client, because
- * the global dispatcher is shared with everything else in the extension host.
+ * A proxy forces the custom dispatcher: undici does not read proxy environment
+ * variables on its own, so skipping it would drop the proxy and connect
+ * directly. Previously only HTTP/1 forced one, which meant HTTP/2 with default
+ * TLS silently ignored any configured proxy.
+ *
+ * The model needs its own dispatcher whenever provider settings decided its
+ * routing; otherwise it can share the global one, whose routing already
+ * matches.
  */
 export function planProviderDispatch(input: {
   caBundle?: string;
   insecure: boolean;
   allowH2: boolean;
-  proxyUrl?: string;
+  /** Proxy resolved from the process environment only. */
+  processProxyUrl?: string;
+  /** True when provider-settings.yaml defined any proxy variable. */
   fromProviderEnv: boolean;
 }): ProviderDispatchPlan {
   return {
-    needsCustomDispatcher: !!input.caBundle || input.insecure || !input.allowH2 || !!input.proxyUrl,
+    needsGlobalDispatcher:
+      !!input.caBundle || input.insecure || !input.allowH2 || !!input.processProxyUrl,
     scopeToModelClient: input.fromProviderEnv,
   };
 }
 
-async function setupProviderTLS(
+export async function setupProviderTLS(
   env: Record<string, string>,
   logger: Logger,
   targetUrl?: string,
@@ -420,40 +431,70 @@ async function setupProviderTLS(
   const allowH2 = httpProtocol === "http2";
   const { caBundle, insecure } = getCaBundleAndInsecure(env);
 
-  const { proxyUrl, noProxy, fromProviderEnv } = resolveProxyEnv(providerEnv);
+  const providerProxy = resolveProxyEnv(providerEnv);
+  // Resolved without the provider env so global routing stays independent.
+  const processProxy = resolveProxyEnv();
 
-  const { needsCustomDispatcher, scopeToModelClient } = planProviderDispatch({
+  const { needsGlobalDispatcher, scopeToModelClient } = planProviderDispatch({
     caBundle,
     insecure,
     allowH2,
-    proxyUrl,
-    fromProviderEnv,
+    processProxyUrl: processProxy.proxyUrl,
+    fromProviderEnv: providerProxy.fromProviderEnv,
   });
 
   logger.info("Provider TLS config", {
     caBundle: caBundle ? `set (${caBundle})` : "not set",
     insecure,
     httpProtocol,
-    needsCustomDispatcher,
-    hasProxy: !!proxyUrl,
-    proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
+    needsGlobalDispatcher,
+    scopeToModelClient,
+    hasProxy: !!providerProxy.proxyUrl,
+    proxyUrl: providerProxy.proxyUrl ? sanitizeUrl(providerProxy.proxyUrl) : "none",
     // Log the resolved bypass list, not just whether one exists - a NO_PROXY
     // that simply omits the target host is indistinguishable from a missing
     // one otherwise, and that ambiguity is what makes these reports expensive.
-    noProxy: noProxy ?? "none",
-    proxySource: fromProviderEnv ? "provider-settings" : "process-environment",
+    noProxy: providerProxy.noProxy ?? "none",
+    proxySource: providerProxy.fromProviderEnv ? "provider-settings" : "process-environment",
+    globalProxyUrl: processProxy.proxyUrl ? sanitizeUrl(processProxy.proxyUrl) : "none",
+    globalNoProxy: processProxy.noProxy ?? "none",
     targetUrl: targetUrl ? sanitizeUrl(targetUrl) : "none",
     envKeys: Object.keys(env),
   });
 
-  if (!needsCustomDispatcher) {
-    setGlobalDispatcher(defaultDispatcher);
-    globalThis.fetch = originalFetch;
-    return undefined;
-  }
-
   try {
-    const dispatcher = await getDispatcherWithCertBundle(
+    // 1. Global routing, from the process environment only. Built without a
+    //    target URL, so `getDispatcherWithCertBundle` returns a dispatcher
+    //    that evaluates NO_PROXY per request destination rather than
+    //    proxying everything.
+    let globalFetch: FetchFn | undefined;
+    if (needsGlobalDispatcher) {
+      const globalDispatcher = await getDispatcherWithCertBundle(
+        caBundle,
+        insecure,
+        allowH2,
+        logger,
+        undefined,
+      );
+      globalFetch = getFetchWithDispatcher(globalDispatcher);
+      setGlobalDispatcher(globalDispatcher as any);
+      globalThis.fetch = globalFetch as typeof globalThis.fetch;
+    } else {
+      setGlobalDispatcher(defaultDispatcher);
+      globalThis.fetch = originalFetch;
+    }
+
+    // 2. The model client's own fetch. Only needed when provider settings
+    //    chose different routing; otherwise the global dispatcher already
+    //    routes this destination correctly.
+    if (!scopeToModelClient) {
+      return globalFetch;
+    }
+
+    logger.info(
+      "Provider proxy settings came from provider-settings.yaml; scoping them to model client requests",
+    );
+    const modelDispatcher = await getDispatcherWithCertBundle(
       caBundle,
       insecure,
       allowH2,
@@ -461,27 +502,7 @@ async function setupProviderTLS(
       targetUrl,
       providerEnv,
     );
-    const customFetch = getFetchWithDispatcher(dispatcher);
-
-    // The global dispatcher and `globalThis.fetch` are shared with everything
-    // else in the extension host - notably Hub auth and token refresh, which
-    // only use a scoped fetch in insecure mode. Provider-specific proxy
-    // routing must not leak there, so when provider settings decided the proxy
-    // we install a separate global dispatcher that keeps process-level routing
-    // and reserve the provider's routing for the model client's own fetch.
-    const globalDispatcher = scopeToModelClient
-      ? await getDispatcherWithCertBundle(caBundle, insecure, allowH2, logger, undefined)
-      : dispatcher;
-
-    if (scopeToModelClient) {
-      logger.info(
-        "Provider proxy settings came from provider-settings.yaml; scoping them to model client requests",
-      );
-    }
-
-    setGlobalDispatcher(globalDispatcher as any);
-    globalThis.fetch = getFetchWithDispatcher(globalDispatcher) as typeof globalThis.fetch;
-    return customFetch;
+    return getFetchWithDispatcher(modelDispatcher);
   } catch (error) {
     logger.error(error);
     throw new Error(`Failed to setup TLS dispatcher: ${String(error)}`);

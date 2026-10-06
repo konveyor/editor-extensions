@@ -12,6 +12,7 @@ import winston from "winston";
 import {
   getDispatcherWithCertBundle,
   getFetchWithDispatcher,
+  ProxyBypassDispatcher,
   getNodeHttpHandler,
   resolveProxyEnv,
   shouldBypassProxy,
@@ -557,3 +558,86 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
     });
   },
 );
+
+/**
+ * The global dispatcher serves every destination in the extension host, so it
+ * cannot evaluate NO_PROXY once up front the way a per-request dispatcher can.
+ * See issue #1502.
+ */
+describe("ProxyBypassDispatcher (issue #1502)", () => {
+  const logger = winston.createLogger({ silent: true });
+  let envSnapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    envSnapshot = snapshotProxyEnv();
+    clearProxyEnv();
+  });
+
+  afterEach(() => {
+    restoreProxyEnv(envSnapshot);
+  });
+
+  it("is returned when no target URL is known but NO_PROXY is set", async () => {
+    process.env.HTTPS_PROXY = "http://corporate-proxy.example.com:8080";
+    process.env.NO_PROXY = "hub.internal";
+
+    const dispatcher = await getDispatcherWithCertBundle(undefined, false, false, logger);
+
+    expect(dispatcher).toBeInstanceOf(ProxyBypassDispatcher);
+  });
+
+  it("still returns a plain ProxyAgent when there is nothing to bypass", async () => {
+    process.env.HTTPS_PROXY = "http://corporate-proxy.example.com:8080";
+
+    const dispatcher = await getDispatcherWithCertBundle(undefined, false, false, logger);
+
+    expect(dispatcher.constructor.name).toBe("ProxyAgent");
+  });
+
+  it("routes each destination independently", async () => {
+    process.env.HTTPS_PROXY = "http://corporate-proxy.example.com:8080";
+    process.env.NO_PROXY = "hub.internal,.corp.example.com";
+
+    const dispatcher = (await getDispatcherWithCertBundle(
+      undefined,
+      false,
+      false,
+      logger,
+    )) as unknown as ProxyBypassDispatcher;
+
+    expect(dispatcher.dispatcherFor("https://hub.internal").constructor.name).toBe("Agent");
+    expect(dispatcher.dispatcherFor("https://a.corp.example.com").constructor.name).toBe("Agent");
+    expect(dispatcher.dispatcherFor("https://api.openai.com").constructor.name).toBe("ProxyAgent");
+    expect(dispatcher.dispatcherFor(new URL("https://hub.internal/auth")).constructor.name).toBe(
+      "Agent",
+    );
+    // An unparseable origin must not throw; it just does not bypass.
+    expect(dispatcher.dispatcherFor(undefined).constructor.name).toBe("ProxyAgent");
+  });
+
+  it("tears down both agents, in promise and callback form", async () => {
+    const closed: string[] = [];
+    const destroyed: string[] = [];
+    const fake = (name: string) =>
+      ({
+        close: async () => {
+          closed.push(name);
+        },
+        destroy: async (_err?: Error | null) => {
+          destroyed.push(name);
+        },
+      }) as any;
+
+    const a = new ProxyBypassDispatcher(fake("proxy"), fake("direct"), "hub.internal");
+    await a.close();
+    expect(closed.sort()).toEqual(["direct", "proxy"]);
+
+    const b = new ProxyBypassDispatcher(fake("proxy"), fake("direct"), "hub.internal");
+    await b.destroy(new Error("boom"));
+    expect(destroyed.sort()).toEqual(["direct", "proxy"]);
+
+    const c = new ProxyBypassDispatcher(fake("proxy"), fake("direct"), "hub.internal");
+    await new Promise<void>((resolve) => c.destroy(() => resolve()));
+    expect(destroyed).toHaveLength(4);
+  });
+});
