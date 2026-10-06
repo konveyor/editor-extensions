@@ -268,7 +268,7 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
   () => {
     const logger = winston.createLogger({ silent: true });
     const scriptsDir = pathlib.join(__dirname, "..", "..", "modelProvider", "__tests__", "scripts");
-    const certsDir = fs.mkdtempSync(pathlib.join(os.tmpdir(), "tls-proxy-test-"));
+    let certsDir: string;
     let target: https.Server;
     let proxy: http.Server;
     let tlsProxy: https.Server;
@@ -278,6 +278,9 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
 
     before(async function (this: Mocha.Context) {
       this.timeout(15000);
+      // Created here rather than at definition time: a skipped suite still runs its
+      // describe callback, but never its hooks, so it would leak the directory.
+      certsDir = fs.mkdtempSync(pathlib.join(os.tmpdir(), "tls-proxy-test-"));
       await new Promise<void>((resolve, reject) => {
         execFile("bash", ["genCerts.sh", certsDir], { cwd: scriptsDir }, (err) =>
           err ? reject(err) : resolve(),
@@ -337,7 +340,9 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
           await new Promise((r) => server.close(r));
         }
       }
-      fs.rmSync(certsDir, { recursive: true, force: true });
+      if (certsDir) {
+        fs.rmSync(certsDir, { recursive: true, force: true });
+      }
     });
 
     async function fetchThroughProxy(bundlePath: string | undefined, insecure: boolean) {
