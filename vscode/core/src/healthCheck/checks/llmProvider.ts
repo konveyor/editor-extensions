@@ -8,6 +8,12 @@ import { paths } from "../../paths";
 import { CheckResultBuilder, withErrorHandling, formatError } from "../helpers";
 import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 import {
+  getCacheDir,
+  getTraceDir,
+  getTraceEnabled,
+  getConfigKaiDemoMode,
+} from "../../utilities/configuration";
+import {
   classifyNetworkError,
   describeErrorChain,
   NetworkErrorCategory,
@@ -78,7 +84,15 @@ export const llmProviderCheck: HealthCheckModule = {
         // the user ran this check to diagnose. Build a provider from the config
         // and let it surface the real initialization error instead.
         try {
-          await getModelProviderFromConfig(parsedConfig, logger);
+          // Mirror the cache/trace directories the startup path uses, so demo
+          // mode and tracing behave identically here.
+          const workspaceRoot = state.data?.workspaceRoot;
+          await getModelProviderFromConfig(
+            parsedConfig,
+            logger,
+            getConfigKaiDemoMode() ? getCacheDir(workspaceRoot) : undefined,
+            getTraceEnabled() ? getTraceDir(workspaceRoot) : undefined,
+          );
           return builder.warning(
             "LLM provider initialized on retry but is not active in this session",
             "The provider could not be initialized at startup but connected successfully just now. " +

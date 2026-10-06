@@ -13,6 +13,7 @@ import {
   getDispatcherWithCertBundle,
   getFetchWithDispatcher,
   getNodeHttpHandler,
+  resolveProxyEnv,
   shouldBypassProxy,
 } from "../tls";
 
@@ -215,6 +216,106 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
       const dispatcher = await getDispatcherWithCertBundle(undefined, false, false, logger);
 
       expect(dispatcher.constructor.name).toBe("ProxyAgent");
+    });
+
+    /**
+     * Issue #1502: the `environment:` block in provider-settings.yaml is
+     * honored for CA_BUNDLE / ALLOW_INSECURE, so users reasonably expect proxy
+     * variables to work there too. They were ignored entirely.
+     */
+    it("honors a no_proxy supplied in the provider environment (issue #1502)", async () => {
+      process.env.https_proxy = "http://corporate-proxy.example.com:8080";
+
+      const dispatcher = await getDispatcherWithCertBundle(
+        undefined,
+        false,
+        false,
+        logger,
+        "https://model.internal.example.com/v1",
+        { no_proxy: "model.internal.example.com" },
+      );
+
+      expect(dispatcher.constructor.name).not.toBe("ProxyAgent");
+    });
+
+    it("honors an empty proxy value in the provider environment as 'no proxy' (issue #1502)", async () => {
+      process.env.https_proxy = "http://corporate-proxy.example.com:8080";
+      process.env.http_proxy = "http://corporate-proxy.example.com:8080";
+
+      const dispatcher = await getDispatcherWithCertBundle(
+        undefined,
+        false,
+        false,
+        logger,
+        "https://model.internal.example.com/v1",
+        { https_proxy: "", http_proxy: "" },
+      );
+
+      expect(dispatcher.constructor.name).not.toBe("ProxyAgent");
+    });
+  });
+
+  /**
+   * Issue #1502: the proxy URL and the bypass list were resolved with
+   * different casing precedence - the URL fell through to lowercase
+   * `https_proxy` while `NO_PROXY || no_proxy` short-circuited on an
+   * uppercase `NO_PROXY`, silently discarding the lowercase list that
+   * paired with the active proxy.
+   */
+  describe("resolveProxyEnv", () => {
+    let envSnapshot: Record<string, string | undefined>;
+
+    beforeEach(() => {
+      envSnapshot = snapshotProxyEnv();
+      clearProxyEnv();
+    });
+
+    afterEach(() => {
+      restoreProxyEnv(envSnapshot);
+    });
+
+    it("unions NO_PROXY and no_proxy rather than letting uppercase shadow lowercase", () => {
+      process.env.https_proxy = "http://corporate-proxy.example.com:8080";
+      process.env.NO_PROXY = "localhost,127.0.0.1";
+      process.env.no_proxy = "localhost,127.0.0.1,model.internal.example.com";
+
+      const { proxyUrl, noProxy } = resolveProxyEnv();
+
+      expect(proxyUrl).toBe("http://corporate-proxy.example.com:8080");
+      expect(shouldBypassProxy("https://model.internal.example.com/v1", noProxy)).toBe(true);
+    });
+
+    it("deduplicates entries when both casings overlap", () => {
+      process.env.NO_PROXY = "localhost,127.0.0.1";
+      process.env.no_proxy = "127.0.0.1,localhost";
+
+      // Assert the entry set, not the joined order. `process.env` is
+      // case-insensitive on Windows, so the two assignments above are the same
+      // variable there and the surviving value dictates the order.
+      const entries = resolveProxyEnv().noProxy!.split(",");
+      expect(entries).toHaveLength(2);
+      expect(new Set(entries)).toEqual(new Set(["localhost", "127.0.0.1"]));
+    });
+
+    it("prefers the provider environment over the process environment", () => {
+      process.env.https_proxy = "http://process-proxy.example.com:8080";
+
+      expect(resolveProxyEnv({ https_proxy: "http://yaml-proxy.example.com:9090" }).proxyUrl).toBe(
+        "http://yaml-proxy.example.com:9090",
+      );
+    });
+
+    it("returns undefined rather than an empty string when nothing is configured", () => {
+      const { proxyUrl, noProxy } = resolveProxyEnv();
+
+      expect(proxyUrl).toBeUndefined();
+      expect(noProxy).toBeUndefined();
+    });
+
+    it("ignores whitespace-only values", () => {
+      process.env.NO_PROXY = "   ";
+
+      expect(resolveProxyEnv().noProxy).toBeUndefined();
     });
   });
 

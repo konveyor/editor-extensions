@@ -76,12 +76,48 @@ export function shouldBypassProxy(
   return false;
 }
 
+/**
+ * Resolve the effective proxy configuration for an outbound connection.
+ *
+ * `env` is the provider's merged environment (process env overlaid with the
+ * `environment:` block from provider-settings.yaml). Passing it lets users
+ * configure proxy behavior in that file, the same way `CA_BUNDLE` and
+ * `ALLOW_INSECURE` already work. Callers with no provider context (the Hub)
+ * omit it and get the process environment alone.
+ */
+export function resolveProxyEnv(env?: Record<string, string>): {
+  proxyUrl?: string;
+  noProxy?: string;
+} {
+  const source: Record<string, string | undefined> = { ...process.env, ...(env ?? {}) };
+
+  const proxyUrl =
+    source.HTTPS_PROXY || source.https_proxy || source.HTTP_PROXY || source.http_proxy || undefined;
+
+  // Union both casings instead of letting one shadow the other. The proxy URL
+  // and the bypass list are routinely provisioned in different cases - a
+  // lowercase `https_proxy` from /etc/profile.d next to an uppercase
+  // `NO_PROXY` - and resolving `NO_PROXY || no_proxy` silently discarded the
+  // list that paired with the active proxy setting.
+  const entries = [source.NO_PROXY, source.no_proxy]
+    .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+    .flatMap((value) => value.split(/[,\s]+/))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return {
+    proxyUrl,
+    noProxy: entries.length > 0 ? Array.from(new Set(entries)).join(",") : undefined,
+  };
+}
+
 export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
   allowH2: boolean = false,
   logger?: Logger,
   targetUrl?: string,
+  env?: Record<string, string>,
 ): Promise<UndiciTypesDispatcher> {
   let allCerts: string | undefined;
   if (bundlePath) {
@@ -97,13 +133,7 @@ export async function getDispatcherWithCertBundle(
     }
   }
 
-  const proxyUrl =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
-
-  const noProxy = process.env.NO_PROXY || process.env.no_proxy;
+  const { proxyUrl, noProxy } = resolveProxyEnv(env);
   const bypassProxy = shouldBypassProxy(targetUrl, noProxy);
 
   if (logger) {
@@ -195,18 +225,7 @@ export async function getNodeHttpHandler(
     }
   }
 
-  const proxyUrl =
-    env["HTTPS_PROXY"] ||
-    env["https_proxy"] ||
-    env["HTTP_PROXY"] ||
-    env["http_proxy"] ||
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
-
-  const noProxy =
-    env["NO_PROXY"] || env["no_proxy"] || process.env.NO_PROXY || process.env.no_proxy;
+  const { proxyUrl, noProxy } = resolveProxyEnv(env);
   const bypassProxy = shouldBypassProxy(targetUrl, noProxy);
 
   interface HttpsAgentOptionsWithALPN extends AgentOptions {

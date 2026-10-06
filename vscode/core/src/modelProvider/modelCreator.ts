@@ -13,6 +13,7 @@ import {
   getDispatcherWithCertBundle,
   getFetchWithDispatcher,
   getNodeHttpHandler,
+  resolveProxyEnv,
 } from "../utilities/tls";
 import { ModelCreator, PROVIDER_ENV_CA_BUNDLE, PROVIDER_ENV_INSECURE, type FetchFn } from "./types";
 import { getConfigHttpProtocol } from "../utilities/httpProtocol";
@@ -331,11 +332,7 @@ async function setupProviderTLS(
   const { caBundle, insecure } = getCaBundleAndInsecure(env);
   const needsCustomDispatcher = caBundle || insecure || !allowH2;
 
-  const proxyUrl =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
+  const { proxyUrl, noProxy } = resolveProxyEnv(env);
 
   logger.info("Provider TLS config", {
     caBundle: caBundle ? `set (${caBundle})` : "not set",
@@ -344,6 +341,10 @@ async function setupProviderTLS(
     needsCustomDispatcher,
     hasProxy: !!proxyUrl,
     proxyUrl: proxyUrl ? sanitizeUrl(proxyUrl) : "none",
+    // Log the resolved bypass list, not just whether one exists - a NO_PROXY
+    // that simply omits the target host is indistinguishable from a missing
+    // one otherwise, and that ambiguity is what makes these reports expensive.
+    noProxy: noProxy ?? "none",
     targetUrl: targetUrl ? sanitizeUrl(targetUrl) : "none",
     envKeys: Object.keys(env),
   });
@@ -361,6 +362,7 @@ async function setupProviderTLS(
       allowH2,
       logger,
       targetUrl,
+      env,
     );
     const customFetch = getFetchWithDispatcher(dispatcher);
     setGlobalDispatcher(dispatcher as any);
