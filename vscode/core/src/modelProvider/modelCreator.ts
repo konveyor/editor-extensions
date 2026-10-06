@@ -303,7 +303,9 @@ function getCaBundleAndInsecure(env: Record<string, string>): {
  * their endpoint internally) — in which case proxy behavior falls back to
  * the historical "always use the proxy if one is set" path.
  */
-function extractProviderTargetUrl(args: Record<string, any> | undefined): string | undefined {
+export function extractProviderTargetUrl(
+  args: Record<string, any> | undefined,
+): string | undefined {
   if (!args) {
     return undefined;
   }

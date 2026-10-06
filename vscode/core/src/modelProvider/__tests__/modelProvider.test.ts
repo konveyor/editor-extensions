@@ -13,9 +13,10 @@ import { AIMessageChunk, AIMessage } from "@langchain/core/messages";
 import { FakeStreamingChatModel } from "@langchain/core/utils/testing";
 import { type BaseLLMParams } from "@langchain/core/language_models/llms";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import { type IterableReadableStream } from "@langchain/core/utils/stream";
 
 import { ModelCreators } from "../modelCreator";
-import { runModelHealthCheck } from "../modelProvider";
+import { runModelHealthCheck, MODEL_HEALTH_CHECK_TIMEOUT_MS } from "../modelProvider";
 import { ParsedModelConfig } from "../types";
 
 class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
@@ -88,6 +89,105 @@ describe("model health check test", () => {
 
     const { supportsTools } = await runModelHealthCheck(model, model);
     expect(supportsTools).toBe(false);
+  });
+
+  /**
+   * Regression tests for issue #1503: without an explicit timeout the probes
+   * inherit undici's 300s default `headersTimeout`, so an endpoint that accepts
+   * the connection and then goes silent hangs provider init for five minutes.
+   */
+  describe("timeout budget", () => {
+    /**
+     * Records the timeout each probe receives. With `failToolProbes` it also
+     * rejects both tool-calling probes, which is what drives the health check
+     * all the way to the final bare `invoke("a")` connectivity probe - the one
+     * that actually throws when the endpoint is unreachable.
+     */
+    class ProbeRecordingModel extends FakeChatModelWithToolCalls {
+      public seenTimeouts: Array<number | undefined> = [];
+      public failToolProbes = false;
+
+      private async record(options?: BaseChatModelCallOptions): Promise<void> {
+        this.seenTimeouts.push(options?.timeout);
+        // Burn measurable wall-clock so a shared deadline visibly shrinks.
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+
+      async stream(
+        input: BaseLanguageModelInput,
+        options?: BaseChatModelCallOptions | undefined,
+      ): Promise<IterableReadableStream<AIMessageChunk>> {
+        await this.record(options);
+        if (this.failToolProbes) {
+          throw new Error("streaming tool calls unsupported");
+        }
+        return super.stream(input, options);
+      }
+
+      async invoke(
+        input: BaseLanguageModelInput,
+        options?: BaseChatModelCallOptions | undefined,
+      ): Promise<AIMessageChunk> {
+        await this.record(options);
+        // Array input means the tool-calling probe; "a" is the final
+        // connectivity probe and must still succeed.
+        if (this.failToolProbes && Array.isArray(input)) {
+          throw new Error("tool calls unsupported");
+        }
+        return super.invoke(input, options);
+      }
+    }
+
+    const newModel = (failToolProbes: boolean): ProbeRecordingModel => {
+      const model = new ProbeRecordingModel({ responses: [new AIMessage({ content: `` })] });
+      model.failToolProbes = failToolProbes;
+      return model;
+    };
+
+    it("passes a bounded timeout to every probe", async () => {
+      const model = newModel(true);
+
+      await runModelHealthCheck(model, model, { timeoutMs: 5_000 });
+
+      expect(model.seenTimeouts).toHaveLength(3);
+      for (const timeout of model.seenTimeouts) {
+        expect(timeout).toBeGreaterThan(0);
+        expect(timeout).toBeLessThanOrEqual(5_000);
+      }
+    });
+
+    it("shares one deadline across probes rather than resetting it per call", async () => {
+      const model = newModel(true);
+
+      await runModelHealthCheck(model, model, { timeoutMs: 5_000 });
+
+      // Each subsequent probe must see a strictly smaller remaining budget,
+      // otherwise the worst case is timeoutMs x number-of-probes.
+      const seen = model.seenTimeouts as number[];
+      expect(seen).toHaveLength(3);
+      expect(seen[1]).toBeLessThan(seen[0]);
+      expect(seen[2]).toBeLessThan(seen[1]);
+    });
+
+    it("defaults to a bounded timeout when none is supplied", async () => {
+      const model = newModel(false);
+
+      await runModelHealthCheck(model, model);
+
+      expect(model.seenTimeouts[0]).toBeLessThanOrEqual(MODEL_HEALTH_CHECK_TIMEOUT_MS);
+      expect(model.seenTimeouts[0]).toBeGreaterThan(0);
+    });
+
+    it("never hands a probe a non-positive timeout once the budget is spent", async () => {
+      const model = newModel(true);
+
+      // 1ms budget is already exhausted by the time the first probe runs.
+      await runModelHealthCheck(model, model, { timeoutMs: 1 });
+
+      for (const timeout of model.seenTimeouts) {
+        expect(timeout).toBeGreaterThan(0);
+      }
+    });
   });
 });
 

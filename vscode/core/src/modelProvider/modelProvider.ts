@@ -26,6 +26,7 @@ import { renderPrompt } from "@editor-extensions/prompts";
 
 import { type ModelCapabilities } from "./types";
 import { isBasePromptValueInterface } from "./utils";
+import { describeErrorChain } from "../utilities/networkDiagnostics";
 
 export interface ModelProviderOptions {
   streamingModel: BaseChatModel;
@@ -224,16 +225,39 @@ export class BaseModelProvider implements KaiModelProvider {
 }
 
 /**
+ * Default budget for the whole health check. Without an explicit timeout a
+ * blackholed connection (a proxy that accepts the TCP connection and then
+ * drops the request) stalls on undici's 300s default `headersTimeout`, so
+ * provider initialization hangs for five minutes with no feedback.
+ */
+export const MODEL_HEALTH_CHECK_TIMEOUT_MS = 30_000;
+
+export interface ModelHealthCheckOptions {
+  logger?: winston.Logger;
+  /** Total budget shared across every probe, not per-request. */
+  timeoutMs?: number;
+}
+
+/**
  * Check if the model is connected and supports tools
  * @param streamingModel a streaming model
  * @param nonStreamingModel a non-streaming model
+ * @param options optional logger and overall timeout budget
  * @returns ChatModelCapabilities
  * @throws Error if the model is not connected
  */
 export async function runModelHealthCheck(
   streamingModel: BaseChatModel,
   nonStreamingModel: BaseChatModel,
+  options: ModelHealthCheckOptions = {},
 ): Promise<ModelCapabilities> {
+  const { logger, timeoutMs = MODEL_HEALTH_CHECK_TIMEOUT_MS } = options;
+
+  // The three probes below run in sequence, so give them a shared deadline
+  // rather than a per-request timeout - otherwise the worst case is 3x.
+  const deadline = Date.now() + timeoutMs;
+  const remainingTimeout = (): number => Math.max(1_000, deadline - Date.now());
+
   const response: ModelCapabilities = {
     supportsTools: false,
     supportsToolsInStreaming: false,
@@ -263,7 +287,9 @@ export async function runModelHealthCheck(
 
   try {
     let containsToolCall = false;
-    const stream = await runnable.stream([sys_message, human_message]);
+    const stream = await runnable.stream([sys_message, human_message], {
+      timeout: remainingTimeout(),
+    });
     if (stream) {
       for await (const chunk of stream) {
         if (chunk.tool_calls && chunk.tool_calls.length > 0) {
@@ -278,10 +304,13 @@ export async function runModelHealthCheck(
       }
     }
   } catch (err) {
-    console.error(
-      "Error when using a streaming client for tool calls, trying a non-streaming client",
-      err,
-    );
+    // Expected when the server does not support tool calls while streaming
+    // (vLLM without `--enable-auto-tool-choice`, for example). Log through the
+    // logger rather than the console so it lands in the debug archive - this is
+    // the only record of why `supportsTools` ends up false.
+    logger?.info("Streaming client could not use tool calls, trying a non-streaming client", {
+      error: describeErrorChain(err),
+    });
   }
 
   try {
@@ -289,17 +318,21 @@ export async function runModelHealthCheck(
     if (nonStreamingModel.bindTools) {
       runnable = nonStreamingModel.bindTools([tool]);
     }
-    const res = await runnable.invoke([sys_message, human_message]);
+    const res = await runnable.invoke([sys_message, human_message], {
+      timeout: remainingTimeout(),
+    });
     if (res.tool_calls && res.tool_calls.length > 0) {
       response.supportsTools = true;
     }
     return response;
   } catch (err) {
-    console.error("Error when using a non streaming client for tool calls", err);
+    logger?.info("Non-streaming client could not use tool calls", {
+      error: describeErrorChain(err),
+    });
   }
 
   // check if we are connected to the model, this will throw an error if not
-  await nonStreamingModel.invoke("a");
+  await nonStreamingModel.invoke("a", { timeout: remainingTimeout() });
 
   return response;
 }
