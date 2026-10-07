@@ -12,7 +12,9 @@ import winston from "winston";
 import {
   getDispatcherWithCertBundle,
   getFetchWithDispatcher,
+  ProxyBypassDispatcher,
   getNodeHttpHandler,
+  resolveProxyEnv,
   shouldBypassProxy,
 } from "../tls";
 
@@ -216,6 +218,170 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
 
       expect(dispatcher.constructor.name).toBe("ProxyAgent");
     });
+
+    /**
+     * Issue #1502: the `environment:` block in provider-settings.yaml is
+     * honored for CA_BUNDLE / ALLOW_INSECURE, so users reasonably expect proxy
+     * variables to work there too. They were ignored entirely.
+     */
+    it("honors a no_proxy supplied in the provider environment (issue #1502)", async () => {
+      process.env.https_proxy = "http://corporate-proxy.example.com:8080";
+
+      const dispatcher = await getDispatcherWithCertBundle(
+        undefined,
+        false,
+        false,
+        logger,
+        "https://model.internal.example.com/v1",
+        { no_proxy: "model.internal.example.com" },
+      );
+
+      expect(dispatcher.constructor.name).not.toBe("ProxyAgent");
+    });
+
+    it("honors an empty proxy value in the provider environment as 'no proxy' (issue #1502)", async () => {
+      process.env.https_proxy = "http://corporate-proxy.example.com:8080";
+      process.env.http_proxy = "http://corporate-proxy.example.com:8080";
+
+      const dispatcher = await getDispatcherWithCertBundle(
+        undefined,
+        false,
+        false,
+        logger,
+        "https://model.internal.example.com/v1",
+        { https_proxy: "", http_proxy: "" },
+      );
+
+      expect(dispatcher.constructor.name).not.toBe("ProxyAgent");
+    });
+  });
+
+  /**
+   * Issue #1502: the proxy URL and the bypass list were resolved with
+   * different casing precedence - the URL fell through to lowercase
+   * `https_proxy` while `NO_PROXY || no_proxy` short-circuited on an
+   * uppercase `NO_PROXY`, silently discarding the lowercase list that
+   * paired with the active proxy.
+   */
+  describe("resolveProxyEnv", () => {
+    let envSnapshot: Record<string, string | undefined>;
+
+    beforeEach(() => {
+      envSnapshot = snapshotProxyEnv();
+      clearProxyEnv();
+    });
+
+    afterEach(() => {
+      restoreProxyEnv(envSnapshot);
+    });
+
+    it("unions NO_PROXY and no_proxy rather than letting uppercase shadow lowercase", () => {
+      process.env.https_proxy = "http://corporate-proxy.example.com:8080";
+      process.env.NO_PROXY = "localhost,127.0.0.1";
+      process.env.no_proxy = "localhost,127.0.0.1,model.internal.example.com";
+
+      const { proxyUrl, noProxy } = resolveProxyEnv();
+
+      expect(proxyUrl).toBe("http://corporate-proxy.example.com:8080");
+      expect(shouldBypassProxy("https://model.internal.example.com/v1", noProxy)).toBe(true);
+    });
+
+    it("deduplicates entries when both casings overlap", () => {
+      process.env.NO_PROXY = "localhost,127.0.0.1";
+      process.env.no_proxy = "127.0.0.1,localhost";
+
+      // Assert the entry set, not the joined order. `process.env` is
+      // case-insensitive on Windows, so the two assignments above are the same
+      // variable there and the surviving value dictates the order.
+      const entries = resolveProxyEnv().noProxy!.split(",");
+      expect(entries).toHaveLength(2);
+      expect(new Set(entries)).toEqual(new Set(["localhost", "127.0.0.1"]));
+    });
+
+    it("prefers the provider environment over the process environment", () => {
+      process.env.https_proxy = "http://process-proxy.example.com:8080";
+
+      expect(resolveProxyEnv({ https_proxy: "http://yaml-proxy.example.com:9090" }).proxyUrl).toBe(
+        "http://yaml-proxy.example.com:9090",
+      );
+    });
+
+    /**
+     * Provider settings win as a unit, across both casings. Resolving key by
+     * key let an uppercase process variable outrank a lowercase provider
+     * override, and `||` treated an intentional empty value as permission to
+     * fall back to the inherited proxy.
+     */
+    describe("mixed-case provider vs. process settings", () => {
+      it("lets a lowercase provider override beat an uppercase process variable", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(
+          resolveProxyEnv({ https_proxy: "http://yaml-proxy.example.com:9090" }).proxyUrl,
+        ).toBe("http://yaml-proxy.example.com:9090");
+      });
+
+      it("lets an uppercase provider override beat a lowercase process variable", () => {
+        process.env.https_proxy = "http://process-proxy.example.com:8080";
+
+        expect(
+          resolveProxyEnv({ HTTPS_PROXY: "http://yaml-proxy.example.com:9090" }).proxyUrl,
+        ).toBe("http://yaml-proxy.example.com:9090");
+      });
+
+      it("treats an explicit empty provider value as 'no proxy', not as fallback", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(resolveProxyEnv({ https_proxy: "", http_proxy: "" }).proxyUrl).toBeUndefined();
+      });
+
+      it("disables the proxy when only one empty provider key is set", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+        process.env.http_proxy = "http://process-proxy.example.com:8080";
+
+        // Any proxy key in the provider settings makes them authoritative, so
+        // the inherited values are not consulted at all.
+        expect(resolveProxyEnv({ https_proxy: "" }).proxyUrl).toBeUndefined();
+      });
+
+      it("falls back to the process environment when the provider sets no proxy key", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(resolveProxyEnv({ CA_BUNDLE: "/etc/ca.pem" }).proxyUrl).toBe(
+          "http://process-proxy.example.com:8080",
+        );
+      });
+
+      it("reports whether the provider settings decided the routing", () => {
+        process.env.HTTPS_PROXY = "http://process-proxy.example.com:8080";
+
+        expect(resolveProxyEnv().fromProviderEnv).toBe(false);
+        expect(resolveProxyEnv({ CA_BUNDLE: "/etc/ca.pem" }).fromProviderEnv).toBe(false);
+        expect(resolveProxyEnv({ no_proxy: "model.internal" }).fromProviderEnv).toBe(true);
+        expect(resolveProxyEnv({ https_proxy: "" }).fromProviderEnv).toBe(true);
+      });
+
+      it("takes the bypass list from the provider settings when it defines one", () => {
+        process.env.NO_PROXY = "localhost";
+
+        const { noProxy } = resolveProxyEnv({ no_proxy: "model.internal.example.com" });
+        expect(shouldBypassProxy("https://model.internal.example.com/v1", noProxy)).toBe(true);
+        expect(shouldBypassProxy("https://localhost/v1", noProxy)).toBe(false);
+      });
+    });
+
+    it("returns undefined rather than an empty string when nothing is configured", () => {
+      const { proxyUrl, noProxy } = resolveProxyEnv();
+
+      expect(proxyUrl).toBeUndefined();
+      expect(noProxy).toBeUndefined();
+    });
+
+    it("ignores whitespace-only values", () => {
+      process.env.NO_PROXY = "   ";
+
+      expect(resolveProxyEnv().noProxy).toBeUndefined();
+    });
   });
 
   describe("getNodeHttpHandler", () => {
@@ -237,7 +403,9 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
         NO_PROXY: "127.0.0.1",
       };
 
-      const handler = await getNodeHttpHandler(env, logger, "1.1", "http://127.0.0.1:8080");
+      // Proxy settings reach the handler via the provider-env parameter; the
+      // first argument carries CA/TLS settings only.
+      const handler = await getNodeHttpHandler({}, logger, "1.1", "http://127.0.0.1:8080", env);
       const config = await (handler as any).configProvider;
 
       expect(config.httpsAgent.constructor.name).not.toBe("HttpsProxyAgent");
@@ -250,10 +418,11 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
       };
 
       const handler = await getNodeHttpHandler(
-        env,
+        {},
         logger,
         "1.1",
         "https://bedrock-runtime.us-east-1.amazonaws.com",
+        env,
       );
       const config = await (handler as any).configProvider;
 
@@ -389,3 +558,86 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
     });
   },
 );
+
+/**
+ * The global dispatcher serves every destination in the extension host, so it
+ * cannot evaluate NO_PROXY once up front the way a per-request dispatcher can.
+ * See issue #1502.
+ */
+describe("ProxyBypassDispatcher (issue #1502)", () => {
+  const logger = winston.createLogger({ silent: true });
+  let envSnapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    envSnapshot = snapshotProxyEnv();
+    clearProxyEnv();
+  });
+
+  afterEach(() => {
+    restoreProxyEnv(envSnapshot);
+  });
+
+  it("is returned when no target URL is known but NO_PROXY is set", async () => {
+    process.env.HTTPS_PROXY = "http://corporate-proxy.example.com:8080";
+    process.env.NO_PROXY = "hub.internal";
+
+    const dispatcher = await getDispatcherWithCertBundle(undefined, false, false, logger);
+
+    expect(dispatcher).toBeInstanceOf(ProxyBypassDispatcher);
+  });
+
+  it("still returns a plain ProxyAgent when there is nothing to bypass", async () => {
+    process.env.HTTPS_PROXY = "http://corporate-proxy.example.com:8080";
+
+    const dispatcher = await getDispatcherWithCertBundle(undefined, false, false, logger);
+
+    expect(dispatcher.constructor.name).toBe("ProxyAgent");
+  });
+
+  it("routes each destination independently", async () => {
+    process.env.HTTPS_PROXY = "http://corporate-proxy.example.com:8080";
+    process.env.NO_PROXY = "hub.internal,.corp.example.com";
+
+    const dispatcher = (await getDispatcherWithCertBundle(
+      undefined,
+      false,
+      false,
+      logger,
+    )) as unknown as ProxyBypassDispatcher;
+
+    expect(dispatcher.dispatcherFor("https://hub.internal").constructor.name).toBe("Agent");
+    expect(dispatcher.dispatcherFor("https://a.corp.example.com").constructor.name).toBe("Agent");
+    expect(dispatcher.dispatcherFor("https://api.openai.com").constructor.name).toBe("ProxyAgent");
+    expect(dispatcher.dispatcherFor(new URL("https://hub.internal/auth")).constructor.name).toBe(
+      "Agent",
+    );
+    // An unparseable origin must not throw; it just does not bypass.
+    expect(dispatcher.dispatcherFor(undefined).constructor.name).toBe("ProxyAgent");
+  });
+
+  it("tears down both agents, in promise and callback form", async () => {
+    const closed: string[] = [];
+    const destroyed: string[] = [];
+    const fake = (name: string) =>
+      ({
+        close: async () => {
+          closed.push(name);
+        },
+        destroy: async (_err?: Error | null) => {
+          destroyed.push(name);
+        },
+      }) as any;
+
+    const a = new ProxyBypassDispatcher(fake("proxy"), fake("direct"), "hub.internal");
+    await a.close();
+    expect(closed.sort()).toEqual(["direct", "proxy"]);
+
+    const b = new ProxyBypassDispatcher(fake("proxy"), fake("direct"), "hub.internal");
+    await b.destroy(new Error("boom"));
+    expect(destroyed.sort()).toEqual(["direct", "proxy"]);
+
+    const c = new ProxyBypassDispatcher(fake("proxy"), fake("direct"), "hub.internal");
+    await new Promise<void>((resolve) => c.destroy(() => resolve()));
+    expect(destroyed).toHaveLength(4);
+  });
+});

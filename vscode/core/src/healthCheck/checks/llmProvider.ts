@@ -3,37 +3,55 @@
  */
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
-import { parseModelConfig } from "../../modelProvider/config";
+import { parseModelConfig, getModelProviderFromConfig } from "../../modelProvider/config";
 import { paths } from "../../paths";
 import { CheckResultBuilder, withErrorHandling, formatError } from "../helpers";
 import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
+import {
+  getCacheDir,
+  getTraceDir,
+  getTraceEnabled,
+  getConfigKaiDemoMode,
+} from "../../utilities/configuration";
+import {
+  classifyNetworkError,
+  describeErrorChain,
+  NetworkErrorCategory,
+} from "../../utilities/networkDiagnostics";
 
-const ERROR_SUGGESTIONS: Record<string, string> = {
-  timeout: "Request timed out. Check your network connection and provider endpoint URL.",
-  ETIMEDOUT: "Request timed out. Check your network connection and provider endpoint URL.",
-  "401": "Authentication failed. Check your API key or credentials in the provider settings.",
-  unauthorized:
+const HTTP_STATUS_SUGGESTIONS: Array<[RegExp, string]> = [
+  [
+    /\b401\b|unauthorized/i,
     "Authentication failed. Check your API key or credentials in the provider settings.",
-  "403": "Access forbidden. Verify your API key has the necessary permissions.",
-  forbidden: "Access forbidden. Verify your API key has the necessary permissions.",
-  "404": "Endpoint not found. Check your model name and provider endpoint URL.",
-  "429": "Rate limit exceeded. Wait a moment and try again, or check your API quota.",
-  "rate limit": "Rate limit exceeded. Wait a moment and try again, or check your API quota.",
-  ENOTFOUND:
-    "Cannot reach the provider endpoint. Check your network connection and proxy settings.",
-  ECONNREFUSED:
-    "Cannot reach the provider endpoint. Check your network connection and proxy settings.",
-  certificate:
-    "SSL/TLS certificate error. Check your network security settings or CA bundle configuration.",
-  SSL: "SSL/TLS certificate error. Check your network security settings or CA bundle configuration.",
-};
+  ],
+  [/\b403\b|forbidden/i, "Access forbidden. Verify your API key has the necessary permissions."],
+  [/\b404\b/, "Endpoint not found. Check your model name and provider endpoint URL."],
+  [
+    /\b429\b|rate limit/i,
+    "Rate limit exceeded. Wait a moment and try again, or check your API quota.",
+  ],
+];
 
-function getSuggestionForError(errorMessage: string): string {
-  for (const [key, suggestion] of Object.entries(ERROR_SUGGESTIONS)) {
-    if (errorMessage.includes(key)) {
+/**
+ * Suggest a remedy for a provider error.
+ *
+ * Transport failures are classified from the `cause` chain rather than the
+ * top-level message - SDKs collapse every network failure into an opaque
+ * string ("Connection error.") that matches no keyword. HTTP-level failures
+ * do carry a status in the message, so those are matched textually.
+ */
+function getSuggestionForError(error: unknown, errorMessage: string): string {
+  for (const [pattern, suggestion] of HTTP_STATUS_SUGGESTIONS) {
+    if (pattern.test(errorMessage)) {
       return suggestion;
     }
   }
+
+  const classified = classifyNetworkError(error);
+  if (classified.category !== NetworkErrorCategory.UNKNOWN) {
+    return classified.suggestion;
+  }
+
   return "Check your API credentials, network connection, and provider settings.";
 }
 
@@ -50,21 +68,43 @@ export const llmProviderCheck: HealthCheckModule = {
 
     return withErrorHandling("LLM Provider Connectivity", logger, async () => {
       if (!state.modelProvider) {
+        let parsedConfig;
         try {
-          const settingsPath = paths().settingsYaml;
-          await parseModelConfig(settingsPath);
-
-          return builder.warning(
-            "LLM provider configuration found but not initialized",
-            "Provider settings exist but the provider has not been initialized. " +
-              "This may occur if GenAI features are not enabled or if there was an initialization error.",
-            "Check the Output panel for initialization errors, or enable GenAI features using the 'Enable GenAI' command.",
-          );
+          parsedConfig = await parseModelConfig(paths().settingsYaml);
         } catch (configError) {
           return builder.fail(
             "LLM provider not configured",
             `Configuration error: ${formatError(configError)}`,
             `Configure your LLM provider settings using '${EXTENSION_SHORT_NAME}: Open Model Provider Settings' command.`,
+          );
+        }
+
+        // `modelProvider` is cleared whenever the startup health check fails, so
+        // bailing out here would skip the connectivity test in exactly the case
+        // the user ran this check to diagnose. Build a provider from the config
+        // and let it surface the real initialization error instead.
+        try {
+          // Mirror the cache/trace directories the startup path uses, so demo
+          // mode and tracing behave identically here.
+          const workspaceRoot = state.data?.workspaceRoot;
+          await getModelProviderFromConfig(
+            parsedConfig,
+            logger,
+            getConfigKaiDemoMode() ? getCacheDir(workspaceRoot) : undefined,
+            getTraceEnabled() ? getTraceDir(workspaceRoot) : undefined,
+          );
+          return builder.warning(
+            "LLM provider initialized on retry but is not active in this session",
+            "The provider could not be initialized at startup but connected successfully just now. " +
+              "This usually means a transient network failure, or that settings changed after startup.",
+            "Reload the window to pick up the working provider.",
+          );
+        } catch (initError) {
+          const errorMessage = formatError(initError);
+          return builder.fail(
+            "LLM provider configured but failed to initialize",
+            `Error: ${errorMessage}\n\nCause chain:\n${describeErrorChain(initError)}`,
+            getSuggestionForError(initError, errorMessage),
           );
         }
       }
@@ -104,11 +144,12 @@ export const llmProviderCheck: HealthCheckModule = {
       } catch (providerError) {
         const errorMessage = formatError(providerError);
         const errorStack = providerError instanceof Error ? providerError.stack : undefined;
-        const suggestion = getSuggestionForError(errorMessage);
+        const suggestion = getSuggestionForError(providerError, errorMessage);
 
         return builder.fail(
           "Failed to communicate with LLM provider",
-          `Error: ${errorMessage}${errorStack ? `\n\nStack trace:\n${errorStack}` : ""}`,
+          `Error: ${errorMessage}\n\nCause chain:\n${describeErrorChain(providerError)}` +
+            `${errorStack ? `\n\nStack trace:\n${errorStack}` : ""}`,
           suggestion,
         );
       }

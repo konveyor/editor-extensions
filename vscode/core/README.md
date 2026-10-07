@@ -72,15 +72,15 @@ These variables configure the connection to a Konveyor Hub instance. They are
 read at initialization and overlaid on top of any persisted VS Code
 configuration.
 
-| Variable | Type | Default | Description |
-| --- | --- | --- | --- |
-| `HUB_URL` | string | `http://localhost:8080` | Konveyor Hub URL |
-| `HUB_USERNAME` | string | `admin` | Hub authentication username |
-| `HUB_PASSWORD` | string | _(empty)_ | Hub authentication password |
-| `FORCE_HUB_ENABLED` | `"true"` flag | `false` | Force-enable Hub connection regardless of other settings |
-| `HUB_INSECURE` | `"true"` flag | `false` | Skip TLS verification for Hub connections |
-| `HUB_SOLUTION_SERVER_ENABLED` | `"false"` to disable | `true` | Toggle the Solution Server feature |
-| `HUB_PROFILE_SYNC_ENABLED` | `"false"` to disable | `true` | Toggle profile synchronization with Hub |
+| Variable                      | Type                 | Default                 | Description                                              |
+| ----------------------------- | -------------------- | ----------------------- | -------------------------------------------------------- |
+| `HUB_URL`                     | string               | `http://localhost:8080` | Konveyor Hub URL                                         |
+| `HUB_USERNAME`                | string               | `admin`                 | Hub authentication username                              |
+| `HUB_PASSWORD`                | string               | _(empty)_               | Hub authentication password                              |
+| `FORCE_HUB_ENABLED`           | `"true"` flag        | `false`                 | Force-enable Hub connection regardless of other settings |
+| `HUB_INSECURE`                | `"true"` flag        | `false`                 | Skip TLS verification for Hub connections                |
+| `HUB_SOLUTION_SERVER_ENABLED` | `"false"` to disable | `true`                  | Toggle the Solution Server feature                       |
+| `HUB_PROFILE_SYNC_ENABLED`    | `"false"` to disable | `true`                  | Toggle profile synchronization with Hub                  |
 
 Setting `HUB_URL` or any authentication variable (`HUB_USERNAME` /
 `HUB_PASSWORD`) automatically enables the Hub connection. Setting either
@@ -88,8 +88,8 @@ Setting `HUB_URL` or any authentication variable (`HUB_USERNAME` /
 
 #### Analyzer Binary Download
 
-| Variable | Type | Default | Description |
-| --- | --- | --- | --- |
+| Variable                     | Type         | Default              | Description                                                                                    |
+| ---------------------------- | ------------ | -------------------- | ---------------------------------------------------------------------------------------------- |
 | `ANALYZER_FALLBACK_BASE_URL` | string (URL) | Built-in release URL | Override the base URL for downloading the analyzer binary (for air-gapped or internal mirrors) |
 
 Trailing slashes are normalized automatically. This is useful in
@@ -98,23 +98,64 @@ mirror.
 
 #### TLS and Certificates
 
-| Variable | Type | Description |
-| --- | --- | --- |
-| `CA_BUNDLE` | string (file path) | Path to a custom CA certificate bundle |
-| `AWS_CA_BUNDLE` | string (file path) | Fallback CA bundle path (used when `CA_BUNDLE` is not set) |
-| `ALLOW_INSECURE` | `"true"` or `"1"` | Allow insecure TLS connections to model providers |
-| `NODE_TLS_REJECT_UNAUTHORIZED` | `"0"` to disable | Standard Node.js TLS verification override (lower priority than `ALLOW_INSECURE`) |
+| Variable                       | Type               | Description                                                                       |
+| ------------------------------ | ------------------ | --------------------------------------------------------------------------------- |
+| `CA_BUNDLE`                    | string (file path) | Path to a custom CA certificate bundle                                            |
+| `AWS_CA_BUNDLE`                | string (file path) | Fallback CA bundle path (used when `CA_BUNDLE` is not set)                        |
+| `ALLOW_INSECURE`               | `"true"` or `"1"`  | Allow insecure TLS connections to model providers                                 |
+| `NODE_TLS_REJECT_UNAUTHORIZED` | `"0"` to disable   | Standard Node.js TLS verification override (lower priority than `ALLOW_INSECURE`) |
 
 #### Proxy
 
 Standard proxy environment variables are supported. The resolution order is
 `HTTPS_PROXY` > `https_proxy` > `HTTP_PROXY` > `http_proxy`.
 
-| Variable | Type | Description |
-| --- | --- | --- |
-| `HTTPS_PROXY` / `https_proxy` | string (URL) | HTTPS proxy URL |
-| `HTTP_PROXY` / `http_proxy` | string (URL) | HTTP proxy URL |
-| `NO_PROXY` / `no_proxy` | string (comma-separated) | Hosts to bypass the proxy (supports wildcards, domain suffixes, and port-specific entries) |
+| Variable                      | Type                     | Description                                                                    |
+| ----------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| `HTTPS_PROXY` / `https_proxy` | string (URL)             | HTTPS proxy URL                                                                |
+| `HTTP_PROXY` / `http_proxy`   | string (URL)             | HTTP proxy URL                                                                 |
+| `NO_PROXY` / `no_proxy`       | string (comma-separated) | Hosts to bypass the proxy (supports domain suffixes and port-specific entries) |
+
+`NO_PROXY` and `no_proxy` are combined, so a host listed in either one bypasses
+the proxy.
+
+For model provider connections these may also be set in the `environment:`
+block of `provider-settings.yaml`:
+
+```yaml
+environment:
+  no_proxy: "model.internal.example.com"
+  # or, to bypass the proxy entirely for provider traffic:
+  # https_proxy: ""
+  # http_proxy: ""
+```
+
+Provider settings take precedence as a unit. If the block defines **any** proxy
+variable, the inherited process values are not consulted at all — including
+when the value is an empty string, which is how you disable the proxy for
+provider traffic. Casing does not matter for precedence: a lowercase
+`https_proxy` in the block still overrides an inherited uppercase
+`HTTPS_PROXY`.
+
+Proxy settings that come from `provider-settings.yaml` apply **only** to model
+provider requests. Global routing is always derived from the process
+environment, so Hub authentication and token refresh keep their inherited
+proxy behavior in both directions: pointing the model at a different proxy
+does not repoint the Hub, and disabling the model's proxy does not disable the
+Hub's. Process-level `NO_PROXY` is evaluated per destination, so a bypass
+entry for the Hub is honored even while other traffic is proxied.
+
+> **Known limitation.** Provider proxy overrides are applied to the HTTP client
+> the extension injects into each model SDK. A provider SDK that calls
+> `globalThis.fetch` directly instead of the injected client — the Google
+> GenAI SDK does this — will use the process-level proxy configuration rather
+> than the override. If you need a provider-specific proxy for such a model,
+> set it in the process environment instead.
+
+If a provider connection is unexpectedly routed through a proxy, the
+`Provider TLS config` entry in the extension log reports the resolved
+`proxyUrl`, `noProxy`, `proxySource`, and `targetUrl` values used for the
+decision.
 
 ## Path Exclusion
 

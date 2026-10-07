@@ -1,7 +1,12 @@
 import tls from "node:tls";
 import fs from "fs/promises";
 import { Agent as HttpsAgent, type AgentOptions } from "node:https";
-import { Agent as UndiciAgent, ProxyAgent, fetch as undiciFetch } from "undici";
+import {
+  Agent as UndiciAgent,
+  Dispatcher as UndiciDispatcher,
+  ProxyAgent,
+  fetch as undiciFetch,
+} from "undici";
 import type { Dispatcher as UndiciTypesDispatcher } from "undici-types";
 import { NodeHttpHandler, NodeHttp2Handler } from "@smithy/node-http-handler";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -76,12 +81,157 @@ export function shouldBypassProxy(
   return false;
 }
 
+const PROXY_URL_KEYS = ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"] as const;
+const NO_PROXY_KEYS = ["NO_PROXY", "no_proxy"] as const;
+
+export interface ResolvedProxyConfig {
+  proxyUrl?: string;
+  noProxy?: string;
+  /** True when the provider settings, not the process environment, decided this. */
+  fromProviderEnv: boolean;
+}
+
+function firstNonEmpty(
+  source: Record<string, string | undefined>,
+  keys: readonly string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value !== "") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function definesAny(
+  source: Record<string, string | undefined> | undefined,
+  keys: readonly string[],
+): boolean {
+  return !!source && keys.some((key) => source[key] !== undefined);
+}
+
+/**
+ * Union the bypass lists across both casings instead of letting one shadow the
+ * other. The proxy URL and the bypass list are routinely provisioned in
+ * different cases - a lowercase `https_proxy` from /etc/profile.d next to an
+ * uppercase `NO_PROXY` - and resolving `NO_PROXY || no_proxy` silently
+ * discarded the list that paired with the active proxy setting.
+ */
+function unionNoProxy(source: Record<string, string | undefined>): string | undefined {
+  const entries = NO_PROXY_KEYS.map((key) => source[key])
+    .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+    .flatMap((value) => value.split(/[,\s]+/))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return entries.length > 0 ? Array.from(new Set(entries)).join(",") : undefined;
+}
+
+/**
+ * Resolve the effective proxy configuration for an outbound connection.
+ *
+ * `providerEnv` is the `environment:` block from provider-settings.yaml *only*
+ * - not merged with the process environment. Provenance matters here: if the
+ * provider settings define any proxy key, they win outright, including when
+ * the value is an empty string. `https_proxy: ""` is how a user disables the
+ * proxy for provider traffic, and falling back to an inherited `HTTPS_PROXY`
+ * on a falsy value would silently ignore that. Precedence is also all-or-
+ * nothing across casings, so a lowercase YAML override is not shadowed by an
+ * uppercase process variable.
+ *
+ * Callers with no provider context (the Hub) omit it and get the process
+ * environment alone.
+ */
+export function resolveProxyEnv(providerEnv?: Record<string, string>): ResolvedProxyConfig {
+  const processEnv = process.env as Record<string, string | undefined>;
+
+  const proxyFromProvider = definesAny(providerEnv, PROXY_URL_KEYS);
+  const noProxyFromProvider = definesAny(providerEnv, NO_PROXY_KEYS);
+
+  const proxySource = proxyFromProvider ? providerEnv! : processEnv;
+  const noProxySource = noProxyFromProvider ? providerEnv! : processEnv;
+
+  return {
+    proxyUrl: firstNonEmpty(proxySource, PROXY_URL_KEYS),
+    noProxy: unionNoProxy(noProxySource),
+    fromProviderEnv: proxyFromProvider || noProxyFromProvider,
+  };
+}
+
+/**
+ * Routes each request to the proxy or straight out, per destination.
+ *
+ * A `ProxyAgent` proxies unconditionally, so it can only be used when the
+ * destination is known up front and has already been checked against
+ * `NO_PROXY`. The global dispatcher serves every destination in the extension
+ * host - Hub auth and token refresh included - so it has to make that
+ * decision per request instead, or a `NO_PROXY` entry for the Hub is ignored.
+ */
+export class ProxyBypassDispatcher extends UndiciDispatcher {
+  constructor(
+    private readonly proxyAgent: UndiciTypesDispatcher,
+    private readonly directAgent: UndiciTypesDispatcher,
+    private readonly noProxy: string | undefined,
+  ) {
+    super();
+  }
+
+  /** Exposed so routing can be asserted without performing real I/O. */
+  dispatcherFor(origin: unknown): UndiciTypesDispatcher {
+    const url =
+      typeof origin === "string" ? origin : origin instanceof URL ? origin.href : undefined;
+    return shouldBypassProxy(url, this.noProxy) ? this.directAgent : this.proxyAgent;
+  }
+
+  dispatch(options: any, handler: any): boolean {
+    return (this.dispatcherFor(options?.origin) as any).dispatch(options, handler);
+  }
+
+  // Both agents must be torn down, and the base class declares callback
+  // overloads alongside the promise forms, so mirror the whole shape.
+  private settle(work: Promise<unknown>, callback?: () => void): Promise<void> | void {
+    const done = work.then(() => undefined);
+    if (callback) {
+      void done.then(callback, callback);
+      return;
+    }
+    return done;
+  }
+
+  close(): Promise<void>;
+  close(callback: () => void): void;
+  close(callback?: () => void): Promise<void> | void {
+    return this.settle(
+      Promise.all([(this.proxyAgent as any).close(), (this.directAgent as any).close()]),
+      callback,
+    );
+  }
+
+  destroy(): Promise<void>;
+  destroy(err: Error | null): Promise<void>;
+  destroy(callback: () => void): void;
+  destroy(err: Error | null, callback: () => void): void;
+  destroy(
+    errOrCallback?: Error | null | (() => void),
+    maybeCallback?: () => void,
+  ): Promise<void> | void {
+    const err = typeof errOrCallback === "function" ? null : (errOrCallback ?? null);
+    const callback = typeof errOrCallback === "function" ? errOrCallback : maybeCallback;
+    return this.settle(
+      Promise.all([(this.proxyAgent as any).destroy(err), (this.directAgent as any).destroy(err)]),
+      callback,
+    );
+  }
+}
+
 export async function getDispatcherWithCertBundle(
   bundlePath: string | undefined,
   insecure: boolean = false,
   allowH2: boolean = false,
   logger?: Logger,
   targetUrl?: string,
+  providerEnv?: Record<string, string>,
 ): Promise<UndiciTypesDispatcher> {
   let allCerts: string | undefined;
   if (bundlePath) {
@@ -97,13 +247,7 @@ export async function getDispatcherWithCertBundle(
     }
   }
 
-  const proxyUrl =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
-
-  const noProxy = process.env.NO_PROXY || process.env.no_proxy;
+  const { proxyUrl, noProxy } = resolveProxyEnv(providerEnv);
   const bypassProxy = shouldBypassProxy(targetUrl, noProxy);
 
   if (logger) {
@@ -120,23 +264,40 @@ export async function getDispatcherWithCertBundle(
     });
   }
 
+  const connect = { ca: allCerts, rejectUnauthorized: !insecure };
+
   if (proxyUrl && !bypassProxy) {
-    if (logger) {
-      logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
-    }
     // ProxyAgent ignores `connect` TLS options; target TLS goes through `requestTls`
     // and, for an https:// proxy, the proxy's own TLS through `proxyTls`.
-    return new ProxyAgent({
+    const proxyAgent = new ProxyAgent({
       uri: proxyUrl,
       allowH2,
-      requestTls: {
-        ca: allCerts,
-        rejectUnauthorized: !insecure,
-      },
+      requestTls: connect,
       proxyTls: {
         ca: allCerts,
       },
     }) as unknown as UndiciTypesDispatcher;
+
+    // No target URL means this dispatcher will serve many destinations (it is
+    // the global one), so `NO_PROXY` cannot be evaluated up front. Decide per
+    // request instead of proxying everything unconditionally.
+    if (!targetUrl && noProxy) {
+      if (logger) {
+        logger.info(
+          `Using proxy ${sanitizeUrl(proxyUrl)} with per-destination NO_PROXY=${noProxy}`,
+        );
+      }
+      return new ProxyBypassDispatcher(
+        proxyAgent,
+        new UndiciAgent({ connect, allowH2 }) as unknown as UndiciTypesDispatcher,
+        noProxy,
+      ) as unknown as UndiciTypesDispatcher;
+    }
+
+    if (logger) {
+      logger.info(`Using proxy for Hub/provider connections: ${sanitizeUrl(proxyUrl)}`);
+    }
+    return proxyAgent;
   }
 
   if (proxyUrl && bypassProxy && logger) {
@@ -171,6 +332,7 @@ export async function getNodeHttpHandler(
   logger: Logger,
   httpVersion: "1.1" | "2.0" = "1.1",
   targetUrl?: string,
+  providerEnv?: Record<string, string>,
 ): Promise<NodeHttpHandler | NodeHttp2Handler> {
   const caBundle = env["CA_BUNDLE"] || env["AWS_CA_BUNDLE"];
 
@@ -195,18 +357,7 @@ export async function getNodeHttpHandler(
     }
   }
 
-  const proxyUrl =
-    env["HTTPS_PROXY"] ||
-    env["https_proxy"] ||
-    env["HTTP_PROXY"] ||
-    env["http_proxy"] ||
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
-
-  const noProxy =
-    env["NO_PROXY"] || env["no_proxy"] || process.env.NO_PROXY || process.env.no_proxy;
+  const { proxyUrl, noProxy } = resolveProxyEnv(providerEnv);
   const bypassProxy = shouldBypassProxy(targetUrl, noProxy);
 
   interface HttpsAgentOptionsWithALPN extends AgentOptions {

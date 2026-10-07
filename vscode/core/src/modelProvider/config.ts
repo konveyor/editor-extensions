@@ -6,9 +6,14 @@ import { AIMessage } from "@langchain/core/messages";
 import { KaiModelProvider } from "@editor-extensions/agentic";
 
 import { type ModelCapabilities, ParsedModelConfig } from "./types";
-import { ModelCreators } from "./modelCreator";
+import { ModelCreators, extractProviderTargetUrl } from "./modelCreator";
 import { getCacheForModelProvider } from "./utils";
 import { getTraceEnabled, getConfigKaiDemoMode } from "../utilities/configuration";
+import {
+  classifyNetworkError,
+  describeErrorChain,
+  sanitizeUrl,
+} from "../utilities/networkDiagnostics";
 import {
   BaseModelProvider,
   ModelProviderOptions,
@@ -82,7 +87,10 @@ export async function getModelProviderFromConfig(
   ) as Record<string, string>;
   const mergedEnv = { ...processEnvFiltered, ...parsedConfig.env };
 
-  const modelCreator = ModelCreators[parsedConfig.config.provider](logger);
+  // Pass the raw provider environment alongside the merged one: proxy
+  // resolution needs to distinguish an explicit user override (including an
+  // empty value, which disables the proxy) from an inherited process variable.
+  const modelCreator = ModelCreators[parsedConfig.config.provider](logger, parsedConfig.env);
   const defaultArgs = modelCreator.defaultArgs();
   const configArgs = parsedConfig.config.args;
   //NOTE (pgaikwad) - this overwrites nested properties of defaultargs with configargs
@@ -133,7 +141,7 @@ export async function getModelProviderFromConfig(
       }
     }
     if (!usingCachedHealthcheck) {
-      capabilities = await runModelHealthCheck(streamingModel, nonStreamingModel);
+      capabilities = await runModelHealthCheck(streamingModel, nonStreamingModel, { logger });
       if (getConfigKaiDemoMode()) {
         await cache.set("capabilities", new AIMessage(JSON.stringify(capabilities)), {
           cacheSubDir: "healthcheck",
@@ -141,8 +149,21 @@ export async function getModelProviderFromConfig(
       }
     }
   } catch (err) {
-    logger.error("Error running model health check:", err);
-    throw err;
+    // The SDK error on its own is useless for triage - openai-node reports every
+    // transport failure as a bare "Connection error." and Winston serializes the
+    // nested cause to `{}`. Classify before rethrowing so the log and the UI both
+    // name the actual failure.
+    const classified = classifyNetworkError(err);
+    logger.error("Error running model health check", {
+      category: classified.category,
+      summary: classified.summary,
+      suggestion: classified.suggestion,
+      error: describeErrorChain(err),
+      targetUrl: extractProviderTargetUrl(args)
+        ? sanitizeUrl(extractProviderTargetUrl(args)!)
+        : "none",
+    });
+    throw new Error(`${classified.summary}. ${classified.suggestion}`, { cause: err });
   }
 
   const options: ModelProviderOptions = {
