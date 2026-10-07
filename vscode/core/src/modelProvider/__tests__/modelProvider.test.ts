@@ -13,9 +13,10 @@ import { AIMessageChunk, AIMessage } from "@langchain/core/messages";
 import { FakeStreamingChatModel } from "@langchain/core/utils/testing";
 import { type BaseLLMParams } from "@langchain/core/language_models/llms";
 import { type BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import { type IterableReadableStream } from "@langchain/core/utils/stream";
 
 import { ModelCreators } from "../modelCreator";
-import { runModelHealthCheck } from "../modelProvider";
+import { runModelHealthCheck, MODEL_HEALTH_CHECK_TIMEOUT_MS } from "../modelProvider";
 import { ParsedModelConfig } from "../types";
 
 class FakeChatModelWithToolCalls extends FakeStreamingChatModel {
@@ -88,6 +89,188 @@ describe("model health check test", () => {
 
     const { supportsTools } = await runModelHealthCheck(model, model);
     expect(supportsTools).toBe(false);
+  });
+
+  /**
+   * Regression tests for issue #1503: without an explicit timeout the probes
+   * inherit undici's 300s default `headersTimeout`, so an endpoint that accepts
+   * the connection and then goes silent hangs provider init for five minutes.
+   */
+  describe("timeout budget", () => {
+    /**
+     * Records the timeout each probe receives. With `failToolProbes` it also
+     * rejects both tool-calling probes, which is what drives the health check
+     * all the way to the final bare `invoke("a")` connectivity probe - the one
+     * that actually throws when the endpoint is unreachable.
+     */
+    class ProbeRecordingModel extends FakeChatModelWithToolCalls {
+      public seenTimeouts: Array<number | undefined> = [];
+      public failToolProbes = false;
+
+      private async record(options?: BaseChatModelCallOptions): Promise<void> {
+        this.seenTimeouts.push(options?.timeout);
+        // Burn measurable wall-clock so a shared deadline visibly shrinks.
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+
+      async stream(
+        input: BaseLanguageModelInput,
+        options?: BaseChatModelCallOptions | undefined,
+      ): Promise<IterableReadableStream<AIMessageChunk>> {
+        await this.record(options);
+        if (this.failToolProbes) {
+          throw new Error("streaming tool calls unsupported");
+        }
+        return super.stream(input, options);
+      }
+
+      async invoke(
+        input: BaseLanguageModelInput,
+        options?: BaseChatModelCallOptions | undefined,
+      ): Promise<AIMessageChunk> {
+        await this.record(options);
+        // Array input means the tool-calling probe; "a" is the final
+        // connectivity probe and must still succeed.
+        if (this.failToolProbes && Array.isArray(input)) {
+          throw new Error("tool calls unsupported");
+        }
+        return super.invoke(input, options);
+      }
+    }
+
+    const newModel = (failToolProbes: boolean): ProbeRecordingModel => {
+      const model = new ProbeRecordingModel({ responses: [new AIMessage({ content: `` })] });
+      model.failToolProbes = failToolProbes;
+      return model;
+    };
+
+    it("passes a bounded timeout to every probe", async () => {
+      const model = newModel(true);
+
+      await runModelHealthCheck(model, model, { timeoutMs: 5_000 });
+
+      expect(model.seenTimeouts).toHaveLength(3);
+      for (const timeout of model.seenTimeouts) {
+        expect(timeout).toBeGreaterThan(0);
+        expect(timeout).toBeLessThanOrEqual(5_000);
+      }
+    });
+
+    it("shares one deadline across probes rather than resetting it per call", async () => {
+      const model = newModel(true);
+
+      await runModelHealthCheck(model, model, { timeoutMs: 5_000 });
+
+      // Each subsequent probe must see a strictly smaller remaining budget,
+      // otherwise the worst case is timeoutMs x number-of-probes.
+      const seen = model.seenTimeouts as number[];
+      expect(seen).toHaveLength(3);
+      expect(seen[1]).toBeLessThan(seen[0]);
+      expect(seen[2]).toBeLessThan(seen[1]);
+    });
+
+    it("defaults to a bounded timeout when none is supplied", async () => {
+      const model = newModel(false);
+
+      await runModelHealthCheck(model, model);
+
+      expect(model.seenTimeouts[0]).toBeLessThanOrEqual(MODEL_HEALTH_CHECK_TIMEOUT_MS);
+      expect(model.seenTimeouts[0]).toBeGreaterThan(0);
+    });
+
+    it("never hands a probe a non-positive timeout", async () => {
+      const model = newModel(true);
+
+      await runModelHealthCheck(model, model, { timeoutMs: 5_000 }).catch(() => undefined);
+
+      for (const timeout of model.seenTimeouts) {
+        expect(timeout).toBeGreaterThan(0);
+      }
+    });
+
+    /**
+     * The per-call `timeout` option is only a hint: several LangChain
+     * integrations never forward the abort signal to the underlying client.
+     * `@langchain/ollama` awaits `client.chat()` with no signal and only
+     * checks `signal.aborted` once a chunk has arrived, so a server that
+     * accepts the connection and stays silent is unbounded. The health check
+     * must therefore enforce the budget itself.
+     */
+    describe("against an SDK that ignores timeout and abort signals", () => {
+      class UncooperativeModel extends FakeChatModelWithToolCalls {
+        constructor(private readonly delayMs: number) {
+          super({ responses: [new AIMessage({ content: `` })] });
+        }
+
+        private stall(): Promise<never> {
+          // Deliberately ignores options.timeout and options.signal.
+          return new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("should have been cut off")), this.delayMs),
+          );
+        }
+
+        async stream(): Promise<IterableReadableStream<AIMessageChunk>> {
+          return this.stall();
+        }
+
+        async invoke(): Promise<AIMessageChunk> {
+          return this.stall();
+        }
+      }
+
+      it("rejects within the budget instead of waiting for the SDK", async () => {
+        const model = new UncooperativeModel(5_000);
+        const started = Date.now();
+
+        await expect(runModelHealthCheck(model, model, { timeoutMs: 300 })).rejects.toThrow(
+          /exceeded its 300ms budget/,
+        );
+
+        // Generous ceiling for CI jitter, but far below the SDK's 5s stall and
+        // below 3x the budget (which a per-probe timeout would have allowed).
+        expect(Date.now() - started).toBeLessThan(2_000);
+      });
+
+      it("fails rather than reporting success when the budget expires", async () => {
+        const model = new UncooperativeModel(5_000);
+
+        let threw = false;
+        try {
+          await runModelHealthCheck(model, model, { timeoutMs: 200 });
+        } catch {
+          threw = true;
+        }
+
+        expect(threw).toBe(true);
+      });
+
+      it("aborts the signal it handed the probe", async () => {
+        let observed: AbortSignal | undefined;
+
+        class SignalCapturingModel extends FakeChatModelWithToolCalls {
+          constructor() {
+            super({ responses: [new AIMessage({ content: `` })] });
+          }
+          async stream(
+            _input: BaseLanguageModelInput,
+            options?: BaseChatModelCallOptions,
+          ): Promise<IterableReadableStream<AIMessageChunk>> {
+            observed = options?.signal;
+            return new Promise((_, reject) => setTimeout(() => reject(new Error("late")), 5_000));
+          }
+          async invoke(): Promise<AIMessageChunk> {
+            return new Promise((_, reject) => setTimeout(() => reject(new Error("late")), 5_000));
+          }
+        }
+
+        await runModelHealthCheck(new SignalCapturingModel(), new SignalCapturingModel(), {
+          timeoutMs: 200,
+        }).catch(() => undefined);
+
+        expect(observed).toBeDefined();
+        expect(observed!.aborted).toBe(true);
+      });
+    });
   });
 });
 

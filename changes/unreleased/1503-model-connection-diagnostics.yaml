@@ -1,0 +1,13 @@
+kind: bugfix
+description: >
+  Fail fast and explain why when a GenAI provider endpoint is unreachable.
+  The startup model health check now enforces a 30 second budget itself rather
+  than relying on the provider SDK to honor a timeout, so an endpoint that
+  accepts the connection and then goes silent no longer stalls provider
+  initialization for five minutes even with SDKs that ignore abort signals.
+  Connection failures are classified from the full error cause chain, so logs
+  and the Health Check report name the real problem (DNS, TLS, refused
+  connection, timeout) rather than a bare "Connection error.". Running Health
+  Check after a failed startup now retries provider initialization and reports
+  the underlying error instead of only noting that the provider was never
+  initialized.

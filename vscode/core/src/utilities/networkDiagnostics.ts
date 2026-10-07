@@ -225,6 +225,43 @@ export function classifyHttpStatus(status: number, statusText: string): Classifi
 }
 
 /**
+ * Render an error and its full `cause` chain as a single log-safe string.
+ *
+ * Winston serializes a nested `Error` to `{}`, so logging `{ error }` directly
+ * discards the root cause. SDKs that wrap transport failures (openai-node turns
+ * any `fetch` rejection into a bare `APIConnectionError: Connection error.`)
+ * leave the only useful detail - the undici/Node error code - in `cause`.
+ */
+export function describeErrorChain(error: unknown): string {
+  const parts: string[] = [];
+  const seen = new Set<unknown>();
+
+  let current: unknown = error;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+
+    if (current instanceof Error) {
+      const code =
+        typeof (current as Record<string, any>).code === "string"
+          ? ` [${(current as Record<string, any>).code}]`
+          : "";
+      parts.push(`${current.name}: ${current.message}${code}`);
+      current = current.cause;
+    } else if (typeof current === "object") {
+      const obj = current as Record<string, any>;
+      const code = typeof obj.code === "string" ? ` [${obj.code}]` : "";
+      parts.push(`${obj.message ?? JSON.stringify(obj)}${code}`);
+      current = obj.cause;
+    } else {
+      parts.push(String(current));
+      break;
+    }
+  }
+
+  return parts.length > 0 ? parts.join(" <- caused by: ") : "Unknown error";
+}
+
+/**
  * Sanitize a URL for logging by removing query parameters and credentials.
  */
 export function sanitizeUrl(url: string): string {
