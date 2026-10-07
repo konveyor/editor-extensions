@@ -160,6 +160,22 @@ runs:
             feature_auth_required: true
             kai_solution_server_enabled: true
             kai_llm_proxy_enabled: true
+            # Pinned to work around konveyor/operator#631.
+            #
+            # The operator defaults this to the floating tag
+            # quay.io/lightspeed-core/lightspeed-stack:latest and then
+            # overrides the image entrypoint with a hardcoded
+            # `command: ["/app-root/.venv/bin/llama"]`. That tag was repushed
+            # on 2026-10-01 20:52 UTC with a restructured image whose
+            # entrypoint moved to /app-root/entrypoint.sh and which no longer
+            # ships the llama CLI at that path, so llm-proxy CrashLoopBackOffs
+            # at `runc create` before anything runs.
+            #
+            # This digest is the image that tag pointed at during our last
+            # green infrastructure run, which completed 20:30 the same day.
+            # Drop this line once the operator stops overriding the entrypoint
+            # or pins the image itself.
+            kai_llm_proxy_image_fqin: quay.io/lightspeed-core/lightspeed-stack@sha256:2e24a5c9b0eefc1e2a42c29a84593e06810d2b6f491c2bd43d69225c1473a95e
             kai_llm_model: ${{ inputs.llm_model }}
             kai_llm_provider: ${{ inputs.llm_provider }}
             kai_llm_baseurl: http://llemulator.${{ inputs.namespace }}.svc.cluster.local/v1
