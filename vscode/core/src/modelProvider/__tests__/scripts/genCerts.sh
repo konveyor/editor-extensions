@@ -24,7 +24,7 @@ openssl x509 -req -in "$OUT/srv.csr" -CA "$OUT/ca.crt" -CAkey "$OUT/ca.key" -CAc
   -out "$OUT/srv.crt" -days "$DAYS" -sha256 -extfile "$OUT/srv.ext" >/dev/null 2>&1
 
 echo "✓ Done. Files:"
-ls -1 "$OUT" | sed "s/^/  $OUT\//"
+ls -1 "$OUT" | sed "s|^|  $OUT/|"
 
 echo
 echo "Verify chain:"

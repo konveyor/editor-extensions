@@ -1,7 +1,20 @@
+import * as fs from "fs";
+import * as http from "http";
+import * as https from "https";
+import * as net from "net";
+import * as os from "os";
+import * as pathlib from "path";
+import { execFile } from "child_process";
+import type { AddressInfo } from "net";
 import expect from "expect";
 import winston from "winston";
 
-import { getDispatcherWithCertBundle, getNodeHttpHandler, shouldBypassProxy } from "../tls";
+import {
+  getDispatcherWithCertBundle,
+  getFetchWithDispatcher,
+  getNodeHttpHandler,
+  shouldBypassProxy,
+} from "../tls";
 
 /**
  * Regression tests for issue #1415:
@@ -248,3 +261,131 @@ describe("tls — NO_PROXY handling (issue #1415)", () => {
     });
   });
 });
+
+// Regression tests for #1043: CA_BUNDLE and ALLOW_INSECURE were ignored behind a proxy.
+(process.platform === "win32" ? describe.skip : describe)(
+  "tls — custom CA through an HTTP proxy (issue #1043)",
+  () => {
+    const logger = winston.createLogger({ silent: true });
+    const scriptsDir = pathlib.join(__dirname, "..", "..", "modelProvider", "__tests__", "scripts");
+    let certsDir: string;
+    let target: https.Server;
+    let proxy: http.Server;
+    let tlsProxy: https.Server;
+    let targetUrl: string;
+    let tunnels: string[];
+    let envSnapshot: Record<string, string | undefined>;
+
+    before(async function (this: Mocha.Context) {
+      this.timeout(15000);
+      // Created here rather than at definition time: a skipped suite still runs its
+      // describe callback, but never its hooks, so it would leak the directory.
+      certsDir = fs.mkdtempSync(pathlib.join(os.tmpdir(), "tls-proxy-test-"));
+      await new Promise<void>((resolve, reject) => {
+        execFile("bash", ["genCerts.sh", certsDir], { cwd: scriptsDir }, (err) =>
+          err ? reject(err) : resolve(),
+        );
+      });
+
+      target = https.createServer(
+        {
+          key: fs.readFileSync(pathlib.join(certsDir, "srv.key")),
+          cert: fs.readFileSync(pathlib.join(certsDir, "srv.crt")),
+        },
+        (_req, res) => res.end("ok"),
+      );
+      await new Promise<void>((resolve) => target.listen(0, "127.0.0.1", resolve));
+      targetUrl = `https://localhost:${(target.address() as AddressInfo).port}/`;
+
+      const onConnect = (req: http.IncomingMessage, clientSocket: net.Socket, head: Buffer) => {
+        tunnels.push(req.url ?? "");
+        const [host, port] = (req.url ?? "").split(":");
+        const upstream = net.connect(Number(port), host, () => {
+          clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+          upstream.write(head);
+          upstream.pipe(clientSocket);
+          clientSocket.pipe(upstream);
+        });
+        upstream.on("error", () => clientSocket.destroy());
+        clientSocket.on("error", () => upstream.destroy());
+      };
+      proxy = http.createServer();
+      proxy.on("connect", onConnect);
+      await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+
+      // An https:// proxy, signed by the same test CA as the target.
+      tlsProxy = https.createServer({
+        key: fs.readFileSync(pathlib.join(certsDir, "srv.key")),
+        cert: fs.readFileSync(pathlib.join(certsDir, "srv.crt")),
+      });
+      tlsProxy.on("connect", onConnect);
+      await new Promise<void>((resolve) => tlsProxy.listen(0, "127.0.0.1", resolve));
+    });
+
+    beforeEach(() => {
+      tunnels = [];
+      envSnapshot = snapshotProxyEnv();
+      clearProxyEnv();
+      process.env.HTTPS_PROXY = `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`;
+    });
+
+    afterEach(() => {
+      restoreProxyEnv(envSnapshot);
+    });
+
+    after(async () => {
+      for (const server of [target, proxy, tlsProxy]) {
+        if (server?.listening) {
+          server.closeAllConnections();
+          await new Promise((r) => server.close(r));
+        }
+      }
+      if (certsDir) {
+        fs.rmSync(certsDir, { recursive: true, force: true });
+      }
+    });
+
+    async function fetchThroughProxy(bundlePath: string | undefined, insecure: boolean) {
+      const dispatcher = await getDispatcherWithCertBundle(
+        bundlePath,
+        insecure,
+        false,
+        logger,
+        targetUrl,
+      );
+      try {
+        const res = await getFetchWithDispatcher(dispatcher)(targetUrl);
+        return await res.text();
+      } finally {
+        await dispatcher.close();
+      }
+    }
+
+    it("trusts CA_BUNDLE for the target when tunnelling through the proxy", async () => {
+      expect(await fetchThroughProxy(pathlib.join(certsDir, "ca.crt"), false)).toBe("ok");
+      expect(tunnels).toHaveLength(1);
+    });
+
+    it("honors ALLOW_INSECURE for the target when tunnelling through the proxy", async () => {
+      expect(await fetchThroughProxy(undefined, true)).toBe("ok");
+      expect(tunnels).toHaveLength(1);
+    });
+
+    it("still rejects an untrusted target certificate through the proxy", async () => {
+      await expect(fetchThroughProxy(undefined, false)).rejects.toThrow("fetch failed");
+      expect(tunnels).toHaveLength(1);
+    });
+
+    it("trusts CA_BUNDLE for an https:// proxy as well as the target", async () => {
+      process.env.HTTPS_PROXY = `https://localhost:${(tlsProxy.address() as AddressInfo).port}`;
+      expect(await fetchThroughProxy(pathlib.join(certsDir, "ca.crt"), false)).toBe("ok");
+      expect(tunnels).toHaveLength(1);
+    });
+
+    it("does not let ALLOW_INSECURE skip verifying an https:// proxy", async () => {
+      process.env.HTTPS_PROXY = `https://localhost:${(tlsProxy.address() as AddressInfo).port}`;
+      await expect(fetchThroughProxy(undefined, true)).rejects.toThrow("fetch failed");
+      expect(tunnels).toHaveLength(0);
+    });
+  },
+);
