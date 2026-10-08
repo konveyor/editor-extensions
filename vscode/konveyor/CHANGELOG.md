@@ -3,6 +3,16 @@
 All notable changes to the "konveyor" extension pack will be documented in this file.
 
 
+
+## [0.8.1] - 2026-10-08
+
+### Bug Fixes
+
+- Custom CA bundles (`CA_BUNDLE`) are now honored for model provider and Hub connections through an `HTTPS_PROXY`, including the connection to an https:// proxy, and `ALLOW_INSECURE` is honored for the target. Previously these failed with `fetch failed`. ([#1501](https://github.com/konveyor/editor-extensions/pull/1501))
+- Honor proxy settings from the `environment:` block of provider-settings.yaml, which previously applied to CA_BUNDLE and ALLOW_INSECURE but silently ignored HTTP_PROXY, HTTPS_PROXY and NO_PROXY. Provider settings now take precedence as a unit regardless of casing, and an explicit empty value disables the proxy for provider traffic instead of falling back to the inherited one. These settings apply only to model requests: global routing is always derived from the process environment, so Hub authentication and token refresh keep their inherited proxy behavior whether the provider overrides or disables its own. Process-level NO_PROXY is now evaluated per destination rather than once up front, so a bypass entry for the Hub is honored while other traffic is still proxied. A configured proxy also forces the custom dispatcher, so one used with HTTP/2 and default TLS settings is no longer silently discarded. NO_PROXY and no_proxy are combined rather than letting the uppercase form shadow the lowercase one. ([#1502](https://github.com/konveyor/editor-extensions/pull/1502))
+- Fail fast and explain why when a GenAI provider endpoint is unreachable. The startup model health check now enforces a 30 second budget itself rather than relying on the provider SDK to honor a timeout, so an endpoint that accepts the connection and then goes silent no longer stalls provider initialization for five minutes even with SDKs that ignore abort signals. Connection failures are classified from the full error cause chain, so logs and the Health Check report name the real problem (DNS, TLS, refused connection, timeout) rather than a bare "Connection error.". Running Health Check after a failed startup now retries provider initialization and reports the underlying error instead of only noting that the provider was never initialized. ([#1503](https://github.com/konveyor/editor-extensions/pull/1503))
+
+
 ## [0.8.0] - 2026-09-24
 
 ### New Features

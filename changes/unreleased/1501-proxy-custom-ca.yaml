@@ -1,3 +1,0 @@
-kind: bugfix
-description: >
-  Custom CA bundles (`CA_BUNDLE`) are now honored for model provider and Hub connections through an `HTTPS_PROXY`, including the connection to an https:// proxy, and `ALLOW_INSECURE` is honored for the target. Previously these failed with `fetch failed`.
