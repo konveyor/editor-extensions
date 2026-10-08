@@ -5,6 +5,11 @@ environment:
   ALWAYS_APPLIED_KEY: "envvar to be set regardless of which model is active"
   # CA_BUNDLE: "" # optional
   # ALLOW_INSECURE: "false" # optional
+  # Proxy settings for provider connections. These override the process
+  # environment. Set a proxy variable to "" to bypass the proxy entirely.
+  # no_proxy: "model.internal.example.com" # optional
+  # https_proxy: "" # optional
+  # http_proxy: "" # optional
 
 # This is a collection of model configurations that may be used.  The `&active`
 # anchor is used to reference the model to the active node below.  The extension will
