@@ -6,6 +6,7 @@ on:
       - main
     types:
       - closed
+      - labeled
 
 jobs:
   cherry_pick_job:
