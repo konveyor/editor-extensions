@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from "uuid";
 import { Uri, workspace } from "vscode";
 import { createTwoFilesPatch, createPatch } from "diff";
 import {
-  ChatMessageType,
   cleanDiff,
   normalizeLineEndings,
   type ModifiedFileMessageValue,
@@ -10,6 +9,7 @@ import {
 } from "@editor-extensions/shared";
 import type { ExtensionState } from "../../extensionState";
 import { executeExtensionCommand } from "../../commands";
+import { upsertModifiedFileMessage } from "./chatFileMessages";
 
 /**
  * Normalizes a file path relative to the workspace root.
@@ -52,7 +52,8 @@ async function readOriginalContent(filePath: string): Promise<string | undefined
  * file changes are queued in `pendingBatchReview` for the user to
  * accept/reject; a later change to a file already in the queue updates
  * that entry in place. When disabled, changes are applied immediately and
- * the solution server is notified.
+ * the solution server is notified; a later change to a file whose chat
+ * message is still undecided updates that message in place.
  *
  * The workflow path (KaiInteractiveWorkflow) always passes
  * `forceReview: true` so changes are never auto-applied from LLM output.
@@ -153,12 +154,12 @@ export async function routeFileChange(
     });
   } else {
     state.mutate((draft) => {
-      draft.chatMessages.push({
-        kind: ChatMessageType.ModifiedFile,
+      upsertModifiedFileMessage(
+        draft.chatMessages,
+        fileValue,
         messageToken,
-        timestamp: new Date().toISOString(),
-        value: fileValue,
-      });
+        new Date().toISOString(),
+      );
     });
 
     Promise.resolve(executeExtensionCommand("changeApplied", filePath, content)).catch(() => {});
