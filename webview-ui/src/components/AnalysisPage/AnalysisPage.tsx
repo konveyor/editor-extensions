@@ -50,8 +50,8 @@ import {
   runAnalysis,
   stopServer,
   getSuccessRate,
-  toggleAgentMode,
-  openResolutionPanel,
+  openChatPanel,
+  setAgentMode,
 } from "../../hooks/actions";
 import { useViolations } from "../../hooks/useViolations";
 import { useExtensionStore } from "../../store/store";
@@ -83,12 +83,7 @@ const AnalysisPage: React.FC = () => {
   const isInTreeMode = useExtensionStore((state) => state.isInTreeMode);
   const serverState = useExtensionStore((state) => state.serverState);
   const solutionServerEnabled = useExtensionStore((state) => state.solutionServerEnabled);
-  const isAgentMode = useExtensionStore((state) => state.isAgentMode);
   const solutionServerConnected = useExtensionStore((state) => state.solutionServerConnected);
-  const isWaitingForUserInteraction = useExtensionStore(
-    (state) => state.isWaitingForUserInteraction,
-  );
-  const isProcessingQueuedMessages = useExtensionStore((state) => state.isProcessingQueuedMessages);
   const profileSyncEnabled = useExtensionStore((state) => state.profileSyncEnabled);
   const profileSyncConnected = useExtensionStore((state) => state.profileSyncConnected);
   const isSyncingProfiles = useExtensionStore((state) => state.isSyncingProfiles);
@@ -105,6 +100,7 @@ const AnalysisPage: React.FC = () => {
   const serverRunning = serverState === "running";
   const isServerToggleDisabled = isAnalyzing || isAnalysisScheduled;
   const isGenAIDisabled = rawConfigErrors.some((error) => error.type === "genai-disabled");
+  const isAgentMode = useExtensionStore((state) => state.isAgentMode);
 
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
@@ -130,10 +126,6 @@ const AnalysisPage: React.FC = () => {
 
   const handleRunAnalysis = () => dispatch(runAnalysis());
   const handleServerToggle = () => dispatch(serverRunning ? stopServer() : startServer());
-
-  const handleAgentModeToggle = () => {
-    dispatch(toggleAgentMode());
-  };
 
   const panelContent = (
     <WalkthroughDrawer
@@ -185,17 +177,15 @@ const AnalysisPage: React.FC = () => {
                         </ToolbarItem>
                         {!isGenAIDisabled && (
                           <ToolbarItem>
-                            <div>
-                              <div className="agent-mode-wrapper">
-                                <Switch
-                                  id="agent-mode-switch"
-                                  isChecked={isAgentMode}
-                                  label="Agent Mode"
-                                  onChange={(_event) => handleAgentModeToggle()}
-                                  aria-label="Toggle Agent Mode"
-                                  isReversed
-                                />
-                              </div>
+                            <div className="agent-mode-wrapper">
+                              <Switch
+                                id="agent-mode-switch"
+                                isChecked={isAgentMode}
+                                label="Agent Mode"
+                                onChange={(_event, checked) => dispatch(setAgentMode(checked))}
+                                aria-label="Toggle Agent Mode"
+                                isReversed
+                              />
                             </div>
                           </ToolbarItem>
                         )}
@@ -424,25 +414,19 @@ const AnalysisPage: React.FC = () => {
                 </StackItem>
               </Stack>
             </PageSection>
-            {(isWaitingForSolution ||
-              isWaitingForUserInteraction ||
-              isProcessingQueuedMessages) && (
+            {isWaitingForSolution && (
               <Backdrop>
                 <div style={{ textAlign: "center", paddingTop: "15rem" }}>
                   <Spinner size="lg" />
                   <Title headingLevel="h2" size="lg">
-                    {isWaitingForUserInteraction
-                      ? "Waiting for user action..."
-                      : isProcessingQueuedMessages
-                        ? "Processing solution..."
-                        : "Waiting for solution confirmation..."}
+                    Waiting for solution confirmation...
                   </Title>
                   <Button
                     variant="primary"
-                    onClick={() => dispatch(openResolutionPanel())}
+                    onClick={() => dispatch(openChatPanel())}
                     style={{ marginTop: "1rem" }}
                   >
-                    Open Resolution Panel
+                    Open Migration Chat
                   </Button>
                 </div>
               </Backdrop>

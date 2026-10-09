@@ -1,0 +1,13 @@
+kind: feature
+
+description: >
+  Add pluggable agent backend infrastructure supporting Goose, OpenCode, Claude,
+  and Codex as interchangeable AI backends. Includes an MCP server exposing
+  Konveyor analysis tools (bundled into the core extension VSIX) and a localhost
+  bridge with bearer token authentication, workspace path containment for file
+  writes, body size limits, request timeouts, and input validation; a structured
+  chat panel with streaming and permission review UI; and a granular tool
+  permission policy.
+
+extensions:
+  - core

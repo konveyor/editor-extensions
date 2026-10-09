@@ -44,7 +44,6 @@ const originalRequire = (Module.prototype as any).require;
           update: (_key: string, _value: any) => Promise.resolve(),
         }),
       },
-      // Add other vscode APIs as needed
     };
   }
 

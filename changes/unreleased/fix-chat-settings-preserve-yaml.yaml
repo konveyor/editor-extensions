@@ -1,0 +1,5 @@
+kind: bugfix
+description: >
+  Saving model settings from the chat panel no longer drops credentials or
+  proxy settings that were configured by editing provider-settings.yaml
+  directly; the file is regenerated with those values preserved.

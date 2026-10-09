@@ -42,6 +42,22 @@
   "contributes": {
     "commands": [
       {
+        "command": "konveyor-core.openChat",
+        "title": "Open Migration Chat",
+        "category": "Konveyor",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "konveyor-core.openChatInEditor",
+        "title": "Open Migration Chat in Editor",
+        "category": "Konveyor"
+      },
+      {
+        "command": "konveyor-core.openChatSettings",
+        "title": "Configure Migration Chat Provider",
+        "category": "Konveyor"
+      },
+      {
         "command": "konveyor-core.openProfilesPanel",
         "title": "Manage Analysis Profile",
         "category": "Konveyor",
@@ -64,12 +80,6 @@
         "title": "Open Analysis View",
         "category": "Konveyor",
         "icon": "$(book)"
-      },
-      {
-        "command": "konveyor-core.showResolutionPanel",
-        "title": "Open Resolution View",
-        "category": "Konveyor",
-        "icon": "$(beaker)"
       },
       {
         "command": "konveyor-core.expandAllIssues",
@@ -225,6 +235,13 @@
           "title": "Konveyor",
           "icon": "resources/icon.png"
         }
+      ],
+      "secondarySidebar": [
+        {
+          "id": "konveyor-chat",
+          "title": "Konveyor Chat",
+          "icon": "resources/icon.png"
+        }
       ]
     },
     "views": {
@@ -232,6 +249,13 @@
         {
           "id": "konveyor-core.issueView",
           "name": "Konveyor"
+        }
+      ],
+      "konveyor-chat": [
+        {
+          "type": "webview",
+          "id": "konveyor-core.chatView",
+          "name": "Migration Assistant"
         }
       ]
     },
@@ -260,7 +284,7 @@
           "when": "view == konveyor-core.issueView"
         },
         {
-          "command": "konveyor-core.showResolutionPanel",
+          "command": "konveyor-core.openChat",
           "group": "navigation@2",
           "when": "view == konveyor-core.issueView"
         },
@@ -300,6 +324,10 @@
       ],
       "konveyor-core.submenu": [],
       "commandPalette": [
+        {
+          "command": "konveyor-core.openChatSettings",
+          "when": "never"
+        },
         {
           "command": "konveyor-core.expandSingleIssue",
           "when": "never"
@@ -361,9 +389,23 @@
         "konveyor-core.genai.agentMode": {
           "type": "boolean",
           "default": false,
-          "description": "(Experimental) Use agentic flow when getting solution. Requires automatic analysis.",
+          "description": "(Experimental) When enabled, an ACP agent (Goose/OpenCode) explores the codebase and fixes issues autonomously using tools; requires the agent binary to be installed and a window reload. When disabled, the configured LLM produces targeted fixes directly without an agent backend.",
           "scope": "window",
           "order": 21
+        },
+        "konveyor-core.genai.freeformChat": {
+          "type": "boolean",
+          "default": false,
+          "description": "(Experimental) Allow free-form messages to the Migration Assistant in Agent Mode. When disabled, the chat shows only the fix workflow and agent activity; solutions still run through the agent.",
+          "scope": "window",
+          "order": 22
+        },
+        "konveyor-core.genai.batchReviewMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, file changes from the agent are queued for review instead of being applied immediately. Allows accepting or rejecting changes in bulk.",
+          "scope": "window",
+          "order": 22
         },
         "konveyor-core.genai.excludedDiagnosticSources": {
           "type": "array",
@@ -423,6 +465,27 @@
           "scope": "window",
           "order": 27
         },
+        "konveyor-core.experimentalChat.agentBackend": {
+          "type": "string",
+          "enum": [
+            "goose",
+            "opencode"
+          ],
+          "default": "goose",
+          "description": "(Experimental) Which ACP agent backend to use for the Migration Assistant chat. Any ACP-compliant agent binary can be used. Only used when genai.agentMode is enabled.",
+          "scope": "window",
+          "order": 31
+        },
+        "konveyor-core.experimentalChat.agentBinaryPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "(Experimental) Path to the ACP agent binary (goose, opencode, or any ACP-compliant agent). If not set, the extension will search PATH using the selected backend name.",
+          "scope": "window",
+          "order": 32
+        },
         "konveyor-core.debug.webview": {
           "type": "boolean",
           "default": false,
@@ -462,7 +525,8 @@
     "jdtls": "../../downloaded_assets/jdt.ls-1.38.0",
     "jdtlsBundles": "../../downloaded_assets/jdtls-bundles",
     "openSourceLabelsFile": "../../downloaded_assets/opensource-labels-file/maven.default.index",
-    "rulesets": "../../downloaded_assets/rulesets"
+    "rulesets": "../../downloaded_assets/rulesets",
+    "mcpServer": "../../mcp-server/dist"
   },
   "scripts": {
     "clean": "rimraf out",
@@ -498,6 +562,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.20.0",
     "@editor-extensions/prompts": "*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@types/mustache": "^4.2.5",
@@ -510,6 +575,7 @@
     "oauth4webapi": "^3.8.6",
     "undici": "^7.14.0",
     "winston": "^3.17.0",
-    "winston-transport-vscode": "^0.1.0"
+    "winston-transport-vscode": "^0.1.0",
+    "zustand": "^5.0.11"
   }
 }
