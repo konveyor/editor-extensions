@@ -40,8 +40,6 @@ interface ExtensionStore {
   isFetchingSolution: boolean;
   isStartingServer: boolean;
   isInitializingServer: boolean;
-  isWaitingForUserInteraction: boolean;
-  isProcessingQueuedMessages: boolean;
   activeDecorators: Record<string, string>;
 
   // Config state
@@ -100,8 +98,6 @@ interface ExtensionStore {
   setIsFetchingSolution: (isFetching: boolean) => void;
   setIsStartingServer: (isStarting: boolean) => void;
   setIsInitializingServer: (isInitializing: boolean) => void;
-  setIsWaitingForUserInteraction: (isWaiting: boolean) => void;
-  setIsProcessingQueuedMessages: (isProcessing: boolean) => void;
   setBatchOperationInProgress: (isInProgress: boolean) => void;
   setActiveDecorators: (decorators: Record<string, string>) => void;
   deleteActiveDecorator: (streamId: string) => void;
@@ -174,8 +170,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       isFetchingSolution: false,
       isStartingServer: false,
       isInitializingServer: false,
-      isWaitingForUserInteraction: false,
-      isProcessingQueuedMessages: false,
       activeDecorators: {},
       workspaceRoot: "/",
       configErrors: [],
@@ -297,16 +291,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsInitializingServer: (isInitializing) =>
         set((state) => {
           state.isInitializingServer = isInitializing;
-        }),
-
-      setIsWaitingForUserInteraction: (isWaiting) =>
-        set((state) => {
-          state.isWaitingForUserInteraction = isWaiting;
-        }),
-
-      setIsProcessingQueuedMessages: (isProcessing) =>
-        set((state) => {
-          state.isProcessingQueuedMessages = isProcessing;
         }),
 
       setBatchOperationInProgress: (isInProgress) =>

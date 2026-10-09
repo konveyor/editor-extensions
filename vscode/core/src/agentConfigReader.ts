@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { parse } from "yaml";
-import type { AgentBackend, AgentConfig, AgentCapability } from "@editor-extensions/shared";
+import type { AgentConfig, AgentCapability } from "@editor-extensions/shared";
 import { getConfigAgentBackend } from "./utilities/configuration";
 import { readGooseConfig, writeGooseConfig, getGooseConfigPath } from "./gooseConfig";
 import type { WriteGooseConfigChanges } from "./gooseConfig";
@@ -47,7 +47,7 @@ export function writeAgentConfig(changes: WriteAgentConfigChanges): void {
 /**
  * Return the path to the active agent backend's native config file.
  */
-export function getAgentConfigPath(backend: AgentBackend, workspaceRoot?: string): string {
+export function getAgentConfigPath(backend: string, workspaceRoot?: string): string {
   switch (backend) {
     case "opencode":
       return path.join(workspaceRoot ?? ".", "opencode.json");

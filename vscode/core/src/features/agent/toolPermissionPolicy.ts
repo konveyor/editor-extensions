@@ -1,4 +1,4 @@
-import type { PermissionOption } from "../../client/agentClient";
+import type { PermissionOption } from "../../client/agentBackendClient";
 
 // ─── Read-only detection ─────────────────────────────────────────────
 

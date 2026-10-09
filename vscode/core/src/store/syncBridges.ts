@@ -33,8 +33,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "isFetchingSolution",
   "solutionState",
   "solutionScope",
-  "isWaitingForUserInteraction",
-  "isProcessingQueuedMessages",
   "isBatchReviewMode",
   "pendingBatchReview",
   "modelSupportsTools",

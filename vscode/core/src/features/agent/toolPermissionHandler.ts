@@ -1,7 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
 import { ChatMessageType } from "@editor-extensions/shared";
-import type { AgentClient, PermissionRequestData } from "../../client/agentClient";
+import type { AcpClient } from "../../client/acpClient";
+import type { PermissionRequestData } from "../../client/agentBackendClient";
 import type { AgentFileTracker } from "./fileTracker";
 
 export {
@@ -163,13 +164,13 @@ export function formatPermissionPreview(
 
 export interface PendingPermission {
   requestId: number;
-  client: AgentClient;
+  client: AcpClient;
   filePath?: string;
   fileContent?: string;
 }
 
 export interface PermissionHandlerContext {
-  agentClient: AgentClient;
+  agentClient: AcpClient;
   data: PermissionRequestData;
   workspaceRoot: string;
   fileTracker: AgentFileTracker | undefined;

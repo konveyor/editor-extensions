@@ -57,8 +57,6 @@ export interface StateChangeData {
   isFetchingSolution?: boolean;
   solutionState?: SolutionState;
   solutionScope?: Scope;
-  isWaitingForUserInteraction?: boolean;
-  isProcessingQueuedMessages?: boolean;
   isBatchReviewMode?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   experimentalChatEnabled?: boolean;
