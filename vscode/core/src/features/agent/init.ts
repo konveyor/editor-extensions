@@ -6,6 +6,7 @@ import type { AcpClient } from "../../client/acpClient";
 import type { PermissionRequestData } from "../../client/agentBackendClient";
 import { routeFileChange } from "./fileChangeRouter";
 import { handlePermissionRequest, type PendingPermission } from "./toolPermissionHandler";
+import { createBridgeRunAnalysis } from "./bridgeAnalysis";
 
 export { type PendingPermission } from "./toolPermissionHandler";
 export const pendingPermissions = new Map<string, PendingPermission>();
@@ -84,65 +85,16 @@ export async function initializeAgent(
     store: ctx.store,
     logger: ctx.logger,
     workspaceRoots,
-    runAnalysis: async () => {
-      const analyzerClient = ctx.extensionState.analyzerClient;
-      if (!analyzerClient) {
-        ctx.logger.warn("MCP run_analysis: analyzerClient not available");
-        return;
-      }
-      if (analyzerClient.serverState !== "running") {
-        if (!(await analyzerClient.canAnalyzeInteractive())) {
-          return;
+    runAnalysis: createBridgeRunAnalysis({
+      getAnalyzer: () => ctx.extensionState.analyzerClient,
+      getStoreState: () => ctx.store.getState(),
+      sendToWebviews: (message) => {
+        for (const provider of ctx.webviewProviders.values()) {
+          provider.sendMessageToWebview(message);
         }
-        await analyzerClient.start();
-        await new Promise<void>((resolve) => {
-          const checkInterval = setInterval(() => {
-            if (analyzerClient.serverState === "running") {
-              clearInterval(checkInterval);
-              resolve();
-            } else if (
-              analyzerClient.serverState === "startFailed" ||
-              analyzerClient.serverState === "stopped"
-            ) {
-              clearInterval(checkInterval);
-              resolve();
-            }
-          }, 500);
-        });
-      }
-      if (analyzerClient.serverState === "running") {
-        await analyzerClient.runAnalysis();
-
-        const storeData = ctx.store.getState();
-        const incidentCount = storeData.enhancedIncidents?.length ?? 0;
-        const ruleSetCount = storeData.ruleSets?.length ?? 0;
-
-        if (incidentCount > 0) {
-          const sysId = `system-analysis-${Date.now()}`;
-          const summary = `Analysis complete: ${incidentCount} incident${incidentCount !== 1 ? "s" : ""} found across ${ruleSetCount} rule set${ruleSetCount !== 1 ? "s" : ""}.`;
-          for (const provider of ctx.webviewProviders.values()) {
-            provider.sendMessageToWebview({
-              type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
-              messageId: sysId,
-              content: summary,
-              done: false,
-              timestamp: new Date().toISOString(),
-            });
-            provider.sendMessageToWebview({
-              type: AgentMessageTypes.AGENT_CHAT_STREAMING_UPDATE,
-              messageId: sysId,
-              content: "",
-              done: true,
-              timestamp: new Date().toISOString(),
-            });
-          }
-        }
-      } else {
-        ctx.logger.warn(
-          `MCP run_analysis: analyzer not running (state: ${analyzerClient.serverState})`,
-        );
-      }
-    },
+      },
+      logger: ctx.logger,
+    }),
   });
 
   const bridgePort = await mcpBridgeServer.start();
@@ -273,14 +225,17 @@ export async function initializeAgent(
   agentClient.on("toolCall", (_messageId: string, data: any) => {
     if (data.arguments) {
       const workspaceRoot = ctx.store.getState().workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot, data.callId);
+      fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
     }
   });
 
   // When any tool completes successfully, check for file changes
   // and show them in the chat as condensed change blocks.
+  // During an orchestrated "Get Solution" run the AgentOrchestrator owns
+  // file routing (it queues changes for batch review), so stand down while
+  // the broadcast handlers are suspended to avoid routing every change twice.
   agentClient.on("toolCallUpdate", (_messageId: string, data: any) => {
-    if (data.status !== "succeeded") {
+    if (data.status !== "succeeded" || broadcastBinding?.suspended) {
       return;
     }
     fileTracker

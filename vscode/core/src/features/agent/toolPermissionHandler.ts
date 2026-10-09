@@ -196,7 +196,7 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
   } = ctx;
 
   if (fileTracker && data.rawInput) {
-    fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot, data.toolCallId);
+    fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot);
   }
 
   const label = buildPermissionLabel(data, workspaceRoot);

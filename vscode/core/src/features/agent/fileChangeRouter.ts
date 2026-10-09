@@ -50,7 +50,8 @@ async function readOriginalContent(filePath: string): Promise<string | undefined
  *
  * When `isBatchReviewMode` is enabled (or `forceReview` is true),
  * file changes are queued in `pendingBatchReview` for the user to
- * accept/reject. When disabled, changes are applied immediately and
+ * accept/reject; a later change to a file already in the queue updates
+ * that entry in place. When disabled, changes are applied immediately and
  * the solution server is notified.
  *
  * The workflow path (KaiInteractiveWorkflow) always passes
@@ -72,15 +73,6 @@ export async function routeFileChange(
 
   if (originalContent === undefined) {
     originalContent = await readOriginalContent(filePath);
-  }
-
-  if (isBatchReviewMode) {
-    const alreadyPending = state.data.pendingBatchReview?.some(
-      (f) => normalizeFilePath(f.path, state.data.workspaceRoot) === relativePath,
-    );
-    if (alreadyPending) {
-      return;
-    }
   }
 
   let diff = "";
@@ -131,20 +123,32 @@ export async function routeFileChange(
   };
 
   if (isBatchReviewMode) {
-    const reviewFile: PendingBatchReviewFile = {
-      messageToken,
-      path: relativePath,
-      diff,
-      content,
-      originalContent,
-      isNew,
-      isDeleted,
-    };
-
     state.mutate((draft) => {
       if (!draft.pendingBatchReview) {
         draft.pendingBatchReview = [];
       }
+      // A file the agent edits again while it is still awaiting review keeps
+      // its queue entry (and message token) but shows the latest content.
+      const existing = draft.pendingBatchReview.find(
+        (f) => normalizeFilePath(f.path, draft.workspaceRoot) === relativePath,
+      );
+      if (existing) {
+        existing.diff = diff;
+        existing.content = content;
+        existing.isNew = isNew;
+        existing.isDeleted = isDeleted;
+        existing.hasError = undefined;
+        return;
+      }
+      const reviewFile: PendingBatchReviewFile = {
+        messageToken,
+        path: relativePath,
+        diff,
+        content,
+        originalContent,
+        isNew,
+        isDeleted,
+      };
       draft.pendingBatchReview.push(reviewFile);
     });
   } else {

@@ -208,7 +208,7 @@ export class AgentOrchestrator {
       this.handleToolCall(data);
       if (fileTracker && data.arguments) {
         const workspaceRoot = this.state.data.workspaceRoot;
-        fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot, data.callId);
+        fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
       }
     };
 

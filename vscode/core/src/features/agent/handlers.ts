@@ -17,6 +17,7 @@ import { pendingPermissions } from "./init";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import type { AcpClient } from "../../client/acpClient";
+import type { AgentFileTracker } from "./fileTracker";
 import { executeExtensionCommand } from "../../commands";
 import { getConfigAgentBackend } from "../../utilities/configuration";
 
@@ -47,8 +48,15 @@ export const agentMessageHandlers: Record<
     try {
       if (agentClient.isPromptActive()) {
         logger.info("AGENT_SEND_MESSAGE: cancelling active prompt for cancel-and-send");
-        agentClient.cancelGeneration();
+        await agentClient.cancelGeneration();
       }
+      // Each freeform turn tracks file changes against the files as they were
+      // when the turn started, so a file edited in an earlier turn is reported
+      // again if the agent touches it now.
+      const fileTracker = state.featureClients.get("agentFileTracker") as
+        | AgentFileTracker
+        | undefined;
+      fileTracker?.clear();
       await agentClient.sendMessage(content, messageId);
     } catch (err) {
       logger.error("AGENT_SEND_MESSAGE failed:", err);
@@ -70,7 +78,7 @@ export const agentMessageHandlers: Record<
     try {
       if (agentClient.isPromptActive()) {
         logger.info("AGENT_CANCEL_GENERATION: cancelling active generation");
-        agentClient.cancelGeneration();
+        await agentClient.cancelGeneration();
       }
     } catch (err) {
       logger.error("AGENT_CANCEL_GENERATION failed:", err);
@@ -130,7 +138,8 @@ export const agentMessageHandlers: Record<
     logger,
   ) => {
     try {
-      const { writeAgentConfig, readAgentConfig } = await import("../../agentConfigReader");
+      const { writeAgentConfig, readAgentConfig, getAgentLaunchEnv } =
+        await import("../../agentConfigReader");
       const { saveAgentCredentials, hasAgentCredentials } =
         await import("../../utilities/agentCredentialStorage");
 
@@ -181,6 +190,15 @@ export const agentMessageHandlers: Record<
 
       const agentClient = getAgentClient(state);
       if (agentClient) {
+        // Backends without a config file we own (OpenCode) learn the new
+        // provider/model from their launch environment, so refresh it before
+        // the restart below.
+        agentClient.updateModelEnv(
+          getAgentLaunchEnv(getConfigAgentBackend(), {
+            provider: payload.provider,
+            model: payload.model,
+          }),
+        );
         try {
           await agentClient.stop();
         } catch (stopErr) {

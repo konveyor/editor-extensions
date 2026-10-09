@@ -1,13 +1,18 @@
 /**
- * AgentFileTracker: Tracks file state before/during Goose execution
- * to detect modifications made by the Developer extension's text_editor.
+ * AgentFileTracker: Tracks file state before/during an agent run to detect
+ * modifications made by the agent's own file tools.
  *
- * Original file content is cached from two sources:
+ * Baselines are captured from two sources:
  * - cacheIncidentFiles: pre-caches all files referenced by analysis incidents
- * - cacheFileBeforeWrite: caches files targeted by permission requests
+ * - cacheFileBeforeWrite: caches files targeted by tool calls / permission
+ *   requests. A file that does not exist yet gets a "missing" baseline so its
+ *   creation is detected too.
  *
  * On every successful tool completion, resolvePendingFileChanges scans all
- * cached files for changes and routes them to batch review immediately.
+ * tracked files and routes changes to the chat / batch review. A file can be
+ * routed more than once: each scan compares the on-disk content with the
+ * content that was last routed, while the reported `originalContent` always
+ * stays the pre-run baseline so reviewers see the cumulative diff.
  * A post-completion scan (scanForMissedChanges) catches anything missed.
  */
 
@@ -23,10 +28,13 @@ export interface TrackedFileChange {
   originalContent?: string;
 }
 
+/** Pre-run content of a tracked file; `null` means the file did not exist. */
+type Baseline = string | null;
+
 export class AgentFileTracker {
-  private readonly originalContentCache = new Map<string, string>();
-  private readonly routedFiles = new Set<string>();
-  private readonly pendingToolFiles = new Map<string, string>();
+  private readonly originalContentCache = new Map<string, Baseline>();
+  /** Content a file had when it was last routed to the chat / batch review. */
+  private readonly lastRoutedContent = new Map<string, string>();
   private readonly inflightReads = new Map<string, Promise<void>>();
   private readonly logger: winston.Logger;
   private scanPromise: Promise<TrackedFileChange[]> | null = null;
@@ -37,7 +45,8 @@ export class AgentFileTracker {
 
   /**
    * Pre-read files referenced by analysis incidents so we have the
-   * original content before Goose modifies them on disk.
+   * original content before the agent modifies them on disk.
+   * Returns the content of every tracked file that exists.
    */
   async cacheIncidentFiles(
     incidents: ReadonlyArray<{ readonly uri: string }>,
@@ -66,18 +75,25 @@ export class AgentFileTracker {
       cached,
     });
 
-    return new Map(this.originalContentCache);
+    const existing = new Map<string, string>();
+    for (const [absPath, baseline] of this.originalContentCache) {
+      if (baseline !== null) {
+        existing.set(absPath, baseline);
+      }
+    }
+    return existing;
   }
 
   /**
    * Cache a file's original content before a write tool executes.
-   * Called from the permissionRequest handler with tool arguments.
+   * Called from the toolCall and permissionRequest handlers with tool arguments.
+   * A file that does not exist yet is tracked with a missing baseline so the
+   * scan reports its creation.
    */
   cacheFileBeforeWrite(
     toolName: string,
     args: Record<string, unknown>,
     workspaceRoot: string,
-    callId?: string,
   ): void {
     const name = toolName?.toLowerCase() ?? "";
     const isFileModifying =
@@ -106,24 +122,24 @@ export class AgentFileTracker {
 
     const absPath = path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath);
 
-    if (callId) {
-      this.pendingToolFiles.set(callId, absPath);
-    }
-
     if (this.originalContentCache.has(absPath) || this.inflightReads.has(absPath)) {
       return;
     }
 
     const readPromise = fs
       .readFile(absPath, "utf-8")
-      .then((content) => {
+      .then(
+        (content): Baseline => content,
+        (): Baseline => null, // file does not exist yet — track its creation
+      )
+      .then((baseline) => {
         if (!this.originalContentCache.has(absPath)) {
-          this.originalContentCache.set(absPath, content);
-          this.logger.debug("Cached original for tool-targeted file", { path: absPath });
+          this.originalContentCache.set(absPath, baseline);
+          this.logger.debug("Cached baseline for tool-targeted file", {
+            path: absPath,
+            exists: baseline !== null,
+          });
         }
-      })
-      .catch(() => {
-        // File may not exist yet (new file) — that's fine
       })
       .finally(() => {
         this.inflightReads.delete(absPath);
@@ -133,9 +149,9 @@ export class AgentFileTracker {
   }
 
   /**
-   * Scan all cached files for changes that haven't been routed yet.
+   * Scan all tracked files for changes since they were last routed.
    * Works regardless of whether permission requests or tool arguments
-   * were available -- checks every file in the original content cache.
+   * were available -- checks every file with a baseline.
    * Uses a promise-based mutex to prevent concurrent scans.
    */
   async resolvePendingFileChanges(): Promise<TrackedFileChange[]> {
@@ -157,47 +173,48 @@ export class AgentFileTracker {
     if (this.inflightReads.size > 0) {
       await Promise.allSettled(this.inflightReads.values());
     }
+    return this.collectChanges();
+  }
 
+  /**
+   * Compare every tracked file with the content that was last routed (or its
+   * baseline if never routed) and mark the returned changes as routed.
+   */
+  private async collectChanges(): Promise<TrackedFileChange[]> {
     const changes: TrackedFileChange[] = [];
 
-    for (const [absPath, originalContent] of this.originalContentCache) {
-      if (this.routedFiles.has(absPath)) {
-        continue;
-      }
-
+    for (const [absPath, baseline] of this.originalContentCache) {
       let currentContent: string;
       try {
         currentContent = await fs.readFile(absPath, "utf-8");
       } catch {
+        // Still missing, or deleted — deletions are not reported.
         continue;
       }
 
-      if (currentContent === originalContent) {
+      const previous = this.lastRoutedContent.get(absPath) ?? baseline;
+      if (currentContent === previous) {
         continue;
       }
 
-      this.routedFiles.add(absPath);
-      changes.push({ path: absPath, content: currentContent, originalContent });
+      this.lastRoutedContent.set(absPath, currentContent);
+      changes.push({
+        path: absPath,
+        content: currentContent,
+        // "" marks a newly created file for the router (isNew).
+        originalContent: baseline ?? "",
+      });
     }
 
     return changes;
   }
 
-  /** Mark a file as already routed to batch review. */
-  markAsRouted(absPath: string): void {
-    if (absPath.startsWith("file://")) {
-      absPath = fileURLToPath(absPath);
-    } else if (absPath.startsWith("file:")) {
-      absPath = absPath.slice("file:".length);
-    }
-    this.routedFiles.add(absPath);
-  }
-
   /**
    * Get the pre-cached original content for a file. Falls back to git
-   * if the file wasn't pre-cached (e.g., Goose modified a file outside
+   * if the file wasn't pre-cached (e.g., the agent modified a file outside
    * the incident scope like pom.xml). This ensures we always have the
    * real original content for diffing, not the already-modified disk content.
+   * Returns undefined for files that did not exist before the run.
    */
   async getOriginalContent(absPath: string, workspaceRoot?: string): Promise<string | undefined> {
     // Normalize absPath — it may arrive as a file: or file:// URI
@@ -209,7 +226,7 @@ export class AgentFileTracker {
 
     const cached = this.originalContentCache.get(absPath);
     if (cached !== undefined) {
-      return cached;
+      return cached ?? undefined;
     }
 
     // Normalize workspaceRoot — it may arrive as a file:// URI
@@ -265,40 +282,20 @@ export class AgentFileTracker {
   }
 
   /**
-   * Post-completion scan: compare every cached original with current disk
-   * state. Returns file changes not already routed to batch review.
+   * Post-completion scan: compare every tracked file with current disk
+   * state. Returns (and marks as routed) changes not already routed.
    */
   async scanForMissedChanges(): Promise<TrackedFileChange[]> {
-    const missedChanges: TrackedFileChange[] = [];
-
-    for (const [absPath, originalContent] of this.originalContentCache) {
-      if (this.routedFiles.has(absPath)) {
-        continue;
-      }
-
-      let currentContent: string;
-      try {
-        currentContent = await fs.readFile(absPath, "utf-8");
-      } catch {
-        continue;
-      }
-
-      if (currentContent === originalContent) {
-        continue;
-      }
-
-      missedChanges.push({
-        path: absPath,
-        content: currentContent,
-        originalContent,
-      });
+    if (this.inflightReads.size > 0) {
+      await Promise.allSettled(this.inflightReads.values());
     }
+    const missedChanges = await this.collectChanges();
 
     if (missedChanges.length > 0) {
       this.logger.info(`Post-scan found ${missedChanges.length} additional file change(s)`);
     } else {
       this.logger.info(
-        `Post-scan: no missed changes (${this.originalContentCache.size} cached, ${this.routedFiles.size} already routed)`,
+        `Post-scan: no missed changes (${this.originalContentCache.size} tracked, ${this.lastRoutedContent.size} routed)`,
       );
     }
 
@@ -308,8 +305,7 @@ export class AgentFileTracker {
   /** Reset state between iterations / messages. */
   clear(): void {
     this.originalContentCache.clear();
-    this.routedFiles.clear();
-    this.pendingToolFiles.clear();
+    this.lastRoutedContent.clear();
     this.scanPromise = null;
   }
 
