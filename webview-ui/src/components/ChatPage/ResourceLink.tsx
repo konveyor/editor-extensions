@@ -13,7 +13,7 @@ export const ResourceLink: React.FC<ResourceLinkProps> = ({ block }) => {
     if (isFileUri) {
       window.vscode.postMessage({
         type: "OPEN_FILE",
-        payload: { uri: block.uri },
+        payload: { file: block.uri, line: 1 },
       });
     }
   };
