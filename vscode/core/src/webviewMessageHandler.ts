@@ -623,41 +623,46 @@ const actions: {
 
     logger.info("Updating model provider config from chat UI", { provider, model });
 
+    if (!provider || !model) {
+      logger.warn("UPDATE_MODEL_PROVIDER_CONFIG: provider and model are required", {
+        provider,
+        model,
+      });
+      return;
+    }
+
     try {
-      const hasCredentials = credentials && Object.values(credentials).some((v) => v.length > 0);
-
-      if (provider && model && hasCredentials) {
-        const { paths } = await import("./paths");
-        // Merge with previously stored values so "leave blank to keep current"
-        // holds for the direct client as well as the agent backends.
-        const { loadAgentCredentials, saveAgentCredentials } =
-          await import("./utilities/agentCredentialStorage");
-        const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
-        const merged: Record<string, string> = {};
-        for (const [k, v] of Object.entries({ ...existing, ...credentials })) {
-          if (v) {
-            merged[k] = v;
-          }
+      const { paths } = await import("./paths");
+      // Provider/model and credentials are applied independently: blank
+      // credential fields mean "keep what is stored", and providers without
+      // credential fields (Ollama) have nothing to enter at all.
+      const { loadAgentCredentials, saveAgentCredentials } =
+        await import("./utilities/agentCredentialStorage");
+      const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
+      const merged: Record<string, string> = {};
+      for (const [k, v] of Object.entries({ ...existing, ...(credentials ?? {}) })) {
+        if (v) {
+          merged[k] = v;
         }
-        const yamlContent = generateProviderSettingsYaml(provider, model, merged);
-        const encoder = new TextEncoder();
-        await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
-        await saveAgentCredentials(state.extensionContext, merged);
+      }
+      const yamlContent = generateProviderSettingsYaml(provider, model, merged);
+      const encoder = new TextEncoder();
+      await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
+      await saveAgentCredentials(state.extensionContext, merged);
 
-        logger.info("Written provider-settings.yaml from chat UI config");
-        await state.reloadModelProvider?.();
-        const stillFailing = state.data.configErrors.find(
-          (e) => e.type === "provider-connection-failed" || e.type === "provider-not-configured",
+      logger.info("Written provider-settings.yaml from chat UI config");
+      await state.reloadModelProvider?.();
+      const stillFailing = state.data.configErrors.find(
+        (e) => e.type === "provider-connection-failed" || e.type === "provider-not-configured",
+      );
+      if (stillFailing) {
+        vscode.window.showWarningMessage(
+          `Model configuration saved (${provider} / ${model}) but the connection check failed: ${stillFailing.error ?? stillFailing.message}`,
         );
-        if (stillFailing) {
-          vscode.window.showWarningMessage(
-            `Model configuration saved (${provider} / ${model}) but the connection check failed: ${stillFailing.error ?? stillFailing.message}`,
-          );
-        } else {
-          vscode.window.showInformationMessage(
-            `Model configuration updated: ${provider} / ${model}.`,
-          );
-        }
+      } else {
+        vscode.window.showInformationMessage(
+          `Model configuration updated: ${provider} / ${model}.`,
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

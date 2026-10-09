@@ -118,6 +118,17 @@ async function createAcpClient(ctx: FeatureContext): Promise<AcpClient> {
     ctx.logger.warn(`Agent: could not load credentials from SecretStorage: ${err}`);
   }
 
+  try {
+    const { readAgentConfig, getAgentLaunchEnv } = await import("../../agentConfigReader");
+    const launchEnv = getAgentLaunchEnv(backend, readAgentConfig());
+    if (Object.keys(launchEnv).length > 0) {
+      modelEnv = { ...modelEnv, ...launchEnv };
+      ctx.logger.info(`Agent: passing provider/model selection to ${backend} via launch env`);
+    }
+  } catch (err) {
+    ctx.logger.warn(`Agent: could not derive launch env from agent config: ${err}`);
+  }
+
   const backendConfig = BACKEND_CONFIGS[backend] ?? {
     binaryName: backend,
     binaryArgs: ["acp"],

@@ -88,9 +88,76 @@ function readOpencodeConfig(): AgentConfig {
 }
 
 function writeOpencodeConfig(_changes: WriteAgentConfigChanges): void {
-  // OpenCode manages its own config via the SDK / opencode.json.
-  // Provider and model are set through environment variables and the
-  // SDK's createOpencode() config, not through a user-editable YAML.
-  // This is intentionally a no-op — config writes flow through
-  // provider-settings.yaml and SecretStorage instead.
+  // OpenCode has no user-editable config we own: provider and model persist in
+  // provider-settings.yaml (see readOpencodeConfig) and are handed to the
+  // `opencode acp` process at launch via OPENCODE_CONFIG_CONTENT — see
+  // getAgentLaunchEnv(). Nothing to write here.
+}
+
+// ─── Launch environment ─────────────────────────────────────────────
+
+/** UI provider id → OpenCode provider id (models are addressed as `<provider>/<model>`). */
+const OPENCODE_PROVIDER_IDS: Record<string, string> = {
+  openai: "openai",
+  anthropic: "anthropic",
+  google: "google",
+  aws_bedrock: "amazon-bedrock",
+  azure: "azure",
+  groq: "groq",
+  ollama: "ollama",
+};
+
+const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
+
+/**
+ * Build the inline OpenCode config that selects the provider and model the
+ * user picked in the chat settings. OpenCode reads it from the
+ * OPENCODE_CONFIG_CONTENT environment variable and layers it over its own
+ * global/project config, so only the keys we set here are overridden.
+ *
+ * Returns undefined when there is nothing to select (no provider/model yet).
+ */
+export function buildOpencodeConfigContent(provider: string, model: string): string | undefined {
+  if (!provider || !model) {
+    return undefined;
+  }
+  const opencodeProvider = OPENCODE_PROVIDER_IDS[provider] ?? provider;
+
+  // Declaring the model under the provider lets OpenCode accept model ids
+  // that are not (yet) in its models.dev catalog; for known ids it merges
+  // with the catalog entry.
+  const providerConfig: Record<string, unknown> = {
+    models: { [model]: { name: model } },
+  };
+  if (opencodeProvider === "ollama") {
+    // Ollama is not a built-in OpenCode provider: it is an OpenAI-compatible
+    // endpoint that has to be declared explicitly.
+    providerConfig.npm = "@ai-sdk/openai-compatible";
+    providerConfig.name = "Ollama (local)";
+    providerConfig.options = { baseURL: OLLAMA_DEFAULT_BASE_URL };
+  }
+
+  return JSON.stringify({
+    model: `${opencodeProvider}/${model}`,
+    provider: { [opencodeProvider]: providerConfig },
+  });
+}
+
+/**
+ * Environment variables that make the given backend use the selected
+ * provider/model. Goose reads its own config.yaml (written by
+ * writeGooseConfig) so needs nothing; OpenCode is configured inline.
+ */
+export function getAgentLaunchEnv(
+  backend: string,
+  config: { provider: string; model: string },
+): Record<string, string> {
+  switch (backend) {
+    case "opencode": {
+      const content = buildOpencodeConfigContent(config.provider, config.model);
+      return content ? { OPENCODE_CONFIG_CONTENT: content } : {};
+    }
+    default:
+      return {};
+  }
 }
