@@ -3,8 +3,26 @@ import { join, isAbsolute } from "path";
 import { fileURLToPath } from "url";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
+import { MessageTypes } from "@editor-extensions/shared";
 import { handleFileResponse } from "../../utilities/ModifiedFiles/handleFileResponse";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+
+/**
+ * Tell every webview that a batch apply/reject has finished so it can
+ * re-enable its controls. Entries that failed stay in `pendingBatchReview`
+ * (with `hasError`) for a retry, so the webview cannot rely on the queue
+ * emptying to detect completion.
+ */
+function notifyBatchOperationComplete(state: ExtensionState, failedCount: number): void {
+  const timestamp = new Date().toISOString();
+  for (const provider of state.webviewProviders.values()) {
+    provider.sendMessageToWebview({
+      type: MessageTypes.BATCH_OPERATION_COMPLETE,
+      failedCount,
+      timestamp,
+    });
+  }
+}
 
 /**
  * Resolve a potentially relative path against the workspace root.
@@ -99,6 +117,7 @@ export const batchReviewHandlers: Record<
 
     try {
       logger.info(`BATCH_APPLY_ALL: Applying ${files.length} files`);
+      clearBatchErrors(state, files);
 
       for (const file of files) {
         try {
@@ -154,6 +173,8 @@ export const batchReviewHandlers: Record<
       vscode.window.showErrorMessage(
         "An unexpected error occurred while applying files. Check the output for details.",
       );
+    } finally {
+      notifyBatchOperationComplete(state, failures.length);
     }
   },
 
@@ -162,6 +183,7 @@ export const batchReviewHandlers: Record<
 
     try {
       logger.info(`BATCH_REJECT_ALL: Rejecting ${files.length} files`);
+      clearBatchErrors(state, files);
 
       for (const file of files) {
         try {
@@ -205,9 +227,23 @@ export const batchReviewHandlers: Record<
       vscode.window.showErrorMessage(
         "An unexpected error occurred while rejecting files. Check the output for details.",
       );
+    } finally {
+      notifyBatchOperationComplete(state, failures.length);
     }
   },
 };
+
+/** Reset `hasError` on the files about to be retried in a batch. */
+function clearBatchErrors(state: ExtensionState, files: Array<{ messageToken: string }>): void {
+  const tokens = new Set(files.map((f) => f.messageToken));
+  state.mutate((draft) => {
+    for (const file of draft.pendingBatchReview ?? []) {
+      if (file.hasError && tokens.has(file.messageToken)) {
+        file.hasError = undefined;
+      }
+    }
+  });
+}
 
 /**
  * Check if batch review is complete and, once the agent run has finished,

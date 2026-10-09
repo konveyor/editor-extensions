@@ -3,6 +3,7 @@ import {
   WebviewMessage,
   isStateChange,
   isFocusViolation,
+  isBatchOperationComplete,
   isChatStateChange,
   isChatStreamingUpdate,
   isAgentStateChange,
@@ -154,6 +155,14 @@ export function useVSCodeMessageHandler() {
         // Handle focus violation (from tree view "Open Details" action)
         if (isFocusViolation(message)) {
           store.setFocusedViolationFilter(message.violationMessage);
+          return;
+        }
+
+        // Batch apply/reject finished on the extension side. Failed files stay
+        // queued (flagged with hasError) so the user can retry them, which is
+        // why the queue emptying alone cannot be the signal here.
+        if (isBatchOperationComplete(message)) {
+          store.setBatchOperationInProgress(false);
           return;
         }
 

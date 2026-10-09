@@ -20,6 +20,10 @@ export const MessageTypes = {
   // Chat (kai resolution workflow)
   CHAT_STATE_CHANGE: "CHAT_STATE_CHANGE",
   CHAT_STREAMING_UPDATE: "CHAT_STREAMING_UPDATE",
+
+  // Batch review: a BATCH_APPLY_ALL / BATCH_REJECT_ALL request has finished
+  // (successfully or not), so the webview may re-enable its controls.
+  BATCH_OPERATION_COMPLETE: "BATCH_OPERATION_COMPLETE",
 } as const;
 
 export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
@@ -112,9 +116,17 @@ export interface FocusViolationMessage {
 /**
  * Union type of all possible webview messages (core + agent)
  */
+export interface BatchOperationCompleteMessage {
+  type: "BATCH_OPERATION_COMPLETE";
+  /** Number of files that could not be applied/rejected and remain queued. */
+  failedCount: number;
+  timestamp: string;
+}
+
 export type WebviewMessage =
   | StateChangeMessage
   | FocusViolationMessage
+  | BatchOperationCompleteMessage
   | ChatStateChangeMessage
   | ChatStreamingUpdateMessage
   | AgentWebviewMessage;
@@ -129,6 +141,12 @@ export function isStateChange(msg: WebviewMessage): msg is StateChangeMessage {
 
 export function isFocusViolation(msg: WebviewMessage): msg is FocusViolationMessage {
   return msg.type === MessageTypes.FOCUS_VIOLATION;
+}
+
+export function isBatchOperationComplete(
+  msg: WebviewMessage,
+): msg is BatchOperationCompleteMessage {
+  return msg.type === MessageTypes.BATCH_OPERATION_COMPLETE;
 }
 
 // Chat
