@@ -1,4 +1,5 @@
-import { stringify } from "yaml";
+import { parse, stringify } from "yaml";
+import { workspace, type Uri } from "vscode";
 
 interface ProviderMapping {
   langchainProvider: string;
@@ -113,6 +114,108 @@ export function langchainProviderToUiId(
   return matches.find(([, m]) => !m.extraArgs)?.[0] ?? matches[0][0];
 }
 
+/** What an existing provider-settings.yaml contributes to a regenerated one. */
+export interface ExistingProviderSettings {
+  /**
+   * Credentials recovered from `active.environment` / `active.args`, keyed by
+   * UI credential key (the inverse of `envVarMap` / `argsFromEnv`).
+   */
+  credentials: Record<string, string>;
+  /**
+   * The top-level `environment:` block (proxy settings such as HTTPS_PROXY,
+   * CA_BUNDLE, ALLOW_INSECURE) plus any `active.environment` keys that are not
+   * credentials of the active provider. Regeneration keeps these verbatim.
+   */
+  environment: Record<string, string>;
+}
+
+const EMPTY_PROVIDER_SETTINGS: ExistingProviderSettings = { credentials: {}, environment: {} };
+
+function stringEntries(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof v === "string" && v) {
+        out[k] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Recover the credentials and environment stored in a provider-settings.yaml,
+ * so that regenerating the file from the chat UI does not drop values the
+ * user configured by editing the file directly (the documented way to set up
+ * a provider before the chat settings existed, and still the only way to set
+ * proxy options).
+ *
+ * Malformed or empty input yields empty maps rather than throwing.
+ */
+export function extractProviderSettings(yamlContent: string): ExistingProviderSettings {
+  let doc: unknown;
+  try {
+    doc = parse(yamlContent);
+  } catch {
+    return EMPTY_PROVIDER_SETTINGS;
+  }
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
+    return EMPTY_PROVIDER_SETTINGS;
+  }
+  const { environment: baseEnv, active } = doc as Record<string, unknown>;
+  const environment = stringEntries(baseEnv);
+  const credentials: Record<string, string> = {};
+
+  if (active && typeof active === "object" && !Array.isArray(active)) {
+    const { provider, args, environment: activeEnv } = active as Record<string, unknown>;
+    const argMap = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+    const uiId =
+      typeof provider === "string" ? langchainProviderToUiId(provider, argMap) : undefined;
+    const mapping = uiId ? PROVIDER_MAP[uiId] : undefined;
+
+    // yaml env key → UI credential key for the active provider. Unknown
+    // providers fall back to identity so hand-written keys still survive.
+    const envToUi: Record<string, string> = {};
+    for (const [uiKey, yamlKey] of Object.entries(mapping?.envVarMap ?? {})) {
+      envToUi[yamlKey] = uiKey;
+    }
+    for (const [yamlKey, value] of Object.entries(stringEntries(activeEnv))) {
+      const uiKey = envToUi[yamlKey] ?? (mapping ? undefined : yamlKey);
+      if (uiKey) {
+        credentials[uiKey] = value;
+      } else {
+        environment[yamlKey] = value;
+      }
+    }
+    for (const [uiKey, argKey] of Object.entries(mapping?.argsFromEnv ?? {})) {
+      const value = argMap[argKey];
+      if (typeof value === "string" && value) {
+        credentials[uiKey] = value;
+      }
+    }
+  }
+
+  return { credentials, environment };
+}
+
+/**
+ * `extractProviderSettings` for the file at `uri`; a missing or unreadable
+ * file contributes nothing.
+ */
+export async function readExistingProviderSettings(uri: Uri): Promise<ExistingProviderSettings> {
+  try {
+    const raw = await workspace.fs.readFile(uri);
+    return extractProviderSettings(new TextDecoder("utf8").decode(raw));
+  } catch {
+    return EMPTY_PROVIDER_SETTINGS;
+  }
+}
+
+export interface GenerateProviderSettingsOptions {
+  /** Top-level `environment:` block to keep (see `ExistingProviderSettings.environment`). */
+  baseEnvironment?: Record<string, string>;
+}
+
 /**
  * Generates provider-settings.yaml content from chat UI selections.
  * Maps UI provider IDs (e.g. "aws_bedrock") to LangChain provider names
@@ -122,6 +225,7 @@ export function generateProviderSettingsYaml(
   uiProviderId: string,
   model: string,
   credentials?: Record<string, string>,
+  options: GenerateProviderSettingsOptions = {},
 ): string {
   const mapping = PROVIDER_MAP[uiProviderId];
   if (!mapping) {
@@ -151,7 +255,7 @@ export function generateProviderSettingsYaml(
   const args: Record<string, unknown> = { model, ...providerArgs, ...mapping.extraArgs };
 
   const doc: Record<string, unknown> = {
-    environment: {},
+    environment: { ...(options.baseEnvironment ?? {}) },
     active: {
       ...(Object.keys(environment).length > 0 ? { environment } : {}),
       provider: mapping.langchainProvider,

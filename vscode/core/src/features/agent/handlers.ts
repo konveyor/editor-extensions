@@ -151,8 +151,14 @@ export const agentMessageHandlers: Record<
       logger.info(`Agent config updated: provider=${payload.provider}, model=${payload.model}`);
 
       const { loadAgentCredentials } = await import("../../utilities/agentCredentialStorage");
+      const { generateProviderSettingsYaml, readExistingProviderSettings } =
+        await import("../../modelProvider/providerConfigGenerator");
+      const { paths } = await import("../../paths");
+      // Credentials the user wrote into provider-settings.yaml by hand are the
+      // lowest-priority layer; the rewrite below must not drop them.
+      const fromYaml = await readExistingProviderSettings(paths().settingsYaml);
       const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
-      const merged = { ...existing, ...(payload.credentials ?? {}) };
+      const merged = { ...fromYaml.credentials, ...existing, ...(payload.credentials ?? {}) };
       const cleaned: Record<string, string> = {};
       for (const [k, v] of Object.entries(merged)) {
         if (v) {
@@ -175,11 +181,10 @@ export const agentMessageHandlers: Record<
       // the same provider, model and keys the agent backend uses — even when the
       // user only changed provider/model and left the stored credentials alone.
       try {
-        const { generateProviderSettingsYaml } =
-          await import("../../modelProvider/providerConfigGenerator");
-        const { paths } = await import("../../paths");
         const vscode = await import("vscode");
-        const yamlContent = generateProviderSettingsYaml(payload.provider, payload.model, cleaned);
+        const yamlContent = generateProviderSettingsYaml(payload.provider, payload.model, cleaned, {
+          baseEnvironment: fromYaml.environment,
+        });
         const encoder = new TextEncoder();
         await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
         logger.info("Updated provider-settings.yaml from agent config");

@@ -635,17 +635,28 @@ const actions: {
       const { paths } = await import("./paths");
       // Provider/model and credentials are applied independently: blank
       // credential fields mean "keep what is stored", and providers without
-      // credential fields (Ollama) have nothing to enter at all.
+      // credential fields (Ollama) have nothing to enter at all. "Stored"
+      // includes whatever the current provider-settings.yaml holds, so a key
+      // or proxy setting the user put there by hand survives the rewrite.
       const { loadAgentCredentials, saveAgentCredentials } =
         await import("./utilities/agentCredentialStorage");
+      const { readExistingProviderSettings } =
+        await import("./modelProvider/providerConfigGenerator");
+      const fromYaml = await readExistingProviderSettings(paths().settingsYaml);
       const existing = (await loadAgentCredentials(state.extensionContext)) ?? {};
       const merged: Record<string, string> = {};
-      for (const [k, v] of Object.entries({ ...existing, ...(credentials ?? {}) })) {
+      for (const [k, v] of Object.entries({
+        ...fromYaml.credentials,
+        ...existing,
+        ...(credentials ?? {}),
+      })) {
         if (v) {
           merged[k] = v;
         }
       }
-      const yamlContent = generateProviderSettingsYaml(provider, model, merged);
+      const yamlContent = generateProviderSettingsYaml(provider, model, merged, {
+        baseEnvironment: fromYaml.environment,
+      });
       const encoder = new TextEncoder();
       await vscode.workspace.fs.writeFile(paths().settingsYaml, encoder.encode(yamlContent));
       await saveAgentCredentials(state.extensionContext, merged);
