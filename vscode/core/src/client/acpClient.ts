@@ -66,6 +66,8 @@ export interface AcpClientConfig {
 // ─── Constants ────────────────────────────────────────────────────────
 
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000;
+/** How long to wait for a cancelled prompt to settle before starting a new one. */
+const PROMPT_SETTLE_TIMEOUT_MS = 10_000;
 
 // ─── AcpClient ───────────────────────────────────────────────────────
 
@@ -84,8 +86,11 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     (response: RequestPermissionResponse) => void
   >();
 
-  // Current streaming state
+  // Current streaming state. `inflightPrompt` is the `session/prompt` call
+  // that is still awaiting its response; `currentResponseId` is the message
+  // id its session updates are attributed to.
   private currentResponseId: string | null = null;
+  private inflightPrompt: Promise<unknown> | null = null;
 
   private readonly config: AcpClientConfig;
   private readonly logger: winston.Logger;
@@ -188,29 +193,80 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   /**
    * Send a user message and stream the response.
    * Returns the stop reason when generation completes.
+   *
+   * If a previous prompt is still winding down (e.g. after
+   * `cancelGeneration()`), it is awaited first so its completion cannot
+   * clobber the response state of the prompt started here.
    */
   async sendMessage(content: string, responseMessageId: string): Promise<string> {
-    if (this.state !== "running" || !this.sessionId || !this.connection) {
-      throw new Error("AcpClient: not running");
+    this.assertRunning();
+
+    if (this.inflightPrompt) {
+      await this.waitForPromptToSettle();
+      this.assertRunning();
     }
 
+    // From here to the `await` below runs synchronously, so the prompt is
+    // on the wire and isPromptActive() is true as soon as this method returns.
     this.currentResponseId = responseMessageId;
 
     const promptBlocks: ContentBlock[] = [{ type: "text", text: content }];
+    const promptCall = this.connection!.prompt({
+      sessionId: this.sessionId!,
+      prompt: promptBlocks,
+    });
+    this.inflightPrompt = promptCall;
 
     try {
-      const response = await this.connection.prompt({
-        sessionId: this.sessionId,
-        prompt: promptBlocks,
-      });
-
+      const response = await promptCall;
       const stopReason = response.stopReason;
       this.emit("streamingComplete", responseMessageId, stopReason);
-      this.currentResponseId = null;
       return stopReason;
-    } catch (err) {
+    } finally {
+      // Only clear state that still belongs to this prompt. A replacement
+      // prompt may already have taken over after a cancel.
+      if (this.inflightPrompt === promptCall) {
+        this.inflightPrompt = null;
+      }
+      if (this.currentResponseId === responseMessageId) {
+        this.currentResponseId = null;
+      }
+    }
+  }
+
+  private assertRunning(): void {
+    if (this.state !== "running" || !this.sessionId || !this.connection) {
+      throw new Error("AcpClient: not running");
+    }
+  }
+
+  /**
+   * Wait for the in-flight prompt (if any) to finish, bounded by
+   * PROMPT_SETTLE_TIMEOUT_MS. If it never settles we drop our reference so
+   * a new prompt can proceed; the stale call can no longer touch shared state.
+   */
+  private async waitForPromptToSettle(): Promise<void> {
+    const inflight = this.inflightPrompt;
+    if (!inflight) {
+      return;
+    }
+
+    let timer: NodeJS.Timeout | undefined;
+    const timedOut = await Promise.race([
+      inflight.then(
+        () => false,
+        () => false,
+      ),
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(true), PROMPT_SETTLE_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
+
+    if (timedOut && this.inflightPrompt === inflight) {
+      this.logger.warn("AcpClient: previous prompt did not settle after cancel; detaching it");
+      this.inflightPrompt = null;
       this.currentResponseId = null;
-      throw err;
     }
   }
 
@@ -241,16 +297,22 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   }
 
   /**
-   * Cancel the current generation.
+   * Cancel the current generation. Resolves once the cancelled prompt has
+   * actually completed (or the settle timeout elapsed), so callers can safely
+   * start a new prompt afterwards.
    */
-  cancelGeneration(): void {
+  async cancelGeneration(): Promise<void> {
     if (!this.sessionId || !this.connection) {
       return;
     }
 
-    this.connection.cancel({ sessionId: this.sessionId }).catch((err) => {
+    try {
+      await this.connection.cancel({ sessionId: this.sessionId });
+    } catch (err) {
       this.logger.warn(`AcpClient: cancel failed: ${err}`);
-    });
+    }
+
+    await this.waitForPromptToSettle();
   }
 
   /**
@@ -319,6 +381,8 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     });
 
     this.sessionId = null;
+    this.currentResponseId = null;
+    this.inflightPrompt = null;
     this.setState("stopped");
     this.logger.info("AcpClient: stopped");
   }

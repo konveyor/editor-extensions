@@ -75,7 +75,12 @@ export interface AgentBackendClient extends EventEmitter {
   dispose(): void;
   createSession(): Promise<string>;
   sendMessage(content: string, responseMessageId: string): Promise<string>;
-  cancelGeneration(): void;
+  /**
+   * Cancel the in-flight prompt. Implementations that stream asynchronously
+   * resolve once the cancelled prompt has settled, so a caller doing
+   * cancel-and-send can `await` it before the next `sendMessage`.
+   */
+  cancelGeneration(): void | Promise<void>;
   updateModelEnv(env: Record<string, string>): void;
   setMcpServers(servers: McpServerConfig[]): void;
   respondToRequest(requestId: number, result: unknown): void;
