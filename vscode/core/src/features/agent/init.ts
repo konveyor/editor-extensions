@@ -249,22 +249,25 @@ export async function initializeAgent(
     if (data.status !== "succeeded" || broadcastBinding?.suspended) {
       return;
     }
-    fileTracker
-      .resolvePendingFileChanges()
-      .then(async (changes) => {
-        for (const change of changes) {
-          await routeFileChange(
-            ctx.extensionState,
-            change.path,
-            change.content,
-            change.originalContent,
-          );
-          ctx.logger.info("File change routed", { path: change.path });
-        }
-      })
-      .catch((err) => {
-        ctx.logger.error("Failed to resolve pending file changes", { error: err });
-      });
+    // Registered with the tracker so the next turn's reset waits for it.
+    fileTracker.trackRouting(
+      fileTracker
+        .resolvePendingFileChanges()
+        .then(async (changes) => {
+          for (const change of changes) {
+            await routeFileChange(
+              ctx.extensionState,
+              change.path,
+              change.content,
+              change.originalContent,
+            );
+            ctx.logger.info("File change routed", { path: change.path });
+          }
+        })
+        .catch((err) => {
+          ctx.logger.error("Failed to resolve pending file changes", { error: err });
+        }),
+    );
   });
 
   agentClient.on("error", (error: Error) => {

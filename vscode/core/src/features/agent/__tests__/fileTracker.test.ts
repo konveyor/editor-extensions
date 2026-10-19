@@ -164,6 +164,31 @@ describe("AgentFileTracker", () => {
     expect(Array.from(cache.entries())).toEqual([[abs, "v1"]]);
   });
 
+  it("whenIdle waits for baseline reads and registered routing, and is undefined when idle", async () => {
+    expect(tracker.whenIdle()).toBeUndefined();
+
+    const abs = await write("K.java", "v1");
+    tracker.cacheFileBeforeWrite("text_editor", { command: "str_replace", path: abs }, workspace);
+    expect(tracker.whenIdle()).toBeDefined();
+    await tracker.whenIdle();
+    expect(tracker.whenIdle()).toBeUndefined();
+
+    // Routing that follows a scan (a late approved write finishing during a
+    // cancel) must complete before the next turn clears the tracker.
+    let routed = false;
+    await write("K.java", "v2");
+    tracker.trackRouting(
+      tracker.resolvePendingFileChanges().then(async (changes) => {
+        await new Promise((r) => setTimeout(r, 5));
+        routed = changes.length === 1;
+      }),
+    );
+    expect(tracker.whenIdle()).toBeDefined();
+    await tracker.whenIdle();
+    expect(routed).toBe(true);
+    expect(tracker.whenIdle()).toBeUndefined();
+  });
+
   it("clear() forgets baselines and routed state", async () => {
     const abs = await write("F.java", "v1");
     await tracker.cacheIncidentFiles([{ uri: abs }], workspace);

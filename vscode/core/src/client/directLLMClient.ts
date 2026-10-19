@@ -104,6 +104,10 @@ export class DirectLLMClient extends EventEmitter implements AgentBackendClient 
     }
   }
 
+  async interruptSends(): Promise<void> {
+    this.cancelGeneration();
+  }
+
   updateModelEnv(_env: Record<string, string>): void {}
 
   setMcpServers(_servers: McpServerConfig[]): void {}

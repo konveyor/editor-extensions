@@ -101,6 +101,10 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   // not the one that was active when it was requested.
   private sendChain: Promise<unknown> = Promise.resolve();
   private queuedSends = 0;
+  // Bumped by interruptSends(); a queued send whose epoch is stale drops out
+  // instead of dispatching, so a takeover cannot be followed by a stray
+  // freeform prompt on the new session.
+  private sendEpoch = 0;
 
   private readonly config: AcpClientConfig;
   private readonly logger: winston.Logger;
@@ -218,20 +222,36 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     options: SendMessageOptions = {},
   ): Promise<string> {
     this.assertRunning();
+    const epoch = this.sendEpoch;
 
-    let promptCall: Promise<PromptResponse>;
-    if (!this.inflightPrompt && this.queuedSends === 0) {
+    let promptCall: Promise<PromptResponse> | null;
+    const idle = !this.inflightPrompt && this.queuedSends === 0;
+    // With nothing in flight the hook runs right away; if it is synchronous
+    // the prompt still goes on the wire before this method returns.
+    const prep = idle ? options.beforeDispatch?.() : undefined;
+    if (idle && !prep) {
       promptCall = this.dispatchPrompt(content, responseMessageId);
     } else {
       this.queuedSends++;
       const turn = this.sendChain.then(async () => {
         try {
+          if (this.sendEpoch !== epoch) {
+            return { call: null };
+          }
           if (this.inflightPrompt) {
             if (options.replaceActive) {
               await this.cancelGeneration();
             } else {
               await this.waitForPromptToSettle();
             }
+          }
+          if (this.sendEpoch !== epoch) {
+            // Interrupted while we were settling the previous prompt.
+            return { call: null };
+          }
+          const ready = prep ?? options.beforeDispatch?.();
+          if (ready) {
+            await ready;
           }
           this.assertRunning();
           // Wrapped so the async function does not flatten the prompt promise
@@ -246,6 +266,14 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
         () => undefined,
       );
       promptCall = (await turn).call;
+    }
+
+    if (!promptCall) {
+      this.logger.info("AcpClient: queued prompt dropped by interruptSends", {
+        responseMessageId,
+      });
+      this.emit("streamingComplete", responseMessageId, "cancelled");
+      return "cancelled";
     }
 
     try {
@@ -356,6 +384,24 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     }
 
     await this.waitForPromptToSettle();
+  }
+
+  /**
+   * Stop all freeform work before a takeover (Get Solution replacing the
+   * session and listeners): cancel the active prompt, drop every queued send,
+   * and resolve once nothing is in flight or queued. Dropped sends resolve
+   * with stop reason "cancelled" and emit `streamingComplete` for their id.
+   */
+  async interruptSends(): Promise<void> {
+    this.sendEpoch++;
+    if (this.inflightPrompt) {
+      await this.cancelGeneration();
+    }
+    // Queued turns observe the new epoch and drop out; wait for the chain
+    // to run dry (a turn mid-settle finishes its wait first).
+    while (this.queuedSends > 0) {
+      await this.sendChain;
+    }
   }
 
   /**

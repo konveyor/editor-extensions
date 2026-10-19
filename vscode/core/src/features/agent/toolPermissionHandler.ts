@@ -2,11 +2,12 @@ import { v4 as uuidv4 } from "uuid";
 import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
 import { ChatMessageType } from "@editor-extensions/shared";
 import type { AcpClient } from "../../client/acpClient";
-import type { PermissionRequestData } from "../../client/agentBackendClient";
+import type { PermissionOption, PermissionRequestData } from "../../client/agentBackendClient";
 import { getToolFilePath, type AgentFileTracker } from "./fileTracker";
 
 export {
   isReadOnlyToolCall,
+  isAcceptOption,
   findAllowOnceOptionId,
   filterPermissionOptions,
 } from "./toolPermissionPolicy";
@@ -171,6 +172,8 @@ export function formatPermissionPreview(
 export interface PendingPermission {
   requestId: number;
   client: AcpClient;
+  /** The options the agent offered, so the reply can be judged by kind. */
+  options: PermissionOption[];
   filePath?: string;
   fileContent?: string;
 }
@@ -272,6 +275,7 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
   pending.set(messageToken, {
     requestId: data.requestId,
     client: agentClient,
+    options: data.options,
     filePath: rawFilePath,
     fileContent: rawFileContent,
   });

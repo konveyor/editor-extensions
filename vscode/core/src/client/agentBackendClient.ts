@@ -31,6 +31,13 @@ export interface SendMessageOptions {
    * input's cancel-and-send.
    */
   replaceActive?: boolean;
+  /**
+   * Runs once the previous prompt has settled and immediately before this
+   * prompt goes on the wire — the point where per-turn state (the file
+   * tracker) can be reset without losing the previous turn's late work.
+   * Returning a promise defers the dispatch until it resolves.
+   */
+  beforeDispatch?: () => void | Promise<void>;
 }
 
 export interface PermissionOption {
@@ -107,6 +114,12 @@ export interface AgentBackendClient extends EventEmitter {
    * cancel-and-send can `await` it before the next `sendMessage`.
    */
   cancelGeneration(): void | Promise<void>;
+  /**
+   * Stop all freeform work before a takeover: cancel the active prompt and
+   * drop every queued send (each resolves with stop reason "cancelled").
+   * Resolves once nothing is in flight or queued.
+   */
+  interruptSends(): Promise<void>;
   updateModelEnv(env: Record<string, string>): void;
   setMcpServers(servers: McpServerConfig[]): void;
   respondToRequest(requestId: number, result: unknown): void;

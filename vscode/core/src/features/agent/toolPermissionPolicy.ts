@@ -27,6 +27,17 @@ export function findAllowOnceOptionId(options: PermissionOption[]): string | und
 }
 
 /**
+ * Whether the option the user picked is an "allow" one. Option ids are
+ * agent-defined and opaque (OpenCode: "once" / "always" / "reject"; Goose:
+ * "allow_once" / ...), so the decision has to come from the option's kind.
+ * An id that matches none of the offered options counts as a rejection.
+ */
+export function isAcceptOption(options: PermissionOption[], optionId: string): boolean {
+  const kind = options.find((opt) => opt.optionId === optionId)?.kind;
+  return kind === "allow_once" || kind === "allow_always";
+}
+
+/**
  * Filters permission options to only show "Allow" and "Reject" (once).
  * "Always Allow" and "Always Reject" are hidden — permanent policy
  * should be configured through the agent's native config.

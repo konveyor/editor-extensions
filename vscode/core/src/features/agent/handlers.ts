@@ -14,6 +14,7 @@ import {
   AgentMessageTypes,
 } from "@editor-extensions/shared";
 import { pendingPermissions } from "./init";
+import { isAcceptOption } from "./toolPermissionPolicy";
 import type { ExtensionState } from "../../extensionState";
 import type winston from "winston";
 import type { AcpClient } from "../../client/acpClient";
@@ -51,15 +52,30 @@ export const agentMessageHandlers: Record<
       }
       // Each freeform turn tracks file changes against the files as they were
       // when the turn started, so a file edited in an earlier turn is reported
-      // again if the agent touches it now.
+      // again if the agent touches it now. The reset runs inside the client's
+      // send queue, after the previous prompt has settled and its file-change
+      // routing has finished — not here, where the previous prompt may still
+      // be writing a file whose baseline would be lost.
       const fileTracker = state.featureClients.get("agentFileTracker") as
         | AgentFileTracker
         | undefined;
-      fileTracker?.clear();
+      const resetTracker = (): void | Promise<void> => {
+        if (!fileTracker) {
+          return;
+        }
+        const idle = fileTracker.whenIdle();
+        if (idle) {
+          return idle.then(() => fileTracker.clear());
+        }
+        fileTracker.clear();
+      };
       // The client serializes sends: when this message's turn comes it
       // cancels and settles whichever prompt is active *then*, so several
       // quick messages replace each other in order instead of racing.
-      await agentClient.sendMessage(content, messageId, { replaceActive: true });
+      await agentClient.sendMessage(content, messageId, {
+        replaceActive: true,
+        beforeDispatch: resetTracker,
+      });
     } catch (err) {
       logger.error("AGENT_SEND_MESSAGE failed:", err);
     }
@@ -352,8 +368,9 @@ export const agentMessageHandlers: Record<
       outcome: { outcome: "selected", optionId },
     });
 
-    // Determine if accepted or rejected
-    const accepted = optionId.includes("allow");
+    // Decide by the selected option's kind, not its id: ids are opaque to us
+    // (OpenCode's allow_once option is "once", Goose's is "allow_once").
+    const accepted = isAcceptOption(pending.options, optionId);
 
     state.mutate((draft) => {
       for (let i = draft.chatMessages.length - 1; i >= 0; i--) {

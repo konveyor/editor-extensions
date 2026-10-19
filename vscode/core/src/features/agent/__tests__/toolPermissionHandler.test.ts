@@ -1,6 +1,7 @@
 import expect from "expect";
 import {
   isReadOnlyToolCall,
+  isAcceptOption,
   findAllowOnceOptionId,
   filterPermissionOptions,
 } from "../toolPermissionPolicy";
@@ -52,6 +53,28 @@ describe("findAllowOnceOptionId", () => {
   it("returns undefined when no allow_once option exists", () => {
     const noAllow = sampleOptions.filter((o) => o.kind !== "allow_once");
     expect(findAllowOnceOptionId(noAllow)).toBeUndefined();
+  });
+});
+
+describe("isAcceptOption", () => {
+  // OpenCode's option ids carry no "allow"/"reject" wording.
+  const opencodeOptions: PermissionOption[] = [
+    { optionId: "once", kind: "allow_once", name: "Allow once" },
+    { optionId: "always", kind: "allow_always", name: "Always allow" },
+    { optionId: "reject", kind: "reject_once", name: "Reject" },
+  ];
+
+  it("judges by the selected option's kind, not its id", () => {
+    expect(isAcceptOption(opencodeOptions, "once")).toBe(true);
+    expect(isAcceptOption(opencodeOptions, "always")).toBe(true);
+    expect(isAcceptOption(opencodeOptions, "reject")).toBe(false);
+    expect(isAcceptOption(sampleOptions, "allow")).toBe(true);
+    expect(isAcceptOption(sampleOptions, "reject-always")).toBe(false);
+  });
+
+  it("treats an unknown option id as a rejection", () => {
+    expect(isAcceptOption(opencodeOptions, "allow")).toBe(false);
+    expect(isAcceptOption([], "once")).toBe(false);
   });
 });
 

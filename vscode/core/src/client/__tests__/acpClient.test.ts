@@ -225,6 +225,74 @@ describe("AcpClient prompt lifecycle", () => {
     ]);
   });
 
+  it("interruptSends cancels the active prompt and drops queued sends", async () => {
+    const { client, prompts, cancels, settle } = runningClient();
+    const completes: Array<[string, string]> = [];
+    client.on("streamingComplete", (id: string, reason: string) => completes.push([id, reason]));
+
+    const a = chatSend(client, "A", "A");
+    const b = chatSend(client, "B", "B");
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+
+    // Get Solution takeover: nothing freeform may survive, including B.
+    await client.interruptSends();
+    expect(await a).toBe("cancelled");
+    expect(await b).toBe("cancelled");
+    await settle();
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+    expect(cancels).toHaveLength(1);
+    expect(client.isPromptActive()).toBe(false);
+    // Both ids get a terminal "cancelled" (order between them is not defined).
+    expect([...completes].sort()).toEqual([
+      ["A", "cancelled"],
+      ["B", "cancelled"],
+    ]);
+
+    // The migration prompt is the next thing on the wire.
+    const m = client.sendMessage("migrate", "M");
+    expect(prompts.map((p) => p.text)).toEqual(["A", "migrate"]);
+    prompts[1].done.resolve({ stopReason: "end_turn" });
+    expect(await m).toBe("end_turn");
+  });
+
+  it("runs beforeDispatch after the previous prompt settles and before the next goes out", async () => {
+    const { client, prompts, settle } = runningClient();
+    const order: string[] = [];
+    client.on("streamingComplete", (id: string, reason: string) =>
+      order.push(`complete:${id}:${reason}`),
+    );
+
+    const a = chatSend(client, "A", "A");
+    const b = client.sendMessage("B", "B", {
+      replaceActive: true,
+      beforeDispatch: async () => {
+        order.push(`reset(prompts=${prompts.length})`);
+        await new Promise((r) => setTimeout(r, 2));
+        order.push("reset-done");
+      },
+    });
+
+    expect(await a).toBe("cancelled");
+    await settle();
+    // B is not on the wire until the hook has finished.
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+    await new Promise((r) => setTimeout(r, 5));
+    expect(prompts.map((p) => p.text)).toEqual(["A", "B"]);
+    expect(order).toEqual(["complete:A:cancelled", "reset(prompts=1)", "reset-done"]);
+
+    prompts[1].done.resolve({ stopReason: "end_turn" });
+    expect(await b).toBe("end_turn");
+  });
+
+  it("a synchronous beforeDispatch keeps the idle fast path synchronous", () => {
+    const { client, prompts } = runningClient();
+    let ran = false;
+    void client.sendMessage("A", "A", { beforeDispatch: () => void (ran = true) });
+    expect(ran).toBe(true);
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+    expect(client.isPromptActive()).toBe(true);
+  });
+
   it("clears response state when the prompt rejects", async () => {
     const { client, prompts } = runningClient();
     const sending = client.sendMessage("boom", "A");

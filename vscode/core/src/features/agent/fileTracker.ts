@@ -57,6 +57,8 @@ export class AgentFileTracker {
   /** Content a file had when it was last routed to the chat / batch review. */
   private readonly lastRoutedContent = new Map<string, string>();
   private readonly inflightReads = new Map<string, Promise<void>>();
+  /** Routing work (scan + routeFileChange) registered via trackRouting. */
+  private readonly pendingRouting = new Set<Promise<unknown>>();
   private readonly logger: winston.Logger;
   private scanPromise: Promise<TrackedFileChange[]> | null = null;
 
@@ -333,6 +335,40 @@ export class AgentFileTracker {
     }
 
     return missedChanges;
+  }
+
+  /**
+   * Register the routing work that follows a scan so `whenIdle()` can wait
+   * for it. Returns the same promise for chaining.
+   */
+  trackRouting<T>(work: Promise<T>): Promise<T> {
+    const tracked: Promise<unknown> = work.then(
+      () => this.pendingRouting.delete(tracked),
+      () => this.pendingRouting.delete(tracked),
+    );
+    this.pendingRouting.add(tracked);
+    return work;
+  }
+
+  /**
+   * A promise that resolves once every baseline read, scan and registered
+   * routing has finished — or `undefined` when nothing is pending, so a
+   * caller can stay synchronous in the common case. Used before `clear()`
+   * so a turn boundary never discards the previous turn's late work.
+   */
+  whenIdle(): Promise<void> | undefined {
+    if (this.inflightReads.size === 0 && !this.scanPromise && this.pendingRouting.size === 0) {
+      return undefined;
+    }
+    return (async () => {
+      while (this.inflightReads.size > 0 || this.scanPromise || this.pendingRouting.size > 0) {
+        await Promise.allSettled([
+          ...this.inflightReads.values(),
+          ...(this.scanPromise ? [this.scanPromise] : []),
+          ...this.pendingRouting,
+        ]);
+      }
+    })();
   }
 
   /** Reset state between iterations / messages. */

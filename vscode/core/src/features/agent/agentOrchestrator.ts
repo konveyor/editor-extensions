@@ -193,16 +193,15 @@ export class AgentOrchestrator {
       | AgentFileTracker
       | undefined;
 
-    // Get Solution can start while a freeform reply is still streaming. Settle
-    // that prompt first, while the free-chat broadcast handlers still own it:
-    // otherwise its remaining text and tool events would land in the migration
-    // transcript once the listeners below take over, and the user could no
-    // longer cancel it because freeform cancellation is blocked while
-    // isFetchingSolution is set.
-    if (client.isPromptActive()) {
-      this.logger.info("AgentOrchestrator: cancelling active freeform prompt before takeover");
-      await client.cancelGeneration();
-    }
+    // Get Solution can start while a freeform reply is still streaming, with
+    // more messages queued behind it. Interrupt all of that first, while the
+    // free-chat broadcast handlers still own it: the active prompt is
+    // cancelled and settled, and queued sends are dropped so none of them can
+    // start on the new session created below and land in the migration
+    // transcript. (Freeform cancellation is blocked while isFetchingSolution
+    // is set, so the user could not do this themselves.)
+    this.logger.info("AgentOrchestrator: interrupting freeform sends before takeover");
+    await client.interruptSends();
 
     suspendBroadcastHandlers();
 
@@ -238,30 +237,32 @@ export class AgentOrchestrator {
       this.handleToolCallUpdate(data);
       cacheToolTarget(data);
       if (fileTracker && data.status === "succeeded") {
-        fileTracker
-          .resolvePendingFileChanges()
-          .then(async (changes) => {
-            for (const change of changes) {
-              await routeFileChange(
-                this.state,
-                change.path,
-                change.content,
-                change.originalContent,
-              );
-              this.fileChangesRouted++;
-              this.logger.info("AgentOrchestrator: file change routed", {
-                path: change.path,
+        fileTracker.trackRouting(
+          fileTracker
+            .resolvePendingFileChanges()
+            .then(async (changes) => {
+              for (const change of changes) {
+                await routeFileChange(
+                  this.state,
+                  change.path,
+                  change.content,
+                  change.originalContent,
+                );
+                this.fileChangesRouted++;
+                this.logger.info("AgentOrchestrator: file change routed", {
+                  path: change.path,
+                });
+              }
+              if (changes.length > 0 && data.callId) {
+                this.markToolAsFileChangeRouted(data.callId);
+              }
+            })
+            .catch((err) => {
+              this.logger.error("AgentOrchestrator: failed to resolve pending file changes", {
+                error: err,
               });
-            }
-            if (changes.length > 0 && data.callId) {
-              this.markToolAsFileChangeRouted(data.callId);
-            }
-          })
-          .catch((err) => {
-            this.logger.error("AgentOrchestrator: failed to resolve pending file changes", {
-              error: err,
-            });
-          });
+            }),
+        );
       }
     };
 
