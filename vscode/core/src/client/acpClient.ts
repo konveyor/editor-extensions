@@ -28,8 +28,10 @@ import type {
   WriteTextFileResponse,
   McpServer,
   ContentBlock,
+  PromptResponse,
   SessionUpdate,
   ToolCallContent,
+  ToolCallLocation,
 } from "@agentclientprotocol/sdk";
 import type { AgentState } from "@editor-extensions/shared";
 import type {
@@ -37,6 +39,7 @@ import type {
   McpServerConfig,
   PermissionRequestData,
   PermissionOption,
+  SendMessageOptions,
   ToolCallData,
 } from "./agentBackendClient";
 
@@ -48,6 +51,7 @@ export type {
   StreamingResourceData,
   McpServerConfig,
   AgentBackendClient,
+  SendMessageOptions,
 } from "./agentBackendClient";
 
 // ─── Config ──────────────────────────────────────────────────────────
@@ -91,6 +95,12 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   // id its session updates are attributed to.
   private currentResponseId: string | null = null;
   private inflightPrompt: Promise<unknown> | null = null;
+
+  // Sends are serialized through this chain so that each queued message
+  // cancels/settles the prompt that is actually active when its turn comes,
+  // not the one that was active when it was requested.
+  private sendChain: Promise<unknown> = Promise.resolve();
+  private queuedSends = 0;
 
   private readonly config: AcpClientConfig;
   private readonly logger: winston.Logger;
@@ -194,28 +204,49 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
    * Send a user message and stream the response.
    * Returns the stop reason when generation completes.
    *
-   * If a previous prompt is still winding down (e.g. after
-   * `cancelGeneration()`), it is awaited first so its completion cannot
-   * clobber the response state of the prompt started here.
+   * Sends are serialized. When no prompt is active the message goes on the
+   * wire synchronously, so `isPromptActive()` is true as soon as this method
+   * returns. Otherwise the send is queued behind earlier sends; when its turn
+   * comes it settles whichever prompt is active at that moment — cancelling
+   * it first with `replaceActive` — so a late completion of an older prompt
+   * can never clobber the response state of the one started here, and no
+   * two prompts are ever in flight at once.
    */
-  async sendMessage(content: string, responseMessageId: string): Promise<string> {
+  async sendMessage(
+    content: string,
+    responseMessageId: string,
+    options: SendMessageOptions = {},
+  ): Promise<string> {
     this.assertRunning();
 
-    if (this.inflightPrompt) {
-      await this.waitForPromptToSettle();
-      this.assertRunning();
+    let promptCall: Promise<PromptResponse>;
+    if (!this.inflightPrompt && this.queuedSends === 0) {
+      promptCall = this.dispatchPrompt(content, responseMessageId);
+    } else {
+      this.queuedSends++;
+      const turn = this.sendChain.then(async () => {
+        try {
+          if (this.inflightPrompt) {
+            if (options.replaceActive) {
+              await this.cancelGeneration();
+            } else {
+              await this.waitForPromptToSettle();
+            }
+          }
+          this.assertRunning();
+          // Wrapped so the async function does not flatten the prompt promise
+          // (that would make the queue wait for the prompt to *complete*).
+          return { call: this.dispatchPrompt(content, responseMessageId) };
+        } finally {
+          this.queuedSends--;
+        }
+      });
+      this.sendChain = turn.then(
+        () => undefined,
+        () => undefined,
+      );
+      promptCall = (await turn).call;
     }
-
-    // From here to the `await` below runs synchronously, so the prompt is
-    // on the wire and isPromptActive() is true as soon as this method returns.
-    this.currentResponseId = responseMessageId;
-
-    const promptBlocks: ContentBlock[] = [{ type: "text", text: content }];
-    const promptCall = this.connection!.prompt({
-      sessionId: this.sessionId!,
-      prompt: promptBlocks,
-    });
-    this.inflightPrompt = promptCall;
 
     try {
       const response = await promptCall;
@@ -232,6 +263,18 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
         this.currentResponseId = null;
       }
     }
+  }
+
+  /** Put a prompt on the wire and make it the active one. Synchronous. */
+  private dispatchPrompt(content: string, responseMessageId: string): Promise<PromptResponse> {
+    this.currentResponseId = responseMessageId;
+    const promptBlocks: ContentBlock[] = [{ type: "text", text: content }];
+    const promptCall = this.connection!.prompt({
+      sessionId: this.sessionId!,
+      prompt: promptBlocks,
+    });
+    this.inflightPrompt = promptCall;
+    return promptCall;
   }
 
   private assertRunning(): void {
@@ -636,6 +679,7 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
         rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)
           ? (rawInput as Record<string, unknown>)
           : undefined,
+      locations: this.extractLocations(toolCall.locations),
       options: (params.options ?? []).map((o) => ({
         optionId: o.optionId,
         name: o.name,
@@ -665,26 +709,39 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
         this.emit("streamingChunk", this.currentResponseId, content.text, "thinking");
       }
     } else if (update.sessionUpdate === "tool_call" && this.currentResponseId) {
-      const toolArgs = this.parseRawInput(update.rawInput);
-
       this.emit("toolCall", this.currentResponseId, {
         name: update.title || "Tool call",
         callId: update.toolCallId,
-        arguments: toolArgs,
+        arguments: this.parseRawInput(update.rawInput),
+        locations: this.extractLocations(update.locations),
         status: "running",
       } satisfies ToolCallData);
     } else if (update.sessionUpdate === "tool_call_update" && this.currentResponseId) {
       const acpStatus = update.status;
       const resultText = this.extractToolCallResultText(update.content);
 
+      // Keep rawInput/locations on updates: OpenCode's initial `tool_call` is
+      // empty and only its `tool_call_update`s say which file is being edited.
       this.emit("toolCallUpdate", this.currentResponseId, {
         name: update.title || "Tool call",
         callId: update.toolCallId,
+        arguments: this.parseRawInput(update.rawInput),
+        locations: this.extractLocations(update.locations),
         status:
           acpStatus === "completed" ? "succeeded" : acpStatus === "failed" ? "failed" : "running",
         result: resultText,
       } satisfies ToolCallData);
     }
+  }
+
+  private extractLocations(
+    locations: Array<ToolCallLocation> | null | undefined,
+  ): string[] | undefined {
+    if (!locations || locations.length === 0) {
+      return undefined;
+    }
+    const paths = locations.map((l) => l.path).filter((p): p is string => typeof p === "string");
+    return paths.length > 0 ? paths : undefined;
   }
 
   private handleContentChunk(content: ContentBlock): void {

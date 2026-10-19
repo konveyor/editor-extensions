@@ -2,11 +2,14 @@ import type { PermissionOption } from "../../client/agentBackendClient";
 
 // ─── Read-only detection ─────────────────────────────────────────────
 
-const READ_ONLY_COMMANDS = new Set(["view", "undo_edit"]);
+// Only "view" is read-only. "undo_edit" is deliberately absent: Goose's text
+// editor restores the file's previous contents with a plain write, so it can
+// revert an accepted edit (and any user edits since) and must be reviewed.
+const READ_ONLY_COMMANDS = new Set(["view"]);
 
 /**
  * Returns true when the tool call is provably read-only based on its rawInput.
- * Currently checks for Text Editor read commands (e.g. "view", "undo_edit").
+ * Currently checks for the Text Editor "view" command.
  */
 export function isReadOnlyToolCall(rawInput?: Record<string, unknown>): boolean {
   const command = rawInput?.command;

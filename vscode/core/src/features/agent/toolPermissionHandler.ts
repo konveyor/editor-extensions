@@ -3,7 +3,7 @@ import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-exten
 import { ChatMessageType } from "@editor-extensions/shared";
 import type { AcpClient } from "../../client/acpClient";
 import type { PermissionRequestData } from "../../client/agentBackendClient";
-import type { AgentFileTracker } from "./fileTracker";
+import { getToolFilePath, type AgentFileTracker } from "./fileTracker";
 
 export {
   isReadOnlyToolCall,
@@ -30,7 +30,7 @@ function extractDisplayPath(
   rawInput: Record<string, unknown>,
   workspaceRoot?: string,
 ): string | undefined {
-  const filePath = (rawInput.path ?? rawInput.file_path ?? rawInput.filename) as string | undefined;
+  const filePath = getToolFilePath(rawInput);
   if (typeof filePath !== "string") {
     return undefined;
   }
@@ -70,6 +70,7 @@ export function buildPermissionLabel(data: PermissionRequestData, workspaceRoot?
     write: "Write",
     create: "Create",
     insert: "Insert",
+    undo_edit: "Revert",
   };
 
   const verb = (command && verbMap[command]) ?? "Modify";
@@ -103,6 +104,11 @@ export function formatPermissionPreview(
 
   if (command === "view") {
     return "";
+  }
+
+  // OpenCode's edit/write permission metadata carries a ready-made unified diff.
+  if (typeof input.diff === "string" && input.diff.trim()) {
+    return "```diff\n" + truncateLines(input.diff, 50) + "\n```";
   }
 
   const oldStr = input.old_str;
@@ -195,17 +201,18 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
     pendingPermissions: pending,
   } = ctx;
 
-  if (fileTracker && data.rawInput) {
-    fileTracker.cacheFileBeforeWrite(data.title, data.rawInput, workspaceRoot);
+  if (fileTracker && (data.rawInput || data.locations)) {
+    fileTracker.cacheFileBeforeWrite(
+      data.title,
+      data.rawInput ?? {},
+      workspaceRoot,
+      data.locations,
+    );
   }
 
   const label = buildPermissionLabel(data, workspaceRoot);
 
-  const rawFilePath = data.rawInput
-    ? ((data.rawInput.path ?? data.rawInput.file_path ?? data.rawInput.filename) as
-        | string
-        | undefined)
-    : undefined;
+  const rawFilePath = getToolFilePath(data.rawInput) ?? data.locations?.[0];
 
   let originalContent: string | undefined;
   if (rawFilePath && fileTracker) {

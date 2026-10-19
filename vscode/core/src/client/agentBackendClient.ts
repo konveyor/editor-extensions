@@ -14,8 +14,23 @@ export interface ToolCallData {
   name: string;
   callId?: string;
   arguments?: Record<string, unknown>;
+  /**
+   * File paths the ACP `locations` field names. Some agents (OpenCode) send
+   * an empty `tool_call` and only fill in rawInput/locations on later
+   * `tool_call_update` events, so updates carry them too.
+   */
+  locations?: string[];
   status: "running" | "succeeded" | "failed";
   result?: string;
+}
+
+export interface SendMessageOptions {
+  /**
+   * Cancel and settle whichever prompt is active when this message's turn
+   * comes, instead of waiting for it to finish on its own. Used by the chat
+   * input's cancel-and-send.
+   */
+  replaceActive?: boolean;
 }
 
 export interface PermissionOption {
@@ -32,6 +47,8 @@ export interface PermissionRequestData {
   kind: string;
   status: string;
   rawInput?: Record<string, unknown>;
+  /** File paths from the ACP `locations` field, when the agent sends them. */
+  locations?: string[];
   options: PermissionOption[];
 }
 
@@ -74,7 +91,16 @@ export interface AgentBackendClient extends EventEmitter {
   stop(): Promise<void>;
   dispose(): void;
   createSession(): Promise<string>;
-  sendMessage(content: string, responseMessageId: string): Promise<string>;
+  /**
+   * Send a prompt and resolve with its stop reason. Sends are serialized:
+   * a call made while another prompt is active waits for that prompt to
+   * settle (or, with `replaceActive`, cancels it) before going on the wire.
+   */
+  sendMessage(
+    content: string,
+    responseMessageId: string,
+    options?: SendMessageOptions,
+  ): Promise<string>;
   /**
    * Cancel the in-flight prompt. Implementations that stream asynchronously
    * resolve once the cancelled prompt has settled, so a caller doing

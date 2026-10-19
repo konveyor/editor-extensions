@@ -48,7 +48,6 @@ export const agentMessageHandlers: Record<
     try {
       if (agentClient.isPromptActive()) {
         logger.info("AGENT_SEND_MESSAGE: cancelling active prompt for cancel-and-send");
-        await agentClient.cancelGeneration();
       }
       // Each freeform turn tracks file changes against the files as they were
       // when the turn started, so a file edited in an earlier turn is reported
@@ -57,7 +56,10 @@ export const agentMessageHandlers: Record<
         | AgentFileTracker
         | undefined;
       fileTracker?.clear();
-      await agentClient.sendMessage(content, messageId);
+      // The client serializes sends: when this message's turn comes it
+      // cancels and settles whichever prompt is active *then*, so several
+      // quick messages replace each other in order instead of racing.
+      await agentClient.sendMessage(content, messageId, { replaceActive: true });
     } catch (err) {
       logger.error("AGENT_SEND_MESSAGE failed:", err);
     }

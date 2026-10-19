@@ -17,7 +17,7 @@ import type {
   PermissionRequestData,
 } from "../../client/agentBackendClient";
 import type { DirectLLMClient } from "../../client/directLLMClient";
-import type { AgentFileTracker } from "./fileTracker";
+import { getToolFilePath, type AgentFileTracker } from "./fileTracker";
 import { executeExtensionCommand } from "../../commands";
 import { routeFileChange } from "./fileChangeRouter";
 import { buildMigrationPrompt } from "./promptBuilder";
@@ -193,6 +193,17 @@ export class AgentOrchestrator {
       | AgentFileTracker
       | undefined;
 
+    // Get Solution can start while a freeform reply is still streaming. Settle
+    // that prompt first, while the free-chat broadcast handlers still own it:
+    // otherwise its remaining text and tool events would land in the migration
+    // transcript once the listeners below take over, and the user could no
+    // longer cancel it because freeform cancellation is blocked while
+    // isFetchingSolution is set.
+    if (client.isPromptActive()) {
+      this.logger.info("AgentOrchestrator: cancelling active freeform prompt before takeover");
+      await client.cancelGeneration();
+    }
+
     suspendBroadcastHandlers();
 
     const onChunk = (
@@ -204,16 +215,28 @@ export class AgentOrchestrator {
       this.handleStreamingChunk(content, contentType, resourceData);
     };
 
+    // Some agents (OpenCode) send an empty `tool_call` and only name the
+    // target file on `tool_call_update`, so both feed the tracker.
+    const cacheToolTarget = (data: ToolCallData): void => {
+      if (fileTracker && (data.arguments || data.locations)) {
+        const workspaceRoot = this.state.data.workspaceRoot;
+        fileTracker.cacheFileBeforeWrite(
+          data.name,
+          data.arguments ?? {},
+          workspaceRoot,
+          data.locations,
+        );
+      }
+    };
+
     const onToolCall = (_msgId: string, data: ToolCallData): void => {
       this.handleToolCall(data);
-      if (fileTracker && data.arguments) {
-        const workspaceRoot = this.state.data.workspaceRoot;
-        fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
-      }
+      cacheToolTarget(data);
     };
 
     const onToolCallUpdate = (_msgId: string, data: ToolCallData): void => {
       this.handleToolCallUpdate(data);
+      cacheToolTarget(data);
       if (fileTracker && data.status === "succeeded") {
         fileTracker
           .resolvePendingFileChanges()
@@ -409,8 +432,7 @@ export class AgentOrchestrator {
       return {};
     }
 
-    const rawPath = args.path ?? args.file_path ?? args.filename;
-    const filePath = typeof rawPath === "string" ? rawPath : undefined;
+    const filePath = getToolFilePath(args);
 
     const rawCommand = args.command ?? args.cmd;
     const command = typeof rawCommand === "string" ? rawCommand : undefined;
@@ -476,6 +498,9 @@ export class AgentOrchestrator {
     }
 
     const toolName = data.name || "unnamed tool";
+    // The initial tool_call may have had no arguments (OpenCode); fill the
+    // file context in from the first update that names it.
+    const { filePath, detail } = this.extractToolContext(data.arguments);
 
     this.state.mutate((draft) => {
       for (let i = draft.chatMessages.length - 1; i >= 0; i--) {
@@ -486,8 +511,8 @@ export class AgentOrchestrator {
             toolName: prev.toolName || toolName,
             toolStatus: data.status,
             toolResult: data.result,
-            filePath: prev.filePath,
-            detail: prev.detail,
+            filePath: prev.filePath ?? filePath,
+            detail: prev.detail ?? detail,
           } as ToolMessageValue;
           msg.timestamp = new Date().toISOString();
           return;
@@ -501,6 +526,8 @@ export class AgentOrchestrator {
           toolName,
           toolStatus: data.status,
           toolResult: data.result,
+          filePath,
+          detail,
         } as ToolMessageValue,
       });
     });

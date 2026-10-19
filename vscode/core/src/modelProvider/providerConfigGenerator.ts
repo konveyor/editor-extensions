@@ -131,11 +131,17 @@ export interface ExistingProviderSettings {
 
 const EMPTY_PROVIDER_SETTINGS: ExistingProviderSettings = { credentials: {}, environment: {} };
 
+/**
+ * String-valued entries of a yaml mapping. Empty strings are kept: in the
+ * environment layer an empty value is a deliberate override (`https_proxy: ""`
+ * tells `resolveProxyEnv` to ignore an inherited HTTPS_PROXY), so dropping it
+ * would silently re-enable the process proxy on the next regeneration.
+ */
 function stringEntries(value: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   if (value && typeof value === "object" && !Array.isArray(value)) {
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (typeof v === "string" && v) {
+      if (typeof v === "string") {
         out[k] = v;
       }
     }
@@ -182,7 +188,10 @@ export function extractProviderSettings(yamlContent: string): ExistingProviderSe
     for (const [yamlKey, value] of Object.entries(stringEntries(activeEnv))) {
       const uiKey = envToUi[yamlKey] ?? (mapping ? undefined : yamlKey);
       if (uiKey) {
-        credentials[uiKey] = value;
+        // An empty credential is "not set", unlike an empty environment override.
+        if (value) {
+          credentials[uiKey] = value;
+        }
       } else {
         environment[yamlKey] = value;
       }

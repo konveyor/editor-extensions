@@ -176,6 +176,42 @@ active:
     expect(regenerated.active.args.model).toBe("gpt-4.1");
   });
 
+  it("preserves empty environment overrides such as a disabled proxy", () => {
+    // `https_proxy: ""` tells resolveProxyEnv to ignore an inherited HTTPS_PROXY;
+    // a model-only save must not drop it and silently re-enable the proxy.
+    const original = `
+environment:
+  https_proxy: ""
+  CA_BUNDLE: /etc/ca.pem
+active:
+  provider: ChatOpenAI
+  environment:
+    OPENAI_API_KEY: sk-1
+    OPENAI_ORG: ""
+  args:
+    model: gpt-4o
+`;
+    const existing = extractProviderSettings(original);
+    expect(existing.environment).toEqual({
+      https_proxy: "",
+      CA_BUNDLE: "/etc/ca.pem",
+      OPENAI_ORG: "",
+    });
+    // An empty *credential* still means "not set".
+    expect(existing.credentials).toEqual({ OPENAI_API_KEY: "sk-1" });
+
+    const regenerated = parse(
+      generateProviderSettingsYaml("openai", "gpt-4.1", existing.credentials, {
+        baseEnvironment: existing.environment,
+      }),
+    ) as { environment: Record<string, string> };
+    expect(regenerated.environment).toEqual({
+      https_proxy: "",
+      CA_BUNDLE: "/etc/ca.pem",
+      OPENAI_ORG: "",
+    });
+  });
+
   it("treats a missing, empty or malformed file as contributing nothing", () => {
     for (const content of ["", "- not: a mapping", "active: [1, 2]", "{{{"]) {
       expect(extractProviderSettings(content)).toEqual({ credentials: {}, environment: {} });

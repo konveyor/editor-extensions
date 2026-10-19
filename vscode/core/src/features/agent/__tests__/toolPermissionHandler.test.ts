@@ -13,19 +13,19 @@ describe("isReadOnlyToolCall", () => {
     expect(isReadOnlyToolCall({ command: "view" })).toBe(true);
   });
 
-  it("returns true for 'undo_edit' command", () => {
-    expect(isReadOnlyToolCall({ command: "undo_edit" })).toBe(true);
-  });
-
   it("is case-insensitive", () => {
     expect(isReadOnlyToolCall({ command: "VIEW" })).toBe(true);
-    expect(isReadOnlyToolCall({ command: "Undo_Edit" })).toBe(true);
   });
 
   it("returns false for write commands", () => {
     expect(isReadOnlyToolCall({ command: "str_replace" })).toBe(false);
     expect(isReadOnlyToolCall({ command: "write" })).toBe(false);
     expect(isReadOnlyToolCall({ command: "create" })).toBe(false);
+  });
+
+  it("treats 'undo_edit' as a write (it rewrites the file's previous contents)", () => {
+    expect(isReadOnlyToolCall({ command: "undo_edit" })).toBe(false);
+    expect(isReadOnlyToolCall({ command: "Undo_Edit" })).toBe(false);
   });
 
   it("returns false when no rawInput or no command", () => {

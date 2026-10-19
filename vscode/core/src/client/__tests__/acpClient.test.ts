@@ -50,6 +50,8 @@ function runningClient() {
     },
   };
 
+  const settle = () => new Promise((r) => setImmediate(r));
+
   const internals = client as unknown as {
     state: string;
     sessionId: string | null;
@@ -66,7 +68,12 @@ function runningClient() {
     });
   };
 
-  return { client, prompts, cancels, emitUpdate };
+  return { client, prompts, cancels, emitUpdate, settle };
+}
+
+/** What the AGENT_SEND_MESSAGE handler does: cancel-and-send. */
+function chatSend(client: AcpClient, text: string, id: string): Promise<string> {
+  return client.sendMessage(text, id, { replaceActive: true });
 }
 
 describe("AcpClient prompt lifecycle", () => {
@@ -133,6 +140,89 @@ describe("AcpClient prompt lifecycle", () => {
 
     prompts[1].done.resolve({ stopReason: "end_turn" });
     await second;
+  });
+
+  it("three quick messages replace each other in order with one prompt in flight", async () => {
+    const { client, prompts, cancels, emitUpdate, settle } = runningClient();
+    const chunks: Array<[string, string]> = [];
+    client.on("streamingChunk", (id: string, text: string) => chunks.push([id, text]));
+    const completes: Array<[string, string]> = [];
+    client.on("streamingComplete", (id: string, reason: string) => completes.push([id, reason]));
+
+    const a = chatSend(client, "A", "A");
+    const b = chatSend(client, "B", "B");
+    const c = chatSend(client, "C", "C");
+
+    // Only A is on the wire; B and C are queued behind it.
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+    expect(client.isPromptActive()).toBe(true);
+
+    // B's turn cancels A. C must wait until B is actually active, then cancel
+    // *B* — not re-cancel A and then start alongside B.
+    expect(await a).toBe("cancelled");
+    await settle();
+    expect(prompts.map((p) => p.text)).toEqual(["A", "B"]);
+    expect(await b).toBe("cancelled");
+    await settle();
+    expect(prompts.map((p) => p.text)).toEqual(["A", "B", "C"]);
+    expect(cancels).toHaveLength(2);
+
+    // Chunks arriving now belong to C.
+    emitUpdate({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "three" } });
+    expect(chunks).toEqual([["C", "three"]]);
+
+    prompts[2].done.resolve({ stopReason: "end_turn" });
+    expect(await c).toBe("end_turn");
+    expect(completes).toEqual([
+      ["A", "cancelled"],
+      ["B", "cancelled"],
+      ["C", "end_turn"],
+    ]);
+    expect(client.isPromptActive()).toBe(false);
+  });
+
+  it("a queued send without replaceActive waits for the active prompt instead of cancelling it", async () => {
+    const { client, prompts, cancels, settle } = runningClient();
+
+    const a = client.sendMessage("A", "A");
+    const b = client.sendMessage("B", "B");
+    await settle();
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+    expect(cancels).toEqual([]);
+
+    prompts[0].done.resolve({ stopReason: "end_turn" });
+    expect(await a).toBe("end_turn");
+    await settle();
+    expect(prompts.map((p) => p.text)).toEqual(["A", "B"]);
+    prompts[1].done.resolve({ stopReason: "end_turn" });
+    expect(await b).toBe("end_turn");
+  });
+
+  it("carries rawInput and locations on tool_call_update events", () => {
+    const { client, emitUpdate } = runningClient();
+    const updates: unknown[] = [];
+    client.on("toolCallUpdate", (_id: string, data: unknown) => updates.push(data));
+
+    void client.sendMessage("edit", "A");
+    emitUpdate({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "t1",
+      title: "edit",
+      status: "in_progress",
+      rawInput: { filePath: "/ws/src/A.java", oldString: "a", newString: "b" },
+      locations: [{ path: "/ws/src/A.java" }],
+    });
+
+    expect(updates).toEqual([
+      {
+        name: "edit",
+        callId: "t1",
+        arguments: { filePath: "/ws/src/A.java", oldString: "a", newString: "b" },
+        locations: ["/ws/src/A.java"],
+        status: "running",
+        result: undefined,
+      },
+    ]);
   });
 
   it("clears response state when the prompt rejects", async () => {

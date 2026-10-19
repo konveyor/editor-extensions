@@ -28,6 +28,27 @@ export interface TrackedFileChange {
   originalContent?: string;
 }
 
+/**
+ * Argument keys agents use for the file a tool targets. Goose's text_editor
+ * uses `path`; OpenCode's edit/write tools use `filePath` and its pre-write
+ * permission metadata uses `filepath`.
+ */
+const FILE_PATH_KEYS = ["path", "file_path", "filePath", "filepath", "filename"] as const;
+
+/** The file a tool call targets, from whichever argument key the agent uses. */
+export function getToolFilePath(args?: Record<string, unknown>): string | undefined {
+  if (!args) {
+    return undefined;
+  }
+  for (const key of FILE_PATH_KEYS) {
+    const value = args[key];
+    if (typeof value === "string" && value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 /** Pre-run content of a tracked file; `null` means the file did not exist. */
 type Baseline = string | null;
 
@@ -86,14 +107,16 @@ export class AgentFileTracker {
 
   /**
    * Cache a file's original content before a write tool executes.
-   * Called from the toolCall and permissionRequest handlers with tool arguments.
-   * A file that does not exist yet is tracked with a missing baseline so the
-   * scan reports its creation.
+   * Called from the toolCall, toolCallUpdate and permissionRequest handlers
+   * with the tool arguments and any ACP `locations` paths. A file that does
+   * not exist yet is tracked with a missing baseline so the scan reports its
+   * creation. Already-tracked files keep their first baseline.
    */
   cacheFileBeforeWrite(
     toolName: string,
     args: Record<string, unknown>,
     workspaceRoot: string,
+    locations?: readonly string[],
   ): void {
     const name = toolName?.toLowerCase() ?? "";
     const isFileModifying =
@@ -109,19 +132,29 @@ export class AgentFileTracker {
       return;
     }
 
-    // text_editor "view" and "undo_edit" don't produce new content
-    const command = args.command as string | undefined;
-    if (command === "view" || command === "undo_edit") {
+    // text_editor "view" reads only. "undo_edit" is a write: Goose restores
+    // the previous contents with a plain write, so it is tracked like one.
+    if (args.command === "view") {
       return;
     }
 
-    const filePath = (args.path ?? args.file_path ?? args.filename) as string | undefined;
-    if (!filePath) {
-      return;
+    const targets = new Set<string>();
+    const fromArgs = getToolFilePath(args);
+    if (fromArgs) {
+      targets.add(fromArgs);
+    }
+    for (const location of locations ?? []) {
+      if (location) {
+        targets.add(location);
+      }
     }
 
-    const absPath = path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath);
+    for (const filePath of targets) {
+      this.trackFile(path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath));
+    }
+  }
 
+  private trackFile(absPath: string): void {
     if (this.originalContentCache.has(absPath) || this.inflightReads.has(absPath)) {
       return;
     }

@@ -3,7 +3,7 @@ import { AgentState, AgentContentBlockType, AgentMessageTypes } from "@editor-ex
 import type { FeatureContext } from "../featureRegistry";
 import { AgentFileTracker } from "./fileTracker";
 import type { AcpClient } from "../../client/acpClient";
-import type { PermissionRequestData } from "../../client/agentBackendClient";
+import type { PermissionRequestData, ToolCallData } from "../../client/agentBackendClient";
 import { routeFileChange } from "./fileChangeRouter";
 import { handlePermissionRequest, type PendingPermission } from "./toolPermissionHandler";
 import { createBridgeRunAnalysis } from "./bridgeAnalysis";
@@ -221,20 +221,31 @@ export async function initializeAgent(
 
   // Pre-cache file content before write tools execute so the post-scan
   // can detect changes made by the agent's built-in tools (which bypass MCP).
-  // This listener is never suspended — caching must always happen.
-  agentClient.on("toolCall", (_messageId: string, data: any) => {
-    if (data.arguments) {
+  // These listeners are never suspended — caching must always happen. Both
+  // `toolCall` and `toolCallUpdate` feed the tracker because some agents
+  // (OpenCode) send an empty `tool_call` and only name the file on updates.
+  const cacheToolTarget = (data: ToolCallData) => {
+    if (data.arguments || data.locations) {
       const workspaceRoot = ctx.store.getState().workspaceRoot;
-      fileTracker.cacheFileBeforeWrite(data.name, data.arguments, workspaceRoot);
+      fileTracker.cacheFileBeforeWrite(
+        data.name,
+        data.arguments ?? {},
+        workspaceRoot,
+        data.locations,
+      );
     }
-  });
+  };
+  agentClient.on("toolCall", (_messageId: string, data: ToolCallData) => cacheToolTarget(data));
+  agentClient.on("toolCallUpdate", (_messageId: string, data: ToolCallData) =>
+    cacheToolTarget(data),
+  );
 
   // When any tool completes successfully, check for file changes
   // and show them in the chat as condensed change blocks.
   // During an orchestrated "Get Solution" run the AgentOrchestrator owns
   // file routing (it queues changes for batch review), so stand down while
   // the broadcast handlers are suspended to avoid routing every change twice.
-  agentClient.on("toolCallUpdate", (_messageId: string, data: any) => {
+  agentClient.on("toolCallUpdate", (_messageId: string, data: ToolCallData) => {
     if (data.status !== "succeeded" || broadcastBinding?.suspended) {
       return;
     }

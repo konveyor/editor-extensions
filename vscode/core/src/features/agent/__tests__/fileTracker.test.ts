@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as os from "os";
 import * as path from "path";
 import winston from "winston";
-import { AgentFileTracker } from "../fileTracker";
+import { AgentFileTracker, getToolFilePath } from "../fileTracker";
 
 const silentLogger = winston.createLogger({ silent: true, transports: [] });
 
@@ -25,6 +25,15 @@ describe("AgentFileTracker", () => {
     await fs.mkdir(path.dirname(abs), { recursive: true });
     await fs.writeFile(abs, content, "utf-8");
     return abs;
+  }
+
+  /**
+   * cacheFileBeforeWrite reads the baseline asynchronously. Wait for that read
+   * before the test overwrites the file, or the read can observe the truncated
+   * file mid-write (an empty baseline). A scan flushes inflight reads.
+   */
+  async function flushBaselineReads(): Promise<void> {
+    await tracker.resolvePendingFileChanges();
   }
 
   it("detects a file the agent creates", async () => {
@@ -88,11 +97,62 @@ describe("AgentFileTracker", () => {
     expect(await tracker.resolvePendingFileChanges()).toEqual([]);
 
     tracker.cacheFileBeforeWrite("text_editor", { command: "str_replace", path: abs }, workspace);
+    await flushBaselineReads();
     await write("D.java", "v2");
     tracker.cacheFileBeforeWrite("text_editor", { command: "str_replace", path: abs }, workspace);
     expect(await tracker.resolvePendingFileChanges()).toEqual([
       { path: abs, content: "v2", originalContent: "v1" },
     ]);
+  });
+
+  it("tracks the target of a text_editor undo_edit like any other write", async () => {
+    const abs = await write("G.java", "v2");
+    tracker.cacheFileBeforeWrite("text_editor", { command: "undo_edit", path: abs }, workspace);
+    await flushBaselineReads();
+    await write("G.java", "v1");
+    expect(await tracker.resolvePendingFileChanges()).toEqual([
+      { path: abs, content: "v1", originalContent: "v2" },
+    ]);
+  });
+
+  it("recognizes OpenCode's filePath argument and filepath permission metadata", async () => {
+    const edited = await write("H.java", "v1");
+    const created = path.join(workspace, "I.java");
+
+    // Pre-write permission request: metadata uses `filepath`.
+    tracker.cacheFileBeforeWrite("edit", { filepath: edited, diff: "..." }, workspace);
+    // tool_call_update: the edit/write tool input uses `filePath`.
+    tracker.cacheFileBeforeWrite("write", { filePath: created, content: "class I {}" }, workspace);
+    await flushBaselineReads();
+
+    await write("H.java", "v2");
+    await write("I.java", "class I {}");
+    const changes = await tracker.resolvePendingFileChanges();
+    changes.sort((a, b) => a.path.localeCompare(b.path));
+    expect(changes).toEqual([
+      { path: edited, content: "v2", originalContent: "v1" },
+      { path: created, content: "class I {}", originalContent: "" },
+    ]);
+  });
+
+  it("tracks files named only by ACP locations", async () => {
+    const abs = await write("J.java", "v1");
+    tracker.cacheFileBeforeWrite("edit", {}, workspace, [abs]);
+    await flushBaselineReads();
+    await write("J.java", "v2");
+    expect(await tracker.resolvePendingFileChanges()).toEqual([
+      { path: abs, content: "v2", originalContent: "v1" },
+    ]);
+  });
+
+  it("getToolFilePath reads whichever path key the agent uses", () => {
+    expect(getToolFilePath({ path: "a" })).toBe("a");
+    expect(getToolFilePath({ file_path: "b" })).toBe("b");
+    expect(getToolFilePath({ filePath: "c" })).toBe("c");
+    expect(getToolFilePath({ filepath: "d" })).toBe("d");
+    expect(getToolFilePath({ filename: "e" })).toBe("e");
+    expect(getToolFilePath({ command: "view" })).toBeUndefined();
+    expect(getToolFilePath(undefined)).toBeUndefined();
   });
 
   it("cacheIncidentFiles returns only files that exist", async () => {

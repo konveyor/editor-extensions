@@ -21,7 +21,12 @@ import type {
   KaiToolCall,
 } from "@editor-extensions/agentic";
 import { KaiWorkflowMessageType } from "@editor-extensions/agentic";
-import type { AgentBackendClient, McpServerConfig, ToolCallData } from "./agentBackendClient";
+import type {
+  AgentBackendClient,
+  McpServerConfig,
+  SendMessageOptions,
+  ToolCallData,
+} from "./agentBackendClient";
 import type { AgentState } from "@editor-extensions/shared";
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -107,7 +112,11 @@ export class DirectLLMClient extends EventEmitter implements AgentBackendClient 
 
   // ─── Core: run the workflow and translate events ─────────────────
 
-  async sendMessage(_content: string, responseMessageId: string): Promise<string> {
+  async sendMessage(
+    _content: string,
+    responseMessageId: string,
+    _options?: SendMessageOptions,
+  ): Promise<string> {
     this.promptActive = true;
 
     this.logger.info("DirectLLMClient: running KaiInteractiveWorkflow", {
