@@ -526,7 +526,21 @@ export const useExtensionStore = create<ExtensionStore>()(
             msg.isCancelled = true;
             msg.isThinking = false;
             msg.stopReason = "cancelled";
+            return;
           }
+          // Cancelled before any output (a queued message dropped by Stop or
+          // Get Solution, or a Stop before the first chunk). Without a reply
+          // entry the user's message stays last and the chat keeps showing
+          // "Waiting for response…", so record the cancellation.
+          state.agentMessages.push({
+            id: messageId,
+            role: "assistant",
+            content: "",
+            timestamp: new Date().toISOString(),
+            isStreaming: false,
+            isCancelled: true,
+            stopReason: "cancelled",
+          });
         }),
 
       setAgentThinking: (messageId, isThinking) =>

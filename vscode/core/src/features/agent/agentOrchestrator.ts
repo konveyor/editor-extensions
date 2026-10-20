@@ -102,6 +102,27 @@ export class AgentOrchestrator {
   private async runInner(profileName: string): Promise<void> {
     const agentMode = this.state.data.featureState?.agentMode === true;
 
+    // Claim the run before anything awaits, so no new freeform message can
+    // start (AGENT_SEND_MESSAGE is refused while isFetchingSolution is set).
+    this.state.mutate((draft) => {
+      draft.isFetchingSolution = true;
+      draft.solutionState = "started";
+    });
+
+    // Quiesce free chat before resetting the transcript and the tracker: the
+    // freeform turn is cancelled (queued sends dropped) and its last file
+    // scan/routing finishes while the free-chat listeners still own it, so
+    // none of it lands in the migration transcript or the migration's
+    // baselines.
+    const freeformClient = agentMode ? this.getAcpClient() : undefined;
+    if (freeformClient) {
+      await freeformClient.interruptSends();
+      const tracker = this.state.featureClients.get("agentFileTracker") as
+        | AgentFileTracker
+        | undefined;
+      await tracker?.whenIdle();
+    }
+
     this.initializeState();
     executeExtensionCommand("openChat");
 
@@ -270,6 +291,7 @@ export class AgentOrchestrator {
           data.arguments ?? {},
           workspaceRoot,
           data.locations,
+          { afterWrite: data.status === "succeeded" },
         );
       }
     };
@@ -328,6 +350,9 @@ export class AgentOrchestrator {
 
     try {
       if (fileTracker) {
+        // Never clear under an in-flight scan or routing (it would break the
+        // scan lock and let a stale baseline read land after the clear).
+        await fileTracker.whenIdle();
         fileTracker.clear();
       }
 

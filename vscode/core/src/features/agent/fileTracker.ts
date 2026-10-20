@@ -113,12 +113,18 @@ export class AgentFileTracker {
    * with the tool arguments and any ACP `locations` paths. A file that does
    * not exist yet is tracked with a missing baseline so the scan reports its
    * creation. Already-tracked files keep their first baseline.
+   *
+   * `afterWrite` marks a sighting from a *completed* tool update: the write
+   * has already happened, so the disk content cannot be the baseline. Such a
+   * file, if not tracked yet, takes its baseline from git HEAD, or counts as
+   * new when git has no copy.
    */
   cacheFileBeforeWrite(
     toolName: string,
     args: Record<string, unknown>,
     workspaceRoot: string,
     locations?: readonly string[],
+    options: { afterWrite?: boolean } = {},
   ): void {
     const name = toolName?.toLowerCase() ?? "";
     const isFileModifying =
@@ -152,21 +158,27 @@ export class AgentFileTracker {
     }
 
     for (const filePath of targets) {
-      this.trackFile(path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath));
+      this.trackFile(
+        path.isAbsolute(filePath) ? filePath : path.join(workspaceRoot, filePath),
+        workspaceRoot,
+        options.afterWrite === true,
+      );
     }
   }
 
-  private trackFile(absPath: string): void {
+  private trackFile(absPath: string, workspaceRoot: string, afterWrite: boolean): void {
     if (this.originalContentCache.has(absPath) || this.inflightReads.has(absPath)) {
       return;
     }
 
-    const readPromise = fs
-      .readFile(absPath, "utf-8")
-      .then(
-        (content): Baseline => content,
-        (): Baseline => null, // file does not exist yet — track its creation
-      )
+    const root = workspaceRoot.startsWith("file://") ? fileURLToPath(workspaceRoot) : workspaceRoot;
+    const readBaseline: Promise<Baseline> = afterWrite
+      ? this.readFromGit(absPath, root).then((content): Baseline => content ?? null)
+      : fs.readFile(absPath, "utf-8").then(
+          (content): Baseline => content,
+          (): Baseline => null, // file does not exist yet — track its creation
+        );
+    const readPromise = readBaseline
       .then((baseline) => {
         if (!this.originalContentCache.has(absPath)) {
           this.originalContentCache.set(absPath, baseline);

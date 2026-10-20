@@ -1,4 +1,7 @@
 import expect from "expect";
+import * as os from "os";
+import * as path from "path";
+import { pathToFileURL } from "url";
 import winston from "winston";
 import { AcpClient } from "../acpClient";
 
@@ -24,13 +27,16 @@ function deferred<T>(): Deferred<T> {
  * Builds a client in the "running" state with a fake ACP connection so the
  * prompt lifecycle can be driven without spawning a process.
  */
-function runningClient() {
+function runningClient(
+  options: { promptSettleTimeoutMs?: number; agentIgnoresCancel?: boolean } = {},
+) {
   const client = new AcpClient({
     workspaceDir: "/tmp/ws",
     logger: silentLogger,
     binaryName: "fake",
     binaryArgs: ["acp"],
     minimumVersion: "0.0.0",
+    promptSettleTimeoutMs: options.promptSettleTimeoutMs,
   });
 
   const prompts: Array<{ text: string; done: Deferred<{ stopReason: string }> }> = [];
@@ -46,7 +52,9 @@ function runningClient() {
       // Like a real agent, the cancelled prompt resolves shortly after the
       // cancel notification — not synchronously inside it.
       const current = prompts[prompts.length - 1];
-      setTimeout(() => current?.done.resolve({ stopReason: "cancelled" }), 5);
+      if (!options.agentIgnoresCancel) {
+        setTimeout(() => current?.done.resolve({ stopReason: "cancelled" }), 5);
+      }
     },
   };
 
@@ -412,17 +420,19 @@ describe("AcpClient prompt lifecycle", () => {
 
 describe("AcpClient workspace directory (#1389 review)", () => {
   it("decodes a file URI so a folder with spaces is a real cwd", () => {
+    // A platform-native absolute path (a drive letter on Windows).
+    const dir = path.join(os.tmpdir(), "My Project");
+    const uri = pathToFileURL(dir).href;
+    expect(uri).toContain("My%20Project");
     const client = new AcpClient({
-      workspaceDir: "file:///projects/My%20Project",
+      workspaceDir: uri,
       logger: silentLogger,
       binaryName: "fake",
       binaryArgs: ["acp"],
       minimumVersion: "0.0.0",
     });
     const config = (client as unknown as { config: { workspaceDir: string } }).config;
-    expect(config.workspaceDir).toBe(
-      process.platform === "win32" ? "\\projects\\My Project" : "/projects/My Project",
-    );
+    expect(config.workspaceDir).toBe(dir);
   });
 
   it("leaves a plain filesystem path untouched", () => {
@@ -435,5 +445,104 @@ describe("AcpClient workspace directory (#1389 review)", () => {
     });
     const config = (client as unknown as { config: { workspaceDir: string } }).config;
     expect(config.workspaceDir).toBe("/projects/My Project");
+  });
+});
+
+describe("AcpClient permission and cancellation edge cases (#1389 self-review)", () => {
+  type PermissionParams = {
+    sessionId: string;
+    toolCall: { toolCallId: string; title: string; rawInput?: Record<string, unknown> };
+    options: Array<{ optionId: string; kind: string; name: string }>;
+  };
+  const requestPermission = (client: AcpClient, params: PermissionParams) =>
+    (
+      client as unknown as { handlePermissionRequest: (p: PermissionParams) => Promise<unknown> }
+    ).handlePermissionRequest(params);
+  const shell = (sessionId = "session-1"): PermissionParams => ({
+    sessionId,
+    toolCall: { toolCallId: "sh1", title: "bash", rawInput: { command: "mvn compile" } },
+    options: [
+      { optionId: "once", kind: "allow_once", name: "Allow once" },
+      { optionId: "reject", kind: "reject_once", name: "Reject" },
+    ],
+  });
+
+  it("registers a request before announcing it, so a synchronous listener sees it pending", () => {
+    const { client } = runningClient();
+    const seen: boolean[] = [];
+    client.on("permissionRequest", (data: { requestId: number }) =>
+      seen.push(client.isPermissionPending(data.requestId)),
+    );
+    void requestPermission(client, shell());
+    expect(seen).toEqual([true]);
+  });
+
+  it("answers a request for another session 'cancelled' without announcing it", async () => {
+    const { client } = runningClient();
+    let announced = 0;
+    client.on("permissionRequest", () => announced++);
+    expect(await requestPermission(client, shell("old-session"))).toEqual({
+      outcome: { outcome: "cancelled" },
+    });
+    expect(announced).toBe(0);
+  });
+
+  it("answers a request that arrives while the prompt is being cancelled 'cancelled'", async () => {
+    const { client, prompts } = runningClient({
+      agentIgnoresCancel: true,
+      promptSettleTimeoutMs: 50,
+    });
+    let announced = 0;
+    client.on("permissionRequest", () => announced++);
+
+    void client.sendMessage("A", "A");
+    const cancelling = client.cancelGeneration();
+    // The agent sent this before it processed session/cancel.
+    expect(await requestPermission(client, shell())).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(announced).toBe(0);
+
+    prompts[0].done.resolve({ stopReason: "cancelled" });
+    await cancelling;
+    // Once the cancel has settled, requests are announced normally again.
+    void client.sendMessage("B", "B");
+    void requestPermission(client, shell());
+    expect(announced).toBe(1);
+  });
+
+  it("ignores session updates from a replaced session", () => {
+    const { client } = runningClient();
+    const chunks: string[] = [];
+    client.on("streamingChunk", (_id: string, text: string) => chunks.push(text));
+    void client.sendMessage("A", "A");
+    const handle = (client as unknown as { handleSessionUpdate: (p: unknown) => void })
+      .handleSessionUpdate;
+    handle.call(client, {
+      sessionId: "old-session",
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "stale" } },
+    });
+    handle.call(client, {
+      sessionId: "session-1",
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "fresh" } },
+    });
+    expect(chunks).toEqual(["fresh"]);
+  });
+
+  it("releases sendMessage as 'cancelled' when the agent never settles a cancelled prompt", async () => {
+    const { client } = runningClient({ agentIgnoresCancel: true, promptSettleTimeoutMs: 20 });
+    const completes: Array<[string, string]> = [];
+    client.on("streamingComplete", (id: string, reason: string) => completes.push([id, reason]));
+
+    const sending = client.sendMessage("A", "A");
+    await client.interruptSends();
+    expect(await sending).toBe("cancelled");
+    expect(completes).toEqual([["A", "cancelled"]]);
+    expect(client.isPromptActive()).toBe(false);
+  });
+
+  it("stop() releases a prompt that is still in flight", async () => {
+    const { client } = runningClient({ agentIgnoresCancel: true });
+    const sending = client.sendMessage("A", "A");
+    await client.stop(); // no process in the fake: takes the early-return path
+    expect(await sending).toBe("cancelled");
   });
 });

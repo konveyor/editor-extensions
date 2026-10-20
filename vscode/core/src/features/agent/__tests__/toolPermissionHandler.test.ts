@@ -6,7 +6,9 @@ import {
   filterPermissionOptions,
 } from "../toolPermissionPolicy";
 import type { PermissionOption } from "../../../client/agentBackendClient";
-import type { AcpClient } from "../../../client/acpClient";
+import winston from "winston";
+import { AcpClient } from "../../../client/acpClient";
+import { AgentFileTracker } from "../fileTracker";
 import type { ExtensionData } from "@editor-extensions/shared";
 import {
   handlePermissionRequest,
@@ -217,5 +219,53 @@ describe("handlePermissionRequest after cancellation (#1389 review)", () => {
     await handling;
     expect(t.published).toHaveLength(1);
     expect(t.pending.size).toBe(1);
+  });
+});
+
+describe("handlePermissionRequest with the real AcpClient (#1389 self-review)", () => {
+  it("publishes a card for a permission request that names no file", async () => {
+    const logger = winston.createLogger({ silent: true, transports: [] });
+    const client = new AcpClient({
+      workspaceDir: "/tmp/ws",
+      logger,
+      binaryName: "fake",
+      binaryArgs: [],
+      minimumVersion: "0.0.0",
+    });
+    (client as unknown as { sessionId: string }).sessionId = "s";
+    const pending = new Map<string, PendingPermission>();
+    const published: unknown[] = [];
+    const draft = { chatMessages: published } as unknown as ExtensionData;
+    let handling: Promise<void> | undefined;
+    client.on("permissionRequest", (data) => {
+      handling = handlePermissionRequest({
+        agentClient: client,
+        data,
+        workspaceRoot: "/tmp/ws",
+        fileTracker: new AgentFileTracker(logger),
+        mutate: (recipe) => recipe(draft),
+        pendingPermissions: pending,
+      });
+    });
+
+    void (
+      client as unknown as { handlePermissionRequest: (p: unknown) => Promise<unknown> }
+    ).handlePermissionRequest({
+      sessionId: "s",
+      toolCall: {
+        toolCallId: "t1",
+        title: "bash",
+        kind: "execute",
+        rawInput: { command: "mvn compile" },
+      },
+      options: [
+        { optionId: "once", name: "Allow once", kind: "allow_once" },
+        { optionId: "reject", name: "Reject", kind: "reject_once" },
+      ],
+    });
+    await handling;
+
+    expect(published).toHaveLength(1);
+    expect(pending.size).toBe(1);
   });
 });

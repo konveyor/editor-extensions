@@ -236,6 +236,7 @@ export async function initializeAgent(
         data.arguments ?? {},
         workspaceRoot,
         data.locations,
+        { afterWrite: data.status === "succeeded" },
       );
     }
   };

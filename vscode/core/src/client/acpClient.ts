@@ -66,6 +66,8 @@ export interface AcpClientConfig {
   binaryPath?: string | null;
   mcpServers?: McpServerConfig[];
   modelEnv?: Record<string, string>;
+  /** How long a cancelled prompt may take to settle before it is detached. */
+  promptSettleTimeoutMs?: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────
@@ -96,6 +98,14 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   // id its session updates are attributed to.
   private currentResponseId: string | null = null;
   private inflightPrompt: Promise<unknown> | null = null;
+  // Releases the sendMessage() call of the in-flight prompt as "cancelled"
+  // when that prompt is detached after the settle timeout, so callers
+  // waiting on it (the Get Solution run, and Stop through it) cannot hang on
+  // an agent that never answers session/cancel.
+  private releaseInflight: (() => void) | null = null;
+  // The prompt being cancelled, until it settles. A permission request the
+  // agent sends for it in that window is answered "cancelled" at once.
+  private cancellingPrompt: Promise<unknown> | null = null;
 
   // Sends are serialized through this chain so that each queued message
   // cancels/settles the prompt that is actually active when its turn comes,
@@ -285,7 +295,7 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     }
 
     try {
-      const response = await promptCall;
+      const response = await Promise.race([promptCall, this.releasedPromise(promptCall)]);
       const stopReason = response.stopReason;
       this.emit("streamingComplete", responseMessageId, stopReason);
       return stopReason;
@@ -310,7 +320,29 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
       prompt: promptBlocks,
     });
     this.inflightPrompt = promptCall;
+    this.releaseInflight = null;
     return promptCall;
+  }
+
+  /**
+   * Resolves `{ stopReason: "cancelled" }` if `promptCall` is detached before
+   * it settles (settle timeout, or stop()). Never resolves otherwise.
+   */
+  private releasedPromise(promptCall: Promise<unknown>): Promise<PromptResponse> {
+    return new Promise<PromptResponse>((resolve) => {
+      if (this.inflightPrompt === promptCall) {
+        this.releaseInflight = () => resolve({ stopReason: "cancelled" });
+      }
+    });
+  }
+
+  /** Detach the in-flight prompt and release whoever is awaiting it. */
+  private detachInflight(): void {
+    const release = this.releaseInflight;
+    this.releaseInflight = null;
+    this.inflightPrompt = null;
+    this.currentResponseId = null;
+    release?.();
   }
 
   private assertRunning(): void {
@@ -337,15 +369,17 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
         () => false,
       ),
       new Promise<boolean>((resolve) => {
-        timer = setTimeout(() => resolve(true), PROMPT_SETTLE_TIMEOUT_MS);
+        timer = setTimeout(
+          () => resolve(true),
+          this.config.promptSettleTimeoutMs ?? PROMPT_SETTLE_TIMEOUT_MS,
+        );
       }),
     ]);
     clearTimeout(timer);
 
     if (timedOut && this.inflightPrompt === inflight) {
       this.logger.warn("AcpClient: previous prompt did not settle after cancel; detaching it");
-      this.inflightPrompt = null;
-      this.currentResponseId = null;
+      this.detachInflight();
     }
   }
 
@@ -385,19 +419,29 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
       return;
     }
 
+    const cancelling = this.inflightPrompt;
+    this.cancellingPrompt = cancelling;
     try {
-      await this.connection.cancel({ sessionId: this.sessionId });
-    } catch (err) {
-      this.logger.warn(`AcpClient: cancel failed: ${err}`);
+      try {
+        await this.connection.cancel({ sessionId: this.sessionId });
+      } catch (err) {
+        this.logger.warn(`AcpClient: cancel failed: ${err}`);
+      }
+
+      // ACP prompt-turn spec: after session/cancel the Client MUST answer
+      // every pending session/request_permission with the `cancelled`
+      // outcome. An agent blocked on one cannot end its turn otherwise, so
+      // the cancelled prompt would only "settle" via the timeout below.
+      // Requests that arrive until it settles are answered the same way
+      // (see handlePermissionRequest).
+      this.cancelPendingPermissions();
+
+      await this.waitForPromptToSettle();
+    } finally {
+      if (this.cancellingPrompt === cancelling) {
+        this.cancellingPrompt = null;
+      }
     }
-
-    // ACP prompt-turn spec: after session/cancel the Client MUST answer every
-    // pending session/request_permission with the `cancelled` outcome. An
-    // agent blocked on one cannot end its turn otherwise, so the cancelled
-    // prompt would only "settle" via the timeout below.
-    this.cancelPendingPermissions();
-
-    await this.waitForPromptToSettle();
   }
 
   /**
@@ -464,6 +508,11 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     this.sendEpoch++;
 
     if (this.process === null) {
+      // Already exited (crash, or a stop in progress): still answer pending
+      // permissions and release anyone awaiting the in-flight prompt.
+      this.cancelPendingPermissions();
+      this.cancellingPrompt = null;
+      this.detachInflight();
       this.setState("stopped");
       return;
     }
@@ -506,8 +555,8 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     });
 
     this.sessionId = null;
-    this.currentResponseId = null;
-    this.inflightPrompt = null;
+    this.cancellingPrompt = null;
+    this.detachInflight();
     this.setState("stopped");
     this.logger.info("AcpClient: stopped");
   }
@@ -769,17 +818,36 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
       })),
     };
 
-    this.emit("permissionRequest", data);
+    // A request for a session we no longer drive, or for a prompt that is
+    // being cancelled, is answered "cancelled" without asking the user
+    // (ACP prompt-turn spec: a cancelled turn's permissions get `cancelled`).
+    const forCancelledTurn =
+      this.cancellingPrompt !== null && this.cancellingPrompt === this.inflightPrompt;
+    if (params.sessionId !== this.sessionId || forCancelledTurn) {
+      this.logger.info("AcpClient: answering permission request for a cancelled turn", {
+        toolCallId: data.toolCallId,
+      });
+      return { outcome: { outcome: "cancelled" } };
+    }
 
-    // Wait for the extension to call respondToRequest
-    return new Promise<RequestPermissionResponse>((resolve) => {
+    // Register before announcing it: listeners check isPermissionPending()
+    // and may run synchronously inside emit().
+    const answer = new Promise<RequestPermissionResponse>((resolve) => {
       this.pendingPermissionResolvers.set(permissionId, resolve);
     });
+    this.emit("permissionRequest", data);
+    return answer;
   }
 
   private handleSessionUpdate(params: SessionNotification): void {
     const update: SessionUpdate = params.update;
     if (!update) {
+      return;
+    }
+    // Late updates from a replaced session (e.g. a detached freeform turn
+    // after Get Solution created its own session) must not be attributed to
+    // the current prompt.
+    if (params.sessionId !== this.sessionId) {
       return;
     }
 

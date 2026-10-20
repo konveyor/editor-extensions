@@ -206,3 +206,56 @@ describe("AgentFileTracker", () => {
     ]);
   });
 });
+
+describe("AgentFileTracker afterWrite sightings (#1389 self-review)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { execFileSync } = require("child_process") as typeof import("child_process");
+  let repo: string;
+  let tracker: AgentFileTracker;
+
+  beforeEach(async () => {
+    repo = await fs.mkdtemp(path.join(os.tmpdir(), "konveyor-tracker-git-"));
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, stdio: "ignore" });
+    git("init", "-q");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "t");
+    await fs.writeFile(path.join(repo, "A.java"), "v1", "utf-8");
+    git("add", "A.java");
+    git("commit", "-q", "-m", "init");
+    tracker = new AgentFileTracker(silentLogger);
+  });
+
+  afterEach(async () => {
+    await fs.rm(repo, { recursive: true, force: true });
+  });
+
+  it("uses git HEAD, not the already-edited disk content, as the baseline", async () => {
+    const abs = path.join(repo, "A.java");
+    await fs.writeFile(abs, "v2", "utf-8"); // the agent's edit already landed
+    tracker.cacheFileBeforeWrite("edit", { filePath: abs }, repo, undefined, { afterWrite: true });
+    expect(await tracker.resolvePendingFileChanges()).toEqual([
+      { path: abs, content: "v2", originalContent: "v1" },
+    ]);
+  });
+
+  it("reports a file git has no copy of as new", async () => {
+    const abs = path.join(repo, "New.java");
+    await fs.writeFile(abs, "class New {}", "utf-8");
+    tracker.cacheFileBeforeWrite("write", { filePath: abs }, repo, undefined, { afterWrite: true });
+    expect(await tracker.resolvePendingFileChanges()).toEqual([
+      { path: abs, content: "class New {}", originalContent: "" },
+    ]);
+  });
+
+  it("keeps an earlier pre-write baseline over a later afterWrite sighting", async () => {
+    const abs = path.join(repo, "A.java");
+    await fs.writeFile(abs, "v1-local", "utf-8"); // uncommitted user change
+    tracker.cacheFileBeforeWrite("edit", { filePath: abs }, repo);
+    await tracker.resolvePendingFileChanges(); // flush the baseline read
+    await fs.writeFile(abs, "v2", "utf-8");
+    tracker.cacheFileBeforeWrite("edit", { filePath: abs }, repo, undefined, { afterWrite: true });
+    expect(await tracker.resolvePendingFileChanges()).toEqual([
+      { path: abs, content: "v2", originalContent: "v1-local" },
+    ]);
+  });
+});
