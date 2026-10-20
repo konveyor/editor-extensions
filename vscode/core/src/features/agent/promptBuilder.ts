@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import type { KaiInteractiveWorkflowInput } from "@editor-extensions/agentic";
 import type { EnhancedIncident } from "@editor-extensions/shared";
 
@@ -102,7 +103,7 @@ async function buildFileBlock(
 
 function uriToAbsolute(uri: string, workspaceDir: string): string {
   if (uri.startsWith("file://")) {
-    return new URL(uri).pathname;
+    return fileURLToPath(uri);
   }
   if (path.isAbsolute(uri)) {
     return uri;

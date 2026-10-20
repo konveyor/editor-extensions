@@ -64,3 +64,25 @@ describe("analysisIssueFixRouterEdge (issue #1418)", () => {
     ]);
   });
 });
+
+describe("analysisIssueFixRouterEdge after stop (#1389 review)", () => {
+  it("returns END even when incidents remain", async () => {
+    const wf = makeWorkflow();
+    const state = baseState();
+    state.currentIdx = 1;
+    wf.stop();
+    expect(await wf.analysisIssueFixRouterEdge(state)).toBe(END);
+  });
+
+  it("returns END instead of fixing a prepared file", async () => {
+    const wf = makeWorkflow();
+    const state = baseState();
+    state.currentIdx = 1;
+    state.inputFileUri = "/work/B.java";
+    state.inputFileContent = "class B {}";
+    state.inputIncidents = [{ uri: "/work/B.java" } as any];
+    expect(await wf.analysisIssueFixRouterEdge(state)).toBe("fix_analysis_issue");
+    wf.stop();
+    expect(await wf.analysisIssueFixRouterEdge(state)).toBe(END);
+  });
+});

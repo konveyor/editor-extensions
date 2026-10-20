@@ -267,7 +267,7 @@ export class AgentFileTracker {
     // Normalize workspaceRoot — it may arrive as a file:// URI
     let normalizedRoot = workspaceRoot;
     if (normalizedRoot?.startsWith("file://")) {
-      normalizedRoot = new URL(normalizedRoot).pathname;
+      normalizedRoot = fileURLToPath(normalizedRoot);
     } else if (normalizedRoot?.startsWith("file:")) {
       normalizedRoot = normalizedRoot.slice("file:".length);
     }

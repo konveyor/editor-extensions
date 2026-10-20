@@ -500,7 +500,8 @@ const actions: {
       if (!isAbsolute(path)) {
         let wsRoot = state.data.workspaceRoot;
         if (wsRoot.startsWith("file://")) {
-          wsRoot = new URL(wsRoot).pathname;
+          const { fileURLToPath } = await import("url");
+          wsRoot = fileURLToPath(wsRoot);
         }
         absPath = join(wsRoot, path);
       }

@@ -87,3 +87,79 @@ describe("KaiInteractiveWorkflow.run (issue #1418)", () => {
     expect(result).toBeDefined();
   }, 20_000);
 });
+
+describe("KaiInteractiveWorkflow.stop (#1389 review)", () => {
+  let workspaceDir: string;
+
+  beforeEach(async () => {
+    workspaceDir = await fs.promises.mkdtemp(pathlib.join(os.tmpdir(), "kai-stop-test-"));
+    for (const name of ["A", "B", "C"]) {
+      await fs.promises.writeFile(
+        pathlib.join(workspaceDir, `${name}.java`),
+        `public class ${name} {}`,
+      );
+    }
+  });
+
+  afterEach(async () => {
+    await fs.promises.rm(workspaceDir, { recursive: true, force: true });
+  });
+
+  it("does not start the next file's model request after stop (direct mode)", async () => {
+    const model = new FakeChatModelWithToolCalls({
+      responses: [new AIMessage({ content: "# Reasoning\nNo changes required for this file." })],
+    });
+    const ref: { workflow?: KaiInteractiveWorkflow } = {};
+    let modelCalls = 0;
+    // Stop arrives while the first file's request is in flight.
+    class StoppingProvider extends FakeModelProvider {
+      invoke(...args: Parameters<FakeModelProvider["invoke"]>) {
+        modelCalls++;
+        ref.workflow?.stop();
+        return super.invoke(...args);
+      }
+      stream(...args: Parameters<FakeModelProvider["stream"]>) {
+        modelCalls++;
+        ref.workflow?.stop();
+        return super.stream(...args);
+      }
+    }
+    const logger = winston.createLogger({
+      level: "error",
+      format: winston.format.json(),
+      transports: [new winston.transports.Console({ silent: true })],
+    });
+    const workflow = new KaiInteractiveWorkflow(logger);
+    ref.workflow = workflow;
+    await workflow.init({
+      modelProvider: new StoppingProvider(model, [], false, false),
+      workspaceDir,
+      fsCache: new InMemoryCacheWithRevisions<string, string>(true),
+      toolCache: new FileBasedResponseCache<Record<string, any>, string>(
+        false,
+        (x) => JSON.stringify(x),
+        (x) => JSON.parse(x) as string,
+      ),
+    });
+
+    const incidents = ["A", "B", "C"].map((name) => ({
+      uri: pathlib.join(workspaceDir, `${name}.java`),
+      violationId: `v-${name}`,
+      message: `issue ${name}`,
+      ruleset_name: "rs",
+      violation_name: "vn",
+      violation_category: "mandatory" as const,
+    }));
+
+    const result = await workflow.run({
+      incidents,
+      enableAgentMode: false,
+      programmingLanguage: "java",
+      migrationHint: "JavaEE to Quarkus",
+    });
+
+    expect(result).toBeDefined();
+    expect(workflow.isStopRequested()).toBe(true);
+    expect(modelCalls).toBe(1);
+  }, 20_000);
+});

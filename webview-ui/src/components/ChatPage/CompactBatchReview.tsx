@@ -83,6 +83,11 @@ export const CompactBatchReview: React.FC = () => {
   } else if (root.startsWith("file:")) {
     root = root.slice("file:".length);
   }
+  try {
+    root = decodeURIComponent(root); // "My%20Project" → "My Project"
+  } catch {
+    // leave a malformed escape as-is
+  }
   root = root.replace(/\/$/, "");
   const normalizedPath = currentFile.path.replace(/\\/g, "/");
   const currentFileName =
@@ -91,11 +96,14 @@ export const CompactBatchReview: React.FC = () => {
       : normalizedPath.split("/").pop() || currentFile.path;
   const noChanges = !currentFile.diff || currentFile.diff.trim() === "";
   const isProcessing = processingFiles.has(currentFile.messageToken) || isBatchOperationInProgress;
+  // Keyed by the review's message token, which is unique per proposal. The
+  // stored value is the absolute path the editor opened, while the queue
+  // holds a workspace-relative path, so comparing paths here would wrongly
+  // report the inline review as resolved and enable Continue.
   const hasActiveDecorators = Boolean(
     activeDecorators &&
     typeof activeDecorators === "object" &&
-    currentFile.messageToken in activeDecorators &&
-    activeDecorators[currentFile.messageToken] === currentFile.path,
+    currentFile.messageToken in activeDecorators,
   );
   const isViewingDiff = viewingInEditor === currentFile.messageToken || hasActiveDecorators;
   const busy = isProcessing || isBatchOperationInProgress;

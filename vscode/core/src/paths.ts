@@ -1,4 +1,5 @@
 import { relative, dirname, join } from "node:path";
+import { isOutsideWorkspace } from "./utilities/workspaceBoundary";
 import { createWriteStream, createReadStream } from "node:fs";
 import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
 import * as vscode from "vscode";
@@ -451,7 +452,16 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
   }
 
   const f = relative(fsPaths().workspaceRepo, uri.fsPath);
-  _logger?.debug(`isUriIgnored: ${f}`);
+  _logger?.debug(
+    `isUriIgnored: path=${uri.fsPath}, relative=${f}, workspaceRepo=${fsPaths().workspaceRepo}`,
+  );
+
+  // Ignore files outside the workspace (including the extension's global
+  // provider-settings.yaml). `relative()` gives "../…" for those, or an
+  // absolute path across Windows drives, which the ignore matchers reject.
+  if (isOutsideWorkspace(f)) {
+    return true;
+  }
 
   // Always ignore .konveyor directory
   if (f.startsWith(".konveyor/") || f === ".konveyor") {

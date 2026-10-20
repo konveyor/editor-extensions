@@ -1,3 +1,4 @@
+import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { Uri, workspace } from "vscode";
 import { createTwoFilesPatch, createPatch } from "diff";
@@ -15,9 +16,7 @@ import { upsertModifiedFileMessage } from "./chatFileMessages";
  * Normalizes a file path relative to the workspace root.
  */
 function normalizeFilePath(filePath: string, workspaceRoot: string): string {
-  const wsRoot = workspaceRoot.startsWith("file://")
-    ? new URL(workspaceRoot).pathname
-    : workspaceRoot;
+  const wsRoot = workspaceRoot.startsWith("file://") ? fileURLToPath(workspaceRoot) : workspaceRoot;
 
   if (filePath.startsWith(wsRoot)) {
     return filePath.slice(wsRoot.length).replace(/^\//, "");

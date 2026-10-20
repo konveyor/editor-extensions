@@ -1,3 +1,4 @@
+import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
 import { ChatMessageType } from "@editor-extensions/shared";
@@ -221,10 +222,20 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
   if (rawFilePath && fileTracker) {
     const { join, isAbsolute } = await import("path");
     const wsRoot = workspaceRoot.startsWith("file://")
-      ? new URL(workspaceRoot).pathname
+      ? fileURLToPath(workspaceRoot)
       : workspaceRoot;
     const absPath = isAbsolute(rawFilePath) ? rawFilePath : join(wsRoot, rawFilePath);
     originalContent = await fileTracker.getOriginalContent(absPath, wsRoot);
+  }
+
+  // The request may have been cancelled (prompt cancelled, agent stopped)
+  // while the original content was being read — a slow file or git lookup
+  // widens that window. Its resolver is already answered "cancelled" and the
+  // cancel's card retirement found no card yet, so publishing one now would
+  // leave a live Accept that reports an acceptance nobody made. Nothing below
+  // awaits, so this check holds until the card is published.
+  if (!agentClient.isPermissionPending(data.requestId)) {
+    return;
   }
 
   let rawFileContent: string | undefined;

@@ -9,6 +9,7 @@ import type { PermissionOption } from "../../../client/agentBackendClient";
 import type { AcpClient } from "../../../client/acpClient";
 import type { ExtensionData } from "@editor-extensions/shared";
 import {
+  handlePermissionRequest,
   retireCancelledPermissions,
   CANCELLED_PERMISSION_RESPONSE,
   type PendingPermission,
@@ -150,5 +151,71 @@ describe("retireCancelledPermissions", () => {
     });
     expect(mutated).toBe(false);
     expect(pending.size).toBe(1);
+  });
+});
+
+describe("handlePermissionRequest after cancellation (#1389 review)", () => {
+  function deferredString() {
+    let resolve!: (v: string | undefined) => void;
+    const promise = new Promise<string | undefined>((r) => (resolve = r));
+    return { promise, resolve };
+  }
+
+  function setup() {
+    const pendingIds = new Set<number>([7]);
+    const responses: Array<[number, unknown]> = [];
+    const agentClient = {
+      isPermissionPending: (id: number) => pendingIds.has(id),
+      respondToRequest: (id: number, result: unknown) => responses.push([id, result]),
+    } as unknown as AcpClient;
+    const read = deferredString();
+    const fileTracker = {
+      cacheFileBeforeWrite: () => {},
+      getOriginalContent: () => read.promise,
+    } as unknown as import("../fileTracker").AgentFileTracker;
+    const pending = new Map<string, PendingPermission>();
+    const published: unknown[] = [];
+    const draft = { chatMessages: published } as unknown as ExtensionData;
+    const run = () =>
+      handlePermissionRequest({
+        agentClient,
+        data: {
+          requestId: 7,
+          toolCallId: "t7",
+          title: "edit",
+          kind: "edit",
+          status: "pending",
+          rawInput: { filePath: "/ws/A.java", oldString: "a", newString: "b" },
+          options: [
+            { optionId: "once", kind: "allow_once", name: "Allow once" },
+            { optionId: "reject", kind: "reject_once", name: "Reject" },
+          ],
+        },
+        workspaceRoot: "/ws",
+        fileTracker,
+        mutate: (recipe) => recipe(draft),
+        pendingPermissions: pending,
+      });
+    return { pendingIds, responses, read, pending, published, run };
+  }
+
+  it("publishes no card for a request cancelled while its original content was read", async () => {
+    const t = setup();
+    const handling = t.run();
+    t.pendingIds.delete(7); // cancelGeneration() answered it meanwhile
+    t.read.resolve("a");
+    await handling;
+    expect(t.published).toEqual([]);
+    expect(t.pending.size).toBe(0);
+    expect(t.responses).toEqual([]);
+  });
+
+  it("publishes the card when the request is still pending", async () => {
+    const t = setup();
+    const handling = t.run();
+    t.read.resolve("a");
+    await handling;
+    expect(t.published).toHaveLength(1);
+    expect(t.pending.size).toBe(1);
   });
 });

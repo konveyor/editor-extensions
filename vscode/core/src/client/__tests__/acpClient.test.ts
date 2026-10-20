@@ -409,3 +409,31 @@ describe("AcpClient prompt lifecycle", () => {
     await expect(client.sendMessage("x", "A")).rejects.toThrow("AcpClient: not running");
   });
 });
+
+describe("AcpClient workspace directory (#1389 review)", () => {
+  it("decodes a file URI so a folder with spaces is a real cwd", () => {
+    const client = new AcpClient({
+      workspaceDir: "file:///projects/My%20Project",
+      logger: silentLogger,
+      binaryName: "fake",
+      binaryArgs: ["acp"],
+      minimumVersion: "0.0.0",
+    });
+    const config = (client as unknown as { config: { workspaceDir: string } }).config;
+    expect(config.workspaceDir).toBe(
+      process.platform === "win32" ? "\\projects\\My Project" : "/projects/My Project",
+    );
+  });
+
+  it("leaves a plain filesystem path untouched", () => {
+    const client = new AcpClient({
+      workspaceDir: "/projects/My Project",
+      logger: silentLogger,
+      binaryName: "fake",
+      binaryArgs: ["acp"],
+      minimumVersion: "0.0.0",
+    });
+    const config = (client as unknown as { config: { workspaceDir: string } }).config;
+    expect(config.workspaceDir).toBe("/projects/My Project");
+  });
+});

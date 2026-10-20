@@ -6,6 +6,7 @@ import type winston from "winston";
 import { MessageTypes } from "@editor-extensions/shared";
 import { handleFileResponse } from "../../utilities/ModifiedFiles/handleFileResponse";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
+import { decideContinueOutcome, resolveContinueBaseline } from "./continueOutcome";
 
 /**
  * Tell every webview that a batch apply/reject has finished so it can
@@ -75,15 +76,42 @@ export const batchReviewHandlers: Record<
       const currentBytes = await vscode.workspace.fs.readFile(uri);
       const currentText = new TextDecoder().decode(currentBytes);
 
-      const fileState = state.modifiedFiles.get(uri.fsPath);
-      const originalContent = fileState?.originalContent ?? content;
+      // The proposal's own queue entry carries the pre-change content; the
+      // agent route does not populate state.modifiedFiles. Falling back to
+      // the proposal (`content`) made an untouched file look edited, so
+      // Continue reported the original as an accepted change.
+      const queued = state.data.pendingBatchReview?.find((f) => f.messageToken === messageToken);
+      const originalContent = resolveContinueBaseline(
+        queued,
+        state.modifiedFiles.get(uri.fsPath)?.originalContent,
+      );
+      if (originalContent === undefined) {
+        // Without a baseline we cannot tell whether the user kept anything;
+        // keep the proposal queued (flagged, which also releases the
+        // webview's busy state for it) rather than guess an outcome.
+        logger.warn("CONTINUE_WITH_FILE_STATE: no original content; keeping proposal queued", {
+          path,
+          messageToken,
+        });
+        state.mutate((draft) => {
+          const entry = draft.pendingBatchReview?.find((f) => f.messageToken === messageToken);
+          if (entry) {
+            entry.hasError = true;
+          }
+        });
+        return;
+      }
 
-      const normalize = (s: string) => s.replace(/\r\n/g, "\n").trim();
-      const hasChanges = normalize(currentText) !== normalize(originalContent);
-      const responseId = hasChanges ? "apply" : "reject";
-      const finalContent = hasChanges ? currentText : content;
+      const outcome = decideContinueOutcome(currentText, originalContent, content);
 
-      await handleFileResponse(messageToken, responseId, absPath, finalContent, state, true);
+      await handleFileResponse(
+        messageToken,
+        outcome.responseId,
+        absPath,
+        outcome.content,
+        state,
+        true,
+      );
 
       state.mutate((draft) => {
         if (draft.pendingBatchReview) {

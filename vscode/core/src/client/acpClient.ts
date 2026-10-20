@@ -15,6 +15,7 @@ import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import winston from "winston";
 import { ClientSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type {
@@ -112,7 +113,9 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   constructor(config: AcpClientConfig) {
     super();
     if (config.workspaceDir.startsWith("file://")) {
-      config = { ...config, workspaceDir: new URL(config.workspaceDir).pathname };
+      // fileURLToPath decodes percent escapes (a URL's pathname keeps
+      // "My%20Project"), which the agent needs as a real cwd.
+      config = { ...config, workspaceDir: fileURLToPath(config.workspaceDir) };
     }
     this.config = config;
     this.logger = config.logger;
@@ -429,6 +432,14 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     while (this.queuedSends > 0) {
       await this.sendChain;
     }
+  }
+
+  /**
+   * Whether a permission request is still awaiting an answer. False once it
+   * was answered, or cancelled by `cancelGeneration()` / `stop()`.
+   */
+  isPermissionPending(requestId: number): boolean {
+    return this.pendingPermissionResolvers.has(requestId);
   }
 
   /**

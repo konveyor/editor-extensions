@@ -265,3 +265,63 @@ describe("BatchedAnalysisTrigger - Prerequisites Validation for Issue #1101", ()
     });
   });
 });
+
+describe("BatchedAnalysisTrigger - ignored and unmatchable paths (#1389 review)", () => {
+  function stateWithAnalyzer() {
+    const data: any = { isAnalyzing: false, isAnalysisScheduled: false };
+    return {
+      analyzerClient: { serverState: "stopped", canAnalyze: () => true },
+      data,
+      mutate: (recipe: (draft: any) => void) => recipe(data),
+    } as unknown as ExtensionState;
+  }
+  const uri = (p: string) => ({ fsPath: p, scheme: "file", path: p }) as any;
+  let originalWarn: typeof console.warn;
+  beforeEach(() => {
+    originalWarn = console.warn;
+    console.warn = () => {};
+  });
+  afterEach(() => {
+    console.warn = originalWarn;
+  });
+
+  it("does not schedule analysis for an ignored save", async () => {
+    const state = stateWithAnalyzer();
+    const trigger = new BatchedAnalysisTrigger(state, true, () => true);
+    await trigger.notifyFileChanges({
+      path: uri("/global/provider-settings.yaml"),
+      saved: true,
+    } as any);
+    expect(state.data.isAnalysisScheduled).toBe(false);
+    trigger.dispose();
+  });
+
+  it("drops a queued path the ignore check cannot handle instead of wedging later flushes", async () => {
+    const state = stateWithAnalyzer();
+    const fail: { path?: string } = {};
+    const isIgnored = (u: any) => {
+      if (u.fsPath === fail.path) {
+        throw new Error("path should be a `path.relative()`d string");
+      }
+      return false;
+    };
+    const trigger = new BatchedAnalysisTrigger(state, false, isIgnored);
+    const queue = (trigger as unknown as { analysisFileChangesQueue: Set<unknown> })
+      .analysisFileChangesQueue;
+
+    // Enqueued while the check passes, then the matcher starts rejecting it.
+    const bad = uri("/outside/../weird");
+    queue.add(bad);
+    fail.path = bad.fsPath;
+
+    await expect(trigger.runPartialAnalysis()).resolves.toBeUndefined();
+    expect(queue.has(bad)).toBe(false);
+
+    // A later workspace save is still processed (server stopped → skipped
+    // with a warning, but it gets past the filter instead of throwing).
+    await expect(
+      trigger.notifyFileChanges({ path: uri("/ws/src/A.java"), saved: true } as any),
+    ).resolves.toBeUndefined();
+    trigger.dispose();
+  });
+});
