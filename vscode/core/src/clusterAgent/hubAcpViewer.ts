@@ -266,12 +266,24 @@ export class HubAcpViewer extends EventEmitter {
     this.closed = true;
     for (const [, pending] of this.pending) {
       clearTimeout(pending.timer);
-      pending.reject(new Error(`ACP connection closed (${code})`));
+      pending.reject(new Error(describeClose(code, reason)));
     }
     this.pending.clear();
     this.openAsks.clear();
     this.emit("close", code, reason);
   }
+}
+
+/**
+ * The Hub closes the proxied socket with 4404 when the run has no ACP
+ * endpoint to relay to (finished, or not started), observed against
+ * tackle2-hub on 2026-10-20.
+ */
+export function describeClose(code: number, reason = ""): string {
+  if (code === 4404) {
+    return "The run's agent endpoint is not available; the run may have finished or not started yet (4404).";
+  }
+  return `ACP connection closed (${code}${reason ? ` ${reason}` : ""})`;
 }
 
 function describeError(event: unknown): string {

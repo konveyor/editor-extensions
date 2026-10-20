@@ -1,7 +1,7 @@
 import expect from "expect";
 import { WebSocketServer, WebSocket as WsSocket } from "ws";
 import type { AddressInfo } from "net";
-import { HubAcpViewer, type WebSocketLike } from "../hubAcpViewer";
+import { HubAcpViewer, describeClose, type WebSocketLike } from "../hubAcpViewer";
 
 /**
  * A stand-in for the harness tee behind the Hub: answers initialize and
@@ -159,5 +159,13 @@ describe("HubAcpViewer", () => {
     await tee.close();
     await expect(HubAcpViewer.connect(url, wsFactory)).rejects.toThrow(/ACP connection/);
     tee = await fakeTee(); // for afterEach
+  });
+});
+
+describe("describeClose", () => {
+  it("explains the Hub's 4404 for a run with no endpoint", () => {
+    expect(describeClose(4404)).toMatch(/may have finished or not started/);
+    expect(describeClose(1006)).toBe("ACP connection closed (1006)");
+    expect(describeClose(1000, "run ended")).toBe("ACP connection closed (1000 run ended)");
   });
 });
