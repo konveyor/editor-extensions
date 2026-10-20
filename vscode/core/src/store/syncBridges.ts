@@ -33,7 +33,6 @@ const STATE_CHANGE_KEYS: readonly string[] = [
   "isFetchingSolution",
   "solutionState",
   "solutionScope",
-  "isBatchReviewMode",
   "pendingBatchReview",
   "modelSupportsTools",
   // Server

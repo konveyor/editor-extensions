@@ -177,7 +177,6 @@ export interface ExtensionData {
   availableTargets: string[];
   availableSources: string[];
   featureState: Record<string, unknown>;
-  isBatchReviewMode: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   modelSupportsTools: boolean;
 }

@@ -47,19 +47,18 @@ async function readOriginalContent(filePath: string): Promise<string | undefined
 /**
  * Central routing function for file changes from any agent backend.
  *
- * When `isBatchReviewMode` is enabled (or `forceReview` is true),
- * file changes are queued in `pendingBatchReview` for the user to
- * accept/reject; a later change to a file already in the queue updates
- * that entry in place. When disabled, changes are applied immediately and
- * the solution server is notified; a later change to a file whose chat
- * message is still undecided updates that message in place.
+ * With `forceReview` the change is a proposal that is not on disk yet: it
+ * is queued in `pendingBatchReview` for the user to accept or reject (the
+ * `CompactBatchReview` widget, with inline CodeLens review in the editor).
+ * A later change to a file already in the queue updates that entry in place.
+ * The direct LLM workflow (KaiInteractiveWorkflow) always passes it, so its
+ * output is never applied without review.
  *
- * The workflow path (KaiInteractiveWorkflow) always passes
- * `forceReview: true` so changes are never auto-applied from LLM output.
- *
- * In batch review mode, only the `pendingBatchReview` queue is updated
- * (the `CompactBatchReview` widget handles the UI). Otherwise a
- * `ChatMessageType.ModifiedFile` message is pushed to `chatMessages`.
+ * Without it the change was already written by the agent (Goose/OpenCode
+ * over ACP), which gates writes through its own permission prompts. The
+ * change is reported as a `ChatMessageType.ModifiedFile` message and the
+ * solution server is notified; a later change to a file whose chat message
+ * is still undecided updates that message in place.
  */
 export async function routeFileChange(
   state: ExtensionState,
@@ -68,7 +67,6 @@ export async function routeFileChange(
   originalContent?: string,
   forceReview = false,
 ): Promise<void> {
-  const isBatchReviewMode = forceReview;
   const relativePath = normalizeFilePath(filePath, state.data.workspaceRoot);
 
   if (originalContent === undefined) {
@@ -119,10 +117,10 @@ export async function routeFileChange(
     isNew,
     isDeleted,
     diff,
-    readOnly: isBatchReviewMode,
+    readOnly: forceReview,
   };
 
-  if (isBatchReviewMode) {
+  if (forceReview) {
     state.mutate((draft) => {
       if (!draft.pendingBatchReview) {
         draft.pendingBatchReview = [];

@@ -61,7 +61,6 @@ export interface StateChangeData {
   isFetchingSolution?: boolean;
   solutionState?: SolutionState;
   solutionScope?: Scope;
-  isBatchReviewMode?: boolean;
   pendingBatchReview?: PendingBatchReviewFile[];
   modelSupportsTools?: boolean;
 

@@ -71,8 +71,6 @@ export const getConfigKaiDemoMode = (): boolean =>
   getConfigValue<boolean>("genai.demoMode") ?? false;
 export const getConfigGenAIEnabled = (): boolean =>
   getConfigValue<boolean>("genai.enabled") ?? true;
-export const getConfigBatchReviewMode = (): boolean =>
-  getConfigValue<boolean>("genai.batchReviewMode") ?? false;
 
 export const getConfigAutoAcceptOnSave = (): boolean =>
   getConfigValue<boolean>("diff.autoAcceptOnSave") ?? false;

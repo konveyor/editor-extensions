@@ -678,9 +678,8 @@ export class AgentOrchestrator {
 
   private cleanup(): void {
     const pendingCount = this.state.data.pendingBatchReview?.length ?? 0;
-    const isBatchReview = this.state.data.isBatchReviewMode === true;
 
-    if (isBatchReview && pendingCount > 0) {
+    if (pendingCount > 0) {
       this.logger.info("AgentOrchestrator: cleanup — batch review active", {
         pendingFiles: pendingCount,
         fileChangesRouted: this.fileChangesRouted,

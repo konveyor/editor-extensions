@@ -71,7 +71,6 @@ interface ExtensionStore {
   modelSupportsTools: boolean;
 
   // Batch review state
-  isBatchReviewMode: boolean;
   pendingBatchReview: PendingBatchReviewFile[];
   isBatchOperationInProgress: boolean;
 
@@ -204,7 +203,6 @@ export const useExtensionStore = create<ExtensionStore>()(
       modelSupportsTools: true,
 
       // Batch review state
-      isBatchReviewMode: false,
       pendingBatchReview: [],
       isBatchOperationInProgress: false,
 

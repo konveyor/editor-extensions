@@ -33,7 +33,6 @@ import {
   getConfigAutoAcceptOnSave,
   getConfigAgentMode,
   getConfigFreeformChat,
-  getConfigBatchReviewMode,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -124,7 +123,6 @@ class VsCodeExtension {
       availableTargets: [],
       availableSources: [],
       featureState: { agentMode: getConfigAgentMode(), freeformChat: getConfigFreeformChat() },
-      isBatchReviewMode: getConfigBatchReviewMode(),
       pendingBatchReview: [],
       modelSupportsTools: true,
     };
@@ -677,13 +675,6 @@ class VsCodeExtension {
               transport.level = newLogLevel;
             }
             this.state.logger.info(`Log level changed to ${newLogLevel}`);
-          }
-
-          if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.batchReviewMode`)) {
-            this.state.mutate((draft) => {
-              draft.isBatchReviewMode = getConfigBatchReviewMode();
-            });
-            this.state.logger.info(`Batch review mode changed to ${getConfigBatchReviewMode()}`);
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {

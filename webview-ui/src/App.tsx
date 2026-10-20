@@ -56,7 +56,6 @@ const App: React.FC = () => {
         chatSettingsRequest:
           (windowData.featureState?.chatSettingsRequest as number | undefined) ?? 0,
         modelSupportsTools: windowData.modelSupportsTools ?? true,
-        isBatchReviewMode: windowData.isBatchReviewMode ?? false,
         pendingBatchReview: Array.isArray(windowData.pendingBatchReview)
           ? windowData.pendingBatchReview
           : [],
