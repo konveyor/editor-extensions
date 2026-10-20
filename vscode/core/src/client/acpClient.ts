@@ -253,6 +253,11 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
           if (ready) {
             await ready;
           }
+          // Last check, with nothing awaited between it and dispatchPrompt:
+          // interruptSends() may have run while the hook was pending.
+          if (this.sendEpoch !== epoch) {
+            return { call: null };
+          }
           this.assertRunning();
           // Wrapped so the async function does not flatten the prompt promise
           // (that would make the queue wait for the prompt to *complete*).

@@ -284,6 +284,53 @@ describe("AcpClient prompt lifecycle", () => {
     expect(await b).toBe("end_turn");
   });
 
+  it("interruptSends during a pending beforeDispatch hook keeps the queued send off the wire", async () => {
+    const { client, prompts, settle } = runningClient();
+    const hookStarted = deferred<void>();
+    const hookDone = deferred<void>();
+
+    const a = chatSend(client, "A", "A");
+    const b = client.sendMessage("B", "B", {
+      replaceActive: true,
+      beforeDispatch: () => {
+        hookStarted.resolve();
+        return hookDone.promise; // e.g. tracker.whenIdle() on A's routing
+      },
+    });
+
+    // B's turn has cancelled A and is now parked in its hook.
+    await hookStarted.promise;
+    expect(await a).toBe("cancelled");
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+
+    // Get Solution takes over while the hook is still pending.
+    const interrupted = client.interruptSends();
+    hookDone.resolve();
+    await interrupted;
+
+    expect(await b).toBe("cancelled");
+    await settle();
+    expect(prompts.map((p) => p.text)).toEqual(["A"]);
+    expect(client.isPromptActive()).toBe(false);
+  });
+
+  it("interruptSends during an async hook on the idle path keeps the send off the wire", async () => {
+    const { client, prompts, settle } = runningClient();
+    const hookDone = deferred<void>();
+
+    const a = client.sendMessage("A", "A", { beforeDispatch: () => hookDone.promise });
+    expect(prompts).toHaveLength(0);
+
+    const interrupted = client.interruptSends();
+    hookDone.resolve();
+    await interrupted;
+
+    expect(await a).toBe("cancelled");
+    await settle();
+    expect(prompts).toHaveLength(0);
+    expect(client.isPromptActive()).toBe(false);
+  });
+
   it("a synchronous beforeDispatch keeps the idle fast path synchronous", () => {
     const { client, prompts } = runningClient();
     let ran = false;
