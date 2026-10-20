@@ -159,6 +159,10 @@ const commandsMap: (
     // The Migration Chat is the solution surface: the agent orchestrator opens it
     // when a fix starts, and this is the single manual entry point (sidebar view
     // title and command palette).
+    [`${EXTENSION_NAME}.runClusterAgent`]: async () => {
+      const { runClusterAgent } = await import("./clusterAgent/clusterRun");
+      await runClusterAgent(state, logger);
+    },
     [`${EXTENSION_NAME}.openChat`]: async () => {
       try {
         await vscode.commands.executeCommand(`${EXTENSION_NAME}.chatView.focus`);

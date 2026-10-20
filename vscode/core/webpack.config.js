@@ -47,6 +47,10 @@ module.exports = (env, argv) => {
     },
     externals: {
       vscode: "commonjs vscode",
+      // Optional native speedups `ws` requires inside try/catch; leave them
+      // unresolved so it falls back to its pure-JS paths.
+      bufferutil: "commonjs bufferutil",
+      "utf-8-validate": "commonjs utf-8-validate",
     },
     resolve: {
       extensions: [".ts", ".js"],

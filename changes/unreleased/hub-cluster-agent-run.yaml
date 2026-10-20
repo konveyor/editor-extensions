@@ -1,0 +1,8 @@
+kind: feature
+description: >
+  (Preview) New command "Konveyor: Run Agent on Cluster" starts an agent run
+  for the open application through the Hub's agentic API and follows it in
+  the Migration Assistant chat: the run's output streams into the chat, its
+  permission requests appear as Accept/Reject cards, and its questions are
+  asked in VS Code's own input. Needs a Hub (0.11 or newer) with agentic
+  enabled and profile sync connected.

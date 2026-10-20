@@ -1,0 +1,94 @@
+import expect from "expect";
+import { HubAgentApi, HubAgentApiError } from "../hubAgentApi";
+
+interface Call {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: unknown;
+}
+
+function fakeFetch(respond: (call: Call) => { status: number; body?: unknown }) {
+  const calls: Call[] = [];
+  const fn = (async (url: string, init: RequestInit) => {
+    const call: Call = {
+      url,
+      method: init.method ?? "GET",
+      headers: init.headers as Record<string, string>,
+      body: init.body ? JSON.parse(String(init.body)) : undefined,
+    };
+    calls.push(call);
+    const { status, body } = respond(call);
+    return new Response(body === undefined ? null : JSON.stringify(body), { status });
+  }) as unknown as typeof fetch;
+  return { fn, calls };
+}
+
+describe("HubAgentApi", () => {
+  it("lists agents with the bearer token", async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 200, body: [{ metadata: { name: "a" } }] }));
+    const api = new HubAgentApi({
+      baseUrl: "https://hub.example/",
+      bearerToken: "tok",
+      fetchFn: fn,
+    });
+    expect(await api.listAgents()).toEqual([{ metadata: { name: "a" } }]);
+    expect(calls[0].url).toBe("https://hub.example/hub/agentic/agents");
+    expect(calls[0].headers.Authorization).toBe("Bearer tok");
+  });
+
+  it("creates a run with the application context the harness needs", async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 201, body: { metadata: { name: "ide-x" } } }));
+    const api = new HubAgentApi({ baseUrl: "https://hub.example", bearerToken: null, fetchFn: fn });
+    await api.createRun({
+      agentRef: "migration-execute-agent",
+      applicationId: 42,
+      targetBranch: "konveyor/migration-1",
+      mode: "approve",
+      askUser: true,
+    });
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].url).toBe("https://hub.example/hub/agentic/agentruns");
+    expect(calls[0].headers.Authorization).toBeUndefined();
+    expect(calls[0].body).toEqual({
+      metadata: { generateName: "ide-", labels: { "konveyor.io/application": "42" } },
+      spec: {
+        agentRef: "migration-execute-agent",
+        execution: { mode: "approve", askUser: true },
+        env: [
+          { name: "APP_ID", value: "42" },
+          { name: "TARGET_BRANCH", value: "konveyor/migration-1" },
+        ],
+      },
+    });
+  });
+
+  it("mints a nonce and builds the WebSocket URL from it", async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 201, body: "n0nce" }));
+    const api = new HubAgentApi({ baseUrl: "https://hub.example", bearerToken: "t", fetchFn: fn });
+    expect(await api.mintAcpNonce("ide-x")).toBe("n0nce");
+    expect(calls[0].url).toBe("https://hub.example/hub/agentic/agentruns/ide-x/acp/nonce");
+    expect(api.acpUrl("ide-x", "a b")).toBe(
+      "wss://hub.example/hub/agentic/agentruns/ide-x/acp?nonce=a%20b",
+    );
+    const plain = new HubAgentApi({
+      baseUrl: "http://localhost:8080",
+      bearerToken: null,
+      fetchFn: fn,
+    });
+    expect(plain.acpUrl("r", "n")).toBe("ws://localhost:8080/hub/agentic/agentruns/r/acp?nonce=n");
+  });
+
+  it("explains missing scopes and a Hub without the agentic API", async () => {
+    const forbidden = fakeFetch(() => ({ status: 403, body: { error: "nope" } }));
+    const api1 = new HubAgentApi({ baseUrl: "https://h", bearerToken: "t", fetchFn: forbidden.fn });
+    await expect(api1.listAgents()).rejects.toThrow(/agentic scopes/);
+
+    const missing = fakeFetch(() => ({ status: 404 }));
+    const api2 = new HubAgentApi({ baseUrl: "https://h", bearerToken: "t", fetchFn: missing.fn });
+    const err = await api2.listAgents().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HubAgentApiError);
+    expect((err as HubAgentApiError).status).toBe(404);
+    expect((err as Error).message).toMatch(/0\.11 or newer/);
+  });
+});
