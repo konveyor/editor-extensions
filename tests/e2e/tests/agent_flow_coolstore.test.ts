@@ -92,7 +92,7 @@ providers.forEach((config) => {
         await expect(fixButton).toBeVisible({ timeout: 30000 });
         await fixButton.click();
         console.log('Fix button clicked');
-        const resolutionView = await vscodeApp.getView(KAIViews.resolutionDetails);
+        const resolutionView = await vscodeApp.openMigrationChatInEditor();
         await vscodeApp.waitDefault();
         await vscodeApp.getWindow().screenshot({
           path: pathlib.join(

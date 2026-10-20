@@ -1,14 +1,9 @@
 import { ExtensionState } from "../../extensionState";
 import * as vscode from "vscode";
+import { fileUriToPath } from "../pathUtils";
 import { ChatMessageType, ModifiedFileMessageValue } from "@editor-extensions/shared";
 import { executeExtensionCommand } from "../../commands";
 import { runPartialAnalysis } from "../../analysis/runAnalysis";
-import { normalizeFilePath } from "../pathUtils";
-import {
-  KaiWorkflowMessage,
-  KaiWorkflowMessageType,
-  KaiUserInteraction,
-} from "@editor-extensions/agentic";
 
 /**
  * Creates a new file with the specified content
@@ -104,55 +99,60 @@ export async function handleFileResponse(
   state: ExtensionState,
   skipAnalysis: boolean = false,
 ): Promise<void> {
+  // Normalize file: URI prefixes that Goose may include in paths
+  if (path.startsWith("file://") || path.startsWith("file:")) {
+    path = fileUriToPath(path);
+  }
+
   const logger = state.logger.child({ component: "handleFileResponse.handleFileResponse" });
   try {
     logger.info(`handleFileResponse called`, {
       messageToken,
       responseId,
       path,
-      hasPendingInteraction: state.pendingInteractionsMap?.has(messageToken) ?? false,
-      totalPendingInteractions: state.pendingInteractionsMap?.size ?? 0,
     });
 
     const messageIndex = state.data.chatMessages.findIndex(
       (msg) => msg.messageToken === messageToken,
     );
 
-    if (messageIndex === -1) {
-      logger.error("Message token not found in chatMessages:", {
+    // Batch review files are tracked in pendingBatchReview rather than
+    // chatMessages, so fall back to that queue. Without this, accepting a
+    // batch-reviewed change would return early here and never apply the file
+    // or notify the solution server (leaving solutions stuck as "pending").
+    const pendingReviewFile = state.data.pendingBatchReview?.find(
+      (f) => f.messageToken === messageToken,
+    );
+
+    if (messageIndex === -1 && !pendingReviewFile) {
+      logger.error("Message token not found in chatMessages or pendingBatchReview:", {
         messageToken,
         totalChatMessages: state.data.chatMessages.length,
         chatMessageTokens: state.data.chatMessages.map((m) => m.messageToken),
       });
-
-      // This might be a stale interaction - clean it up
-      if (state.resolvePendingInteraction) {
-        logger.warn("Attempting to resolve stale pending interaction");
-        state.resolvePendingInteraction(messageToken, { responseId, path });
-      }
       return;
     }
 
     if (responseId === "apply") {
       const uri = vscode.Uri.file(path);
-      const normalizedPath = normalizeFilePath(path);
       const fileMessage = state.data.chatMessages.find(
-        (msg) =>
-          msg.kind === ChatMessageType.ModifiedFile &&
-          msg.messageToken === messageToken &&
-          normalizeFilePath((msg.value as ModifiedFileMessageValue).path) === normalizedPath,
+        (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
       );
 
-      if (!fileMessage) {
+      // The change metadata lives on the chat message for the legacy flow and
+      // on the pendingBatchReview entry for the batch review flow.
+      const changeSource =
+        (fileMessage?.value as ModifiedFileMessageValue | undefined) ?? pendingReviewFile;
+
+      if (!changeSource) {
         throw new Error(`No changes found for file: ${path}`);
       }
 
-      const fileValue = fileMessage.value as ModifiedFileMessageValue;
-      const isNew = fileValue.isNew;
-      const isDeleted = fileValue.isDeleted;
+      const isNew = changeSource.isNew;
+      const isDeleted = changeSource.isDeleted;
 
       // Content is already normalized at the source (processModifiedFile.ts)
-      const fileContent = content || fileValue.content;
+      const fileContent = content || changeSource.content;
 
       try {
         if (isDeleted) {
@@ -206,7 +206,6 @@ export async function handleFileResponse(
       }
 
       // Notify solution server of the change
-      // Read from disk to capture any in-place edits the user made before accepting
       try {
         if (isDeleted) {
           await executeExtensionCommand("changeDiscarded", path);
@@ -228,7 +227,7 @@ export async function handleFileResponse(
       }
 
       // Update the chat message status in the centralized state (for Accept/Reject All consistency)
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -242,7 +241,7 @@ export async function handleFileResponse(
         }
       });
     } else if (responseId === "noChanges") {
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -256,13 +255,29 @@ export async function handleFileResponse(
         }
       });
     } else {
-      // For reject, notify the solution server that the change was discarded
+      // For reject, revert the file to its original content if we have it.
+      // This is critical for the Goose flow where files are already written to
+      // disk by the time we process them.
+      const uri = vscode.Uri.file(path);
+      const fileState = state.modifiedFiles.get(uri.fsPath);
+
+      if (fileState?.originalContent) {
+        try {
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(fileState.originalContent));
+          logger.info(`Reverted file to original content: ${path}`);
+        } catch (revertError) {
+          logger.error(`Failed to revert file ${path}:`, revertError);
+          vscode.window.showErrorMessage(`Failed to revert ${path}: ${revertError}`);
+        }
+      }
+
+      // Notify the solution server that the change was discarded
       try {
         await executeExtensionCommand("changeDiscarded", path);
       } catch (error) {
         logger.error("Error notifying solution server of rejection:", error);
       }
-      state.mutateChatMessages((draft) => {
+      state.mutate((draft) => {
         const messageIndex = draft.chatMessages.findIndex(
           (msg) => msg.messageToken === messageToken,
         );
@@ -275,77 +290,6 @@ export async function handleFileResponse(
           modifiedFileMessage.status = "rejected";
         }
       });
-    }
-
-    // With batch review, ModifiedFile messages don't create workflow interactions
-    // All file responses are handled through the BatchReviewModal UI
-    // We just need to update the status and notify the solution server (already done above)
-
-    // Resolve the workflow interaction for modifiedFile type
-    // This is needed to complete the promise-based flow in the agentic workflow
-    // Only attempt to access workflow if it's initialized (agent mode)
-    const fileMessage = state.data.chatMessages.find(
-      (msg) => msg.kind === ChatMessageType.ModifiedFile && msg.messageToken === messageToken,
-    );
-
-    logger.debug(`[handleFileResponse] Found fileMessage for token ${messageToken}:`, {
-      found: !!fileMessage,
-      value: fileMessage?.value,
-    });
-
-    const fileMessageValue = fileMessage ? (fileMessage.value as ModifiedFileMessageValue) : null;
-    const hasUserInteraction = fileMessageValue?.userInteraction;
-
-    if (state.workflowManager?.isInitialized) {
-      try {
-        const workflow = state.workflowManager.getWorkflow();
-
-        // Build the data object conditionally
-        const interactionData: KaiUserInteraction = {
-          type: "modifiedFile" as any, // Using 'as any' since modifiedFile type might not be in the enum
-          systemMessage: {},
-        };
-
-        // Only add response field if there's user interaction
-        if (hasUserInteraction) {
-          interactionData.response = {
-            yesNo: responseId === "apply",
-          };
-        }
-
-        const workflowMessage: KaiWorkflowMessage = {
-          id: messageToken || fileMessageValue?.messageToken || "",
-          type: KaiWorkflowMessageType.UserInteraction,
-          data: interactionData,
-        };
-
-        await workflow.resolveUserInteraction(workflowMessage);
-
-        logger.info("Successfully resolved workflow interaction for modifiedFile");
-
-        // Reset the waiting flag since we've resolved the interaction
-        state.mutateSolutionWorkflow((draft) => {
-          draft.isWaitingForUserInteraction = false;
-        });
-      } catch (error) {
-        logger.error("Error resolving workflow interaction:", error);
-      }
-    }
-
-    // Also resolve the pending interaction with the UserInteraction ID
-    if (state.resolvePendingInteraction) {
-      const resolved = state.resolvePendingInteraction(messageToken, {
-        responseId: responseId,
-        path: path,
-      });
-
-      if (!resolved) {
-        logger.debug(`No pending interaction found for UserInteraction ID: ${messageToken}`);
-      }
-    }
-
-    if (!fileMessageValue) {
-      logger.warn(`Could not find UserInteraction ID for ModifiedFile message: ${messageToken}`);
     }
   } catch (error) {
     logger.error("Error handling file response:", error);

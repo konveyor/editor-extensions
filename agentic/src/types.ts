@@ -29,6 +29,7 @@ export enum KaiWorkflowMessageType {
 export interface KaiModifiedFile {
   path: string;
   content: string;
+  originalContent?: string;
   userInteraction?: KaiUserInteraction;
 }
 
@@ -37,6 +38,7 @@ export interface KaiToolCall {
   name?: string;
   args?: string;
   status: "generating" | "running" | "succeeded" | "failed";
+  result?: string;
 }
 
 export interface KaiUserInteraction {
@@ -101,8 +103,9 @@ export interface PendingUserInteraction {
   reject(reason: any): void;
 }
 
-export interface KaiWorkflow<TWorkflowInput extends KaiWorkflowInput = KaiWorkflowInput>
-  extends KaiWorkflowEvents {
+export interface KaiWorkflow<
+  TWorkflowInput extends KaiWorkflowInput = KaiWorkflowInput,
+> extends KaiWorkflowEvents {
   init(options: KaiWorkflowInitOptions): Promise<void>;
   run(input: TWorkflowInput): Promise<KaiWorkflowResponse>;
   resolveUserInteraction(response: KaiUserInteractionMessage): Promise<void>;

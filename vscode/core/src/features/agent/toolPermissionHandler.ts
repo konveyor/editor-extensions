@@ -1,0 +1,347 @@
+import { fileURLToPath } from "url";
+import { v4 as uuidv4 } from "uuid";
+import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
+import { ChatMessageType } from "@editor-extensions/shared";
+import type { AcpClient } from "../../client/acpClient";
+import type { PermissionOption, PermissionRequestData } from "../../client/agentBackendClient";
+import { getToolFilePath, type AgentFileTracker } from "./fileTracker";
+
+export {
+  isReadOnlyToolCall,
+  isAcceptOption,
+  findAllowOnceOptionId,
+  filterPermissionOptions,
+} from "./toolPermissionPolicy";
+
+import {
+  isReadOnlyToolCall,
+  findAllowOnceOptionId,
+  filterPermissionOptions,
+} from "./toolPermissionPolicy";
+
+function truncateLines(text: string, maxLines: number): string {
+  const lines = text.split("\n");
+  const truncated = lines.slice(0, maxLines).join("\n");
+  return lines.length > maxLines ? truncated + "\n..." : truncated;
+}
+
+/**
+ * Extract a relative file path from rawInput for display purposes.
+ */
+function extractDisplayPath(
+  rawInput: Record<string, unknown>,
+  workspaceRoot?: string,
+): string | undefined {
+  const filePath = getToolFilePath(rawInput);
+  if (typeof filePath !== "string") {
+    return undefined;
+  }
+  if (workspaceRoot && filePath.startsWith(workspaceRoot)) {
+    return filePath.slice(workspaceRoot.length).replace(/^\//, "");
+  }
+  return filePath;
+}
+
+/**
+ * Build a meaningful label for a permission request from its rawInput.
+ *
+ * Instead of showing "Developer: Text Editor" (the Goose extension + tool name),
+ * this produces labels like "Edit: `ShoppingCartOrderProcessor.java`".
+ */
+export function buildPermissionLabel(data: PermissionRequestData, workspaceRoot?: string): string {
+  if (!data.rawInput) {
+    return data.toolName ?? data.title;
+  }
+
+  const displayPath = extractDisplayPath(data.rawInput, workspaceRoot);
+  const command = data.rawInput.command as string | undefined;
+
+  const title = data.title ?? "";
+  if (title.includes("Shell") || data.toolName === "bash" || data.toolName === "shell") {
+    const shellCmd = typeof command === "string" ? command : undefined;
+    if (shellCmd) {
+      const truncated = shellCmd.length > 80 ? shellCmd.slice(0, 77) + "..." : shellCmd;
+      return `Shell: \`${truncated}\``;
+    }
+    return "Shell";
+  }
+
+  const verbMap: Record<string, string> = {
+    view: "Read",
+    str_replace: "Edit",
+    write: "Write",
+    create: "Create",
+    insert: "Insert",
+    undo_edit: "Revert",
+  };
+
+  const verb = (command && verbMap[command]) ?? "Modify";
+  if (displayPath) {
+    return `${verb}: \`${displayPath}\``;
+  }
+  return data.toolName ?? data.title;
+}
+
+/**
+ * Formats a preview string from the permission request's rawInput.
+ *
+ * Generates ```diff code fences for file modifications:
+ * - str_replace: diff from old_str → new_str
+ * - write/create with originalContent: unified diff of original → new
+ * - write/create without original (new file): all lines as additions
+ * - view: empty (the label already says "Read")
+ * - insert: shows the inserted text
+ */
+export function formatPermissionPreview(
+  data: PermissionRequestData,
+  workspaceRoot?: string,
+  originalContent?: string,
+): string {
+  if (!data.rawInput) {
+    return "";
+  }
+
+  const input = data.rawInput;
+  const command = input.command as string | undefined;
+
+  if (command === "view") {
+    return "";
+  }
+
+  // OpenCode's edit/write permission metadata carries a ready-made unified diff.
+  if (typeof input.diff === "string" && input.diff.trim()) {
+    return "```diff\n" + truncateLines(input.diff, 50) + "\n```";
+  }
+
+  const oldStr = input.old_str;
+  const newStr = input.new_str;
+  if (typeof oldStr === "string" && typeof newStr === "string") {
+    const { createPatch } = require("diff");
+    const displayPath = extractDisplayPath(input, workspaceRoot) ?? "file";
+    const patch = createPatch(displayPath, oldStr, newStr, "", "", { context: 3 });
+    const patchLines = (patch as string).split("\n");
+    const diffBody = patchLines.slice(4).join("\n");
+    if (diffBody.trim()) {
+      return "```diff\n" + truncateLines(diffBody, 50) + "\n```";
+    }
+    return "";
+  }
+
+  const fileText = input.file_text ?? input.content ?? input.text;
+  if (typeof fileText === "string") {
+    if (originalContent !== undefined) {
+      const { createPatch } = require("diff");
+      const displayPath = extractDisplayPath(input, workspaceRoot) ?? "file";
+      const patch = createPatch(displayPath, originalContent, fileText, "", "", {
+        context: 3,
+      });
+      const patchLines = (patch as string).split("\n");
+      const diffBody = patchLines.slice(4).join("\n");
+      if (diffBody.trim()) {
+        return "```diff\n" + truncateLines(diffBody, 50) + "\n```";
+      }
+      return "";
+    }
+
+    return (
+      "```diff\n" +
+      truncateLines(fileText, 50)
+        .split("\n")
+        .map((l) => "+ " + l)
+        .join("\n") +
+      "\n```"
+    );
+  }
+
+  const insertText = input.insert_text ?? input.new_str;
+  if (command === "insert" && typeof insertText === "string") {
+    return (
+      "```diff\n" +
+      truncateLines(String(insertText), 30)
+        .split("\n")
+        .map((l) => "+ " + l)
+        .join("\n") +
+      "\n```"
+    );
+  }
+
+  return "";
+}
+
+// ─── Shared permission request handler ──────────────────────────────
+
+export interface PendingPermission {
+  requestId: number;
+  client: AcpClient;
+  /** The options the agent offered, so the reply can be judged by kind. */
+  options: PermissionOption[];
+  filePath?: string;
+  fileContent?: string;
+}
+
+export interface PermissionHandlerContext {
+  agentClient: AcpClient;
+  data: PermissionRequestData;
+  workspaceRoot: string;
+  fileTracker: AgentFileTracker | undefined;
+  mutate: (recipe: (draft: ExtensionData) => void) => void;
+  pendingPermissions: Map<string, PendingPermission>;
+}
+
+/**
+ * Shared handler for agent permission requests.
+ *
+ * Read-only tool calls are auto-approved. Everything else is presented
+ * to the user for per-call accept/reject. Permanent permission policy
+ * is delegated to the agent's native configuration.
+ */
+export async function handlePermissionRequest(ctx: PermissionHandlerContext): Promise<void> {
+  const {
+    agentClient,
+    data,
+    workspaceRoot,
+    fileTracker,
+    mutate,
+    pendingPermissions: pending,
+  } = ctx;
+
+  if (fileTracker && (data.rawInput || data.locations)) {
+    fileTracker.cacheFileBeforeWrite(
+      data.title,
+      data.rawInput ?? {},
+      workspaceRoot,
+      data.locations,
+    );
+  }
+
+  const label = buildPermissionLabel(data, workspaceRoot);
+
+  const rawFilePath = getToolFilePath(data.rawInput) ?? data.locations?.[0];
+
+  let originalContent: string | undefined;
+  if (rawFilePath && fileTracker) {
+    const { join, isAbsolute } = await import("path");
+    const wsRoot = workspaceRoot.startsWith("file://")
+      ? fileURLToPath(workspaceRoot)
+      : workspaceRoot;
+    const absPath = isAbsolute(rawFilePath) ? rawFilePath : join(wsRoot, rawFilePath);
+    originalContent = await fileTracker.getOriginalContent(absPath, wsRoot);
+  }
+
+  // The request may have been cancelled (prompt cancelled, agent stopped)
+  // while the original content was being read — a slow file or git lookup
+  // widens that window. Its resolver is already answered "cancelled" and the
+  // cancel's card retirement found no card yet, so publishing one now would
+  // leave a live Accept that reports an acceptance nobody made. Nothing below
+  // awaits, so this check holds until the card is published.
+  if (!agentClient.isPermissionPending(data.requestId)) {
+    return;
+  }
+
+  let rawFileContent: string | undefined;
+  if (data.rawInput) {
+    const input = data.rawInput as Record<string, unknown>;
+    const oldStr = input.old_str as string | undefined;
+    const newStr = input.new_str as string | undefined;
+    const insertLine = input.insert_line as number | undefined;
+
+    if (typeof oldStr === "string" && typeof newStr === "string" && originalContent) {
+      rawFileContent = originalContent.replace(oldStr, newStr);
+    } else if (typeof insertLine === "number" && typeof newStr === "string" && originalContent) {
+      const lines = originalContent.split("\n");
+      lines.splice(insertLine, 0, newStr);
+      rawFileContent = lines.join("\n");
+    } else {
+      rawFileContent = (input.content ?? input.file_text ?? input.new_str) as string | undefined;
+    }
+  }
+
+  const preview = formatPermissionPreview(data, workspaceRoot, originalContent);
+
+  // --- Auto-approve read-only tool calls ---
+  if (isReadOnlyToolCall(data.rawInput)) {
+    const optionId = findAllowOnceOptionId(data.options);
+    if (optionId) {
+      agentClient.respondToRequest(data.requestId, {
+        outcome: { outcome: "selected", optionId },
+      });
+
+      mutate((draft) => {
+        draft.chatMessages.push({
+          kind: ChatMessageType.Tool,
+          messageToken: `auto-${uuidv4()}`,
+          timestamp: new Date().toISOString(),
+          value: {
+            toolName: label,
+            toolStatus: "succeeded",
+          } as ToolMessageValue,
+        });
+      });
+      return;
+    }
+  }
+
+  // --- Ask user ---
+  const messageToken = `perm-${uuidv4()}`;
+  pending.set(messageToken, {
+    requestId: data.requestId,
+    client: agentClient,
+    options: data.options,
+    filePath: rawFilePath,
+    fileContent: rawFileContent,
+  });
+
+  const message = preview ? `**Review:** ${label}\n\n${preview}` : `**Review:** ${label}`;
+
+  const filteredOptions = filterPermissionOptions(data.options);
+
+  mutate((draft) => {
+    draft.chatMessages.push({
+      kind: ChatMessageType.String,
+      messageToken,
+      timestamp: new Date().toISOString(),
+      value: { message },
+      quickResponses: filteredOptions.map((opt) => ({
+        id: opt.optionId,
+        content: opt.kind === "allow_once" ? "Accept" : "Reject",
+      })),
+    } as ChatMessage);
+  });
+}
+
+/**
+ * Retire the chat cards of permission requests the client answered with
+ * `cancelled` (prompt cancelled or agent stopped): drop their pending
+ * entries so a late click is ignored, and mark the cards answered with no
+ * buttons left, which also clears the chat's "waiting for your approval".
+ */
+export function retireCancelledPermissions(
+  client: AcpClient,
+  requestIds: readonly number[],
+  pending: Map<string, PendingPermission>,
+  mutate: (recipe: (draft: ExtensionData) => void) => void,
+): void {
+  const ids = new Set(requestIds);
+  const tokens: string[] = [];
+  for (const [token, entry] of pending) {
+    if (entry.client === client && ids.has(entry.requestId)) {
+      pending.delete(token);
+      tokens.push(token);
+    }
+  }
+  if (tokens.length === 0) {
+    return;
+  }
+  const retired = new Set(tokens);
+  mutate((draft) => {
+    for (const msg of draft.chatMessages) {
+      if (retired.has(msg.messageToken)) {
+        msg.selectedResponse = CANCELLED_PERMISSION_RESPONSE;
+        msg.quickResponses = [];
+      }
+    }
+  });
+}
+
+/** `selectedResponse` of a permission card retired by a cancel. */
+export const CANCELLED_PERMISSION_RESPONSE = "cancelled";

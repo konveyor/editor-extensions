@@ -1,6 +1,6 @@
 /* Standardized message wrapper for consistent spacing */
 .message-wrapper {
-  margin: 1rem 0;
+  margin: 4px 0;
   padding: 0;
 }
 
@@ -9,5 +9,5 @@
 }
 
 .message-wrapper:last-child {
-  margin-bottom: 1rem; /* Keep some bottom spacing for the last message */
+  margin-bottom: 4px;
 }

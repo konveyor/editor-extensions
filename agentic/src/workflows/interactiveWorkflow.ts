@@ -285,6 +285,12 @@ export class KaiInteractiveWorkflow
       recursionLimit: Math.max(50, incidentsByUris.length * 4 + 20),
     })) as typeof AnalysisWorkflowOutputState.State;
 
+    if (this.stopRequested) {
+      // Skip the follow-up phase (confirmation prompt, diagnostics planning).
+      this.logger.info("Stop requested - skipping follow-up workflow");
+      return runResponse;
+    }
+
     let shouldAddressAdditionalInfo = false;
     // if there is any additional information spit by analysis workflow, capture that
     const additionalInformation = analysisFixOutputState.summarizedAdditionalInfo ?? "";
@@ -348,6 +354,11 @@ export class KaiInteractiveWorkflow
       shouldEnd: false,
       iterationCount: analysisFixOutputState.iterationCount,
     };
+
+    if (this.stopRequested) {
+      // Stopped while waiting for the user's confirmation above.
+      return runResponse;
+    }
 
     await this.followUpInteractiveWorkflow?.invoke(interactiveWorkflowInput, {
       // each state change is one iteration, keeping this really high
@@ -428,6 +439,17 @@ export class KaiInteractiveWorkflow
   async analysisIssueFixRouterEdge(
     state: typeof AnalysisIssueFixOrchestratorState.State,
   ): Promise<string | string[]> {
+    // Stop is checked between files: the file being fixed when Stop arrived
+    // finishes its current model call, but no further file is started and
+    // nothing is summarized.
+    if (this.stopRequested) {
+      this.logger.info("Stop requested - ending analysis fix loop", {
+        currentIdx: state.currentIdx,
+        totalIncidents: state.inputIncidentsByUris.length,
+      });
+      return END;
+    }
+
     // Use silly level to avoid expensive logging in production
     this.logger.silly(`Edge function called with state:`, {
       hasInputFileContent: !!state.inputFileContent,
@@ -489,6 +511,10 @@ export class KaiInteractiveWorkflow
   async diagnosticsOrchestratorEdge(
     state: typeof DiagnosticsOrchestratorState.State,
   ): Promise<string> {
+    if (this.stopRequested) {
+      this.logger.info("Stop requested - ending diagnostics workflow");
+      return END;
+    }
     this.logger.info("diagnosticsOrchestratorEdge called", {
       shouldEnd: state.shouldEnd,
       hasCurrentAgent: !!state.currentAgent,

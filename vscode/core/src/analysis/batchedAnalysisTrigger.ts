@@ -14,6 +14,7 @@ export class BatchedAnalysisTrigger {
   constructor(
     private readonly extensionState: ExtensionState,
     private readonly enableHotRerun: boolean = true,
+    private readonly isIgnored: (uri: vscode.Uri) => boolean = isUriIgnored,
   ) {
     this.analysisBackoff = new BackoffManager(3000, 30000, 10000);
     this.notifyFileChangesBackoff = new BackoffManager(1000, 10000, 10000);
@@ -21,14 +22,27 @@ export class BatchedAnalysisTrigger {
     this.enableHotRerun = enableHotRerun;
   }
 
+  /**
+   * The ignore check, but never throwing: a path the ignore matchers cannot
+   * handle counts as ignored, so one bad entry cannot wedge the queues.
+   */
+  private isIgnoredSafe(uri: vscode.Uri): boolean {
+    try {
+      return this.isIgnored(uri);
+    } catch (error) {
+      console.warn(`Ignoring ${uri.fsPath} for analysis: ${error}`);
+      return true;
+    }
+  }
+
   async notifyFileChanges(change: FileChange) {
     // Don't schedule analysis for ignored files (e.g., files outside workspace)
-    if (isUriIgnored(change.path)) {
+    if (this.isIgnoredSafe(change.path)) {
       return;
     }
 
     if (this.enableHotRerun) {
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalysisScheduled = true;
       });
       // hot re-run if enabled
@@ -52,9 +66,15 @@ export class BatchedAnalysisTrigger {
         this.scheduleNotifyFileChanges();
         return;
       }
-      const changes = Array.from(this.notifyFileChangesQueue.values()).filter(
-        (change) => !isUriIgnored(change.path),
-      );
+      const changes: FileChange[] = [];
+      for (const [key, change] of this.notifyFileChangesQueue) {
+        if (this.isIgnoredSafe(change.path)) {
+          // Drop it now; left queued it would be re-filtered on every flush.
+          this.notifyFileChangesQueue.delete(key);
+        } else {
+          changes.push(change);
+        }
+      }
       if (changes.length < 1) {
         // no changes to notify
         return;
@@ -82,17 +102,27 @@ export class BatchedAnalysisTrigger {
         this.schedulePartialAnalysis();
         return;
       }
-      await this.runPartialAnalysis();
-      this.extensionState.mutateAnalysisState((draft) => {
-        draft.isAnalysisScheduled = false;
-      });
+      try {
+        await this.runPartialAnalysis();
+      } finally {
+        // Release the scheduled state even if the flush failed, or the
+        // server toggle stays disabled and later saves never re-run analysis.
+        this.extensionState.mutate((draft) => {
+          draft.isAnalysisScheduled = false;
+        });
+      }
     });
   }
 
   public async runPartialAnalysis() {
-    const changedFiles = Array.from(this.analysisFileChangesQueue).filter(
-      (uri) => !isUriIgnored(uri),
-    );
+    const changedFiles: vscode.Uri[] = [];
+    for (const uri of this.analysisFileChangesQueue) {
+      if (this.isIgnoredSafe(uri)) {
+        this.analysisFileChangesQueue.delete(uri);
+      } else {
+        changedFiles.push(uri);
+      }
+    }
     if (changedFiles.length < 1) {
       // no changes to analyze
       return;
@@ -118,7 +148,7 @@ export class BatchedAnalysisTrigger {
     }
 
     // Set isAnalyzing immediately to prevent button from being enabled
-    this.extensionState.mutateAnalysisState((draft) => {
+    this.extensionState.mutate((draft) => {
       draft.isAnalyzing = true;
       draft.isAnalysisScheduled = false;
     });
@@ -131,7 +161,7 @@ export class BatchedAnalysisTrigger {
     } catch (error) {
       console.error("error running analysis", error);
       // Reset isAnalyzing on error since analyzerClient won't do it
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalyzing = false;
       });
     }
@@ -147,7 +177,7 @@ export class BatchedAnalysisTrigger {
 
     // Reset the scheduled flag
     if (this.extensionState.data.isAnalysisScheduled) {
-      this.extensionState.mutateAnalysisState((draft) => {
+      this.extensionState.mutate((draft) => {
         draft.isAnalysisScheduled = false;
       });
     }

@@ -303,7 +303,7 @@ Key commands:
 - `konveyor-core.startServer` / `konveyor-core.stopServer` - Manage server
 - `konveyor-core.fixIncident` - Get AI solution for incident
 - `konveyor-core.showAnalysisPanel` - Open analysis webview
-- `konveyor-core.showResolutionPanel` - Open solution webview
+- `konveyor-core.openChat` - Open the Migration Chat (the solution surface; also opened automatically when a fix starts)
 
 **Command registration**:
 
