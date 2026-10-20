@@ -122,6 +122,24 @@ export async function initializeAgent(
   ctx.featureClients.set("agentClient", agentClient);
   disposables.push({ dispose: () => agentClient.dispose() });
 
+  // Permission mode: apply the saved choice to every session the client
+  // creates (the first one in start() included), and mirror the session's
+  // mode into featureState for the chat's picker.
+  const { getConfigAgentPermissionMode } = await import("../../utilities/configuration");
+  void agentClient.setPermissionMode(getConfigAgentPermissionMode());
+  agentClient.on(
+    "permissionModeChange",
+    (modeState: { current: string | null; supported: boolean }) => {
+      ctx.mutate((draft) => {
+        if (!draft.featureState) {
+          draft.featureState = {};
+        }
+        draft.featureState.permissionMode = modeState.current;
+        draft.featureState.permissionModeSupported = modeState.supported;
+      });
+    },
+  );
+
   agentClient.on("stateChange", (agentState: string) => {
     ctx.logger.info(`Agent state: ${agentState}`);
     ctx.mutate((draft) => {

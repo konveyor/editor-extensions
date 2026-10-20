@@ -20,6 +20,13 @@ export interface AgentStateChangeMessage {
   freeformChat?: boolean;
   /** Non-zero when the extension has asked the chat to open its settings panel. */
   chatSettingsRequest?: number;
+  /**
+   * The agent session's current ACP mode id (e.g. Goose's "auto" or
+   * "approve"), or null when the agent reports none.
+   */
+  permissionMode?: string | null;
+  /** Whether the agent offers both the "auto" and "approve" modes, so the chat can switch between them. */
+  permissionModeSupported?: boolean;
   timestamp: string;
 }
 

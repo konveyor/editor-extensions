@@ -30,11 +30,12 @@ import type {
   McpServer,
   ContentBlock,
   PromptResponse,
+  SessionModeState,
   SessionUpdate,
   ToolCallContent,
   ToolCallLocation,
 } from "@agentclientprotocol/sdk";
-import type { AgentState } from "@editor-extensions/shared";
+import type { AgentPermissionMode, AgentState } from "@editor-extensions/shared";
 import type {
   AgentBackendClient,
   McpServerConfig,
@@ -106,6 +107,14 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
   // The prompt being cancelled, until it settles. A permission request the
   // agent sends for it in that window is answered "cancelled" at once.
   private cancellingPrompt: Promise<unknown> | null = null;
+
+  // ACP session modes the agent advertises for the current session (Goose:
+  // auto, approve, smart_approve, chat) and the one in effect.
+  private availableModeIds: string[] = [];
+  private currentModeId: string | null = null;
+  // Permission mode to apply to every session this client creates, or null
+  // to leave the agent's own configured mode alone.
+  private desiredPermissionMode: AgentPermissionMode | null = null;
 
   // Sends are serialized through this chain so that each queued message
   // cancels/settles the prompt that is actually active when its turn comes,
@@ -206,6 +215,8 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
 
       this.sessionId = sessionResponse.sessionId;
       this.logger.info(`AcpClient: session created ${this.sessionId}`);
+      this.captureModes(sessionResponse.modes);
+      await this.applyDesiredPermissionMode();
 
       this.setState("running");
     } catch (err) {
@@ -406,7 +417,79 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
 
     this.sessionId = response.sessionId;
     this.logger.info(`AcpClient: new session created ${this.sessionId}`);
-    return this.sessionId;
+    this.captureModes(response.modes);
+    await this.applyDesiredPermissionMode();
+    return response.sessionId;
+  }
+
+  // ─── Permission mode (ACP session modes) ──────────────────────────
+
+  /**
+   * The current session's mode and whether the agent can switch between the
+   * `auto` and `approve` permission modes.
+   */
+  getPermissionModeState(): { current: string | null; supported: boolean } {
+    return {
+      current: this.currentModeId,
+      supported:
+        this.availableModeIds.includes("auto") && this.availableModeIds.includes("approve"),
+    };
+  }
+
+  /**
+   * Set the permission mode for the current session and every session created
+   * after it. `null` stops overriding: later sessions keep the agent's own
+   * configured mode (the current session is left as it is). Has no effect on
+   * agents that do not advertise the mode.
+   */
+  async setPermissionMode(mode: AgentPermissionMode | null): Promise<void> {
+    this.desiredPermissionMode = mode;
+    if (this.state === "running") {
+      await this.applyDesiredPermissionMode();
+    }
+  }
+
+  private captureModes(modes: SessionModeState | null | undefined): void {
+    this.availableModeIds = (modes?.availableModes ?? []).map((m) => m.id);
+    this.currentModeId = modes?.currentModeId ?? null;
+    this.emitModeChange();
+  }
+
+  /**
+   * Switch the current session to the desired mode, if one is set, the agent
+   * offers it, and it is not already in effect. A failure is logged and
+   * leaves the session in the agent's mode; it never fails session setup.
+   */
+  private async applyDesiredPermissionMode(): Promise<void> {
+    const mode = this.desiredPermissionMode;
+    const sessionId = this.sessionId;
+    if (!mode || !sessionId || !this.connection || this.currentModeId === mode) {
+      return;
+    }
+    if (!this.availableModeIds.includes(mode)) {
+      this.logger.info(`AcpClient: agent does not offer mode "${mode}"; leaving its own mode`);
+      return;
+    }
+    try {
+      await this.connection.setSessionMode({ sessionId, modeId: mode });
+      if (this.sessionId === sessionId) {
+        this.currentModeId = mode;
+        this.emitModeChange();
+      }
+      this.logger.info(`AcpClient: session ${sessionId} mode set to ${mode}`);
+    } catch (err) {
+      this.logger.warn(`AcpClient: failed to set session mode "${mode}": ${err}`);
+    }
+  }
+
+  private clearModes(): void {
+    this.availableModeIds = [];
+    this.currentModeId = null;
+    this.emitModeChange();
+  }
+
+  private emitModeChange(): void {
+    this.emit("permissionModeChange", this.getPermissionModeState());
   }
 
   /**
@@ -513,6 +596,7 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
       this.cancelPendingPermissions();
       this.cancellingPrompt = null;
       this.detachInflight();
+      this.clearModes();
       this.setState("stopped");
       return;
     }
@@ -557,6 +641,7 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     this.sessionId = null;
     this.cancellingPrompt = null;
     this.detachInflight();
+    this.clearModes();
     this.setState("stopped");
     this.logger.info("AcpClient: stopped");
   }
@@ -848,6 +933,13 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
     // after Get Solution created its own session) must not be attributed to
     // the current prompt.
     if (params.sessionId !== this.sessionId) {
+      return;
+    }
+
+    // The agent changed the session's mode (ours or its own decision).
+    if (update.sessionUpdate === "current_mode_update") {
+      this.currentModeId = update.currentModeId;
+      this.emitModeChange();
       return;
     }
 

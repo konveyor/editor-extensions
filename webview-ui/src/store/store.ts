@@ -68,6 +68,10 @@ interface ExtensionStore {
   isAgentMode: boolean;
   /** genai.freeformChat — free-form input to the agent. Off by default. */
   isFreeformChat: boolean;
+  /** The agent session's ACP mode id ("auto", "approve", …), or null if none reported. */
+  agentPermissionMode: string | null;
+  /** Whether the agent offers both "auto" and "approve", so the chat can switch. */
+  agentPermissionModeSupported: boolean;
   modelSupportsTools: boolean;
 
   // Batch review state
@@ -127,6 +131,7 @@ interface ExtensionStore {
   setIsWebEnvironment: (isWeb: boolean) => void;
   setIsAgentMode: (enabled: boolean) => void;
   setIsFreeformChat: (enabled: boolean) => void;
+  setAgentPermissionMode: (mode: string | null, supported: boolean) => void;
 
   // Agent chat setters
   setAgentConfig: (config: AgentConfig | null) => void;
@@ -200,6 +205,8 @@ export const useExtensionStore = create<ExtensionStore>()(
       // Feature flags
       isAgentMode: false,
       isFreeformChat: false,
+      agentPermissionMode: null,
+      agentPermissionModeSupported: false,
       modelSupportsTools: true,
 
       // Batch review state
@@ -420,6 +427,12 @@ export const useExtensionStore = create<ExtensionStore>()(
       setIsFreeformChat: (enabled) =>
         set((state) => {
           state.isFreeformChat = enabled;
+        }),
+
+      setAgentPermissionMode: (mode, supported) =>
+        set((state) => {
+          state.agentPermissionMode = mode;
+          state.agentPermissionModeSupported = supported;
         }),
 
       // Agent chat setters
