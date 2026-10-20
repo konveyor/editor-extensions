@@ -388,7 +388,29 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
       this.logger.warn(`AcpClient: cancel failed: ${err}`);
     }
 
+    // ACP prompt-turn spec: after session/cancel the Client MUST answer every
+    // pending session/request_permission with the `cancelled` outcome. An
+    // agent blocked on one cannot end its turn otherwise, so the cancelled
+    // prompt would only "settle" via the timeout below.
+    this.cancelPendingPermissions();
+
     await this.waitForPromptToSettle();
+  }
+
+  /**
+   * Answer every pending permission request with `cancelled` and emit
+   * `permissionsCancelled(requestIds)` so the UI can retire their cards.
+   */
+  private cancelPendingPermissions(): void {
+    if (this.pendingPermissionResolvers.size === 0) {
+      return;
+    }
+    const requestIds = Array.from(this.pendingPermissionResolvers.keys());
+    for (const [id, resolver] of this.pendingPermissionResolvers) {
+      this.pendingPermissionResolvers.delete(id);
+      resolver({ outcome: { outcome: "cancelled" } });
+    }
+    this.emit("permissionsCancelled", requestIds);
   }
 
   /**
@@ -426,6 +448,10 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
    * Stop the agent and clean up.
    */
   async stop(): Promise<void> {
+    // A send still queued (or parked in its beforeDispatch hook) must not
+    // dispatch onto whatever session a later start() creates.
+    this.sendEpoch++;
+
     if (this.process === null) {
       this.setState("stopped");
       return;
@@ -433,13 +459,7 @@ export class AcpClient extends EventEmitter implements AgentBackendClient {
 
     this.logger.info("AcpClient: stopping...");
 
-    // Reject pending permissions
-    for (const [id, resolver] of this.pendingPermissionResolvers) {
-      resolver({
-        outcome: { outcome: "cancelled" as const },
-      });
-      this.pendingPermissionResolvers.delete(id);
-    }
+    this.cancelPendingPermissions();
 
     const currentProcess = this.process;
     this.process = null;

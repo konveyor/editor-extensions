@@ -6,6 +6,13 @@ import {
   filterPermissionOptions,
 } from "../toolPermissionPolicy";
 import type { PermissionOption } from "../../../client/agentBackendClient";
+import type { AcpClient } from "../../../client/acpClient";
+import type { ExtensionData } from "@editor-extensions/shared";
+import {
+  retireCancelledPermissions,
+  CANCELLED_PERMISSION_RESPONSE,
+  type PendingPermission,
+} from "../toolPermissionHandler";
 
 // --- isReadOnlyToolCall ---
 
@@ -90,5 +97,58 @@ describe("filterPermissionOptions", () => {
       (o) => o.kind === "allow_always" || o.kind === "reject_always",
     );
     expect(filterPermissionOptions(alwaysOnly)).toHaveLength(0);
+  });
+});
+
+describe("retireCancelledPermissions", () => {
+  const clientA = {} as AcpClient;
+  const clientB = {} as AcpClient;
+  const options: PermissionOption[] = [
+    { optionId: "once", kind: "allow_once", name: "Allow once" },
+    { optionId: "reject", kind: "reject_once", name: "Reject" },
+  ];
+  const card = (token: string) => ({
+    kind: "String",
+    messageToken: token,
+    timestamp: "t",
+    value: { message: "**Review:** Edit: `A.java`" },
+    quickResponses: [
+      { id: "once", content: "Accept" },
+      { id: "reject", content: "Reject" },
+    ],
+  });
+
+  it("drops the cancelled requests' pending entries and retires their cards", () => {
+    const pending = new Map<string, PendingPermission>([
+      ["perm-1", { requestId: 1, client: clientA, options }],
+      ["perm-2", { requestId: 2, client: clientA, options }],
+      // Same request id from another client must be left alone.
+      ["perm-3", { requestId: 1, client: clientB, options }],
+    ]);
+    const draft = {
+      chatMessages: [card("perm-1"), card("perm-2"), card("perm-3")],
+    } as unknown as ExtensionData;
+
+    retireCancelledPermissions(clientA, [1], pending, (recipe) => recipe(draft));
+
+    expect(Array.from(pending.keys())).toEqual(["perm-2", "perm-3"]);
+    const [one, two, three] = draft.chatMessages;
+    expect(one.selectedResponse).toBe(CANCELLED_PERMISSION_RESPONSE);
+    expect(one.quickResponses).toEqual([]);
+    expect(two.selectedResponse).toBeUndefined();
+    expect(two.quickResponses).toHaveLength(2);
+    expect(three.selectedResponse).toBeUndefined();
+  });
+
+  it("does not mutate state when nothing matches", () => {
+    const pending = new Map<string, PendingPermission>([
+      ["perm-1", { requestId: 1, client: clientA, options }],
+    ]);
+    let mutated = false;
+    retireCancelledPermissions(clientA, [9], pending, () => {
+      mutated = true;
+    });
+    expect(mutated).toBe(false);
+    expect(pending.size).toBe(1);
   });
 });

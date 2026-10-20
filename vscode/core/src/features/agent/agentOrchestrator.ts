@@ -25,6 +25,17 @@ import { suspendBroadcastHandlers, resumeBroadcastHandlers, pendingPermissions }
 import { handlePermissionRequest } from "./toolPermissionHandler";
 import type { Logger } from "winston";
 
+let activeOrchestrator: AgentOrchestrator | undefined;
+
+/** The Get Solution run in progress, if any (STOP_WORKFLOW stops it). */
+export function getActiveOrchestrator(): AgentOrchestrator | undefined {
+  return activeOrchestrator;
+}
+
+function setActiveOrchestrator(run: AgentOrchestrator | undefined): void {
+  activeOrchestrator = run;
+}
+
 /**
  * Self-contained orchestrator for the "Get Solution" lifecycle.
  *
@@ -36,12 +47,32 @@ import type { Logger } from "winston";
 export class AgentOrchestrator {
   private lastTextMessageId: string | null = null;
   private fileChangesRouted = 0;
+  private client: AgentBackendClient | undefined;
+  private stopped = false;
+  private finished: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly state: ExtensionState,
     private readonly logger: Logger,
     private readonly incidents: EnhancedIncident[],
   ) {}
+
+  /**
+   * Stop this run: cancel the agent's prompt (or the direct LLM workflow),
+   * answer its pending permission requests, and resolve once run() has
+   * unwound and reset the solution state. Changes the agent already wrote
+   * to disk are still routed to review by the post-scan.
+   */
+  async stop(): Promise<void> {
+    this.stopped = true;
+    this.logger.info("AgentOrchestrator: stop requested");
+    try {
+      await this.client?.interruptSends();
+    } catch (err) {
+      this.logger.warn("AgentOrchestrator: interrupt during stop failed", { error: err });
+    }
+    await this.finished;
+  }
 
   async run(): Promise<void> {
     if (this.state.data.isFetchingSolution) {
@@ -55,6 +86,20 @@ export class AgentOrchestrator {
       return;
     }
 
+    let markFinished!: () => void;
+    this.finished = new Promise<void>((resolve) => (markFinished = resolve));
+    setActiveOrchestrator(this);
+    try {
+      await this.runInner(profileName);
+    } finally {
+      if (activeOrchestrator === this) {
+        setActiveOrchestrator(undefined);
+      }
+      markFinished();
+    }
+  }
+
+  private async runInner(profileName: string): Promise<void> {
     const agentMode = this.state.data.featureState?.agentMode === true;
 
     this.initializeState();
@@ -83,6 +128,7 @@ export class AgentOrchestrator {
       return;
     }
 
+    this.client = client;
     await this.runClientPath(client, profileName, disposeClient);
   }
 
@@ -315,6 +361,13 @@ export class AgentOrchestrator {
         fileContentCache,
       );
 
+      // Stopped while the session and prompt were being prepared. Nothing is
+      // awaited between this check and sendMessage, which dispatches
+      // synchronously on an idle client, so a later stop() cancels it.
+      if (this.stopped) {
+        this.logger.info("AgentOrchestrator: stopped before the migration prompt was sent");
+        return;
+      }
       const requestId = uuidv4();
       await client.sendMessage(prompt, requestId);
 
@@ -329,7 +382,14 @@ export class AgentOrchestrator {
         }
       }
     } catch (err) {
-      this.handleError(err);
+      if (this.stopped) {
+        // DirectLLMClient's workflow.stop() rejects the run; not an error.
+        this.logger.info("AgentOrchestrator: run ended by stop", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } else {
+        this.handleError(err);
+      }
     } finally {
       client.removeListener("streamingChunk", onChunk);
       client.removeListener("toolCall", onToolCall);
@@ -606,13 +666,15 @@ export class AgentOrchestrator {
       });
     }
 
-    // Finalize any tool messages still marked "running"
+    // Finalize any tool messages still marked "running". After a stop they
+    // did not finish, so they must not read as succeeded.
+    const unfinishedStatus = this.stopped ? "failed" : "succeeded";
     this.state.mutate((draft) => {
       for (const msg of draft.chatMessages) {
         if (msg.kind === ChatMessageType.Tool) {
           const val = msg.value as ToolMessageValue;
           if (val.toolStatus === "running") {
-            val.toolStatus = "succeeded";
+            val.toolStatus = unfinishedStatus;
           }
         }
       }
@@ -620,7 +682,7 @@ export class AgentOrchestrator {
 
     this.state.mutate((draft) => {
       draft.isFetchingSolution = false;
-      draft.solutionState = "received";
+      draft.solutionState = this.stopped ? "none" : "received";
     });
 
     this.state.mutate((draft) => {

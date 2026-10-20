@@ -297,3 +297,40 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
     } as ChatMessage);
   });
 }
+
+/**
+ * Retire the chat cards of permission requests the client answered with
+ * `cancelled` (prompt cancelled or agent stopped): drop their pending
+ * entries so a late click is ignored, and mark the cards answered with no
+ * buttons left, which also clears the chat's "waiting for your approval".
+ */
+export function retireCancelledPermissions(
+  client: AcpClient,
+  requestIds: readonly number[],
+  pending: Map<string, PendingPermission>,
+  mutate: (recipe: (draft: ExtensionData) => void) => void,
+): void {
+  const ids = new Set(requestIds);
+  const tokens: string[] = [];
+  for (const [token, entry] of pending) {
+    if (entry.client === client && ids.has(entry.requestId)) {
+      pending.delete(token);
+      tokens.push(token);
+    }
+  }
+  if (tokens.length === 0) {
+    return;
+  }
+  const retired = new Set(tokens);
+  mutate((draft) => {
+    for (const msg of draft.chatMessages) {
+      if (retired.has(msg.messageToken)) {
+        msg.selectedResponse = CANCELLED_PERMISSION_RESPONSE;
+        msg.quickResponses = [];
+      }
+    }
+  });
+}
+
+/** `selectedResponse` of a permission card retired by a cancel. */
+export const CANCELLED_PERMISSION_RESPONSE = "cancelled";

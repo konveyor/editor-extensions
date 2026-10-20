@@ -18,7 +18,7 @@ import {
   type ModifiedFileMessageValue,
 } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
-import { openFile, enableGenAI } from "../../hooks/actions";
+import { openFile, enableGenAI, stopWorkflow } from "../../hooks/actions";
 import { sendVscodeMessage as dispatch } from "../../utils/vscodeMessaging";
 import { ReceivedMessage } from "../ResolutionsPage/ReceivedMessage";
 import { ToolMessage, CollapsibleToolGroup, AgentToolGroup } from "../ResolutionsPage/ToolMessage";
@@ -122,6 +122,10 @@ const ChatPage: React.FC = () => {
     }
     window.vscode.postMessage({ type: AGENT_CANCEL_GENERATION, payload: {} });
   }, [isFetchingSolution]);
+
+  const handleStopSolution = useCallback(() => {
+    window.vscode.postMessage(stopWorkflow());
+  }, []);
 
   const handleClearChat = useCallback(() => {
     if (isFetchingSolution) {
@@ -780,6 +784,14 @@ const ChatPage: React.FC = () => {
                           ? "Waiting for your approval above..."
                           : "Working on migration fix..."}
                       </span>
+                      <button
+                        className="chat-response-indicator__cancel chat-solution-indicator__stop"
+                        onClick={handleStopSolution}
+                        aria-label="Stop the migration fix"
+                        title="Stop the migration fix"
+                      >
+                        Stop
+                      </button>
                     </div>
                   )}
                 </MessageBox>

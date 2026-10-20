@@ -5,7 +5,11 @@ import { AgentFileTracker } from "./fileTracker";
 import type { AcpClient } from "../../client/acpClient";
 import type { PermissionRequestData, ToolCallData } from "../../client/agentBackendClient";
 import { routeFileChange } from "./fileChangeRouter";
-import { handlePermissionRequest, type PendingPermission } from "./toolPermissionHandler";
+import {
+  handlePermissionRequest,
+  retireCancelledPermissions,
+  type PendingPermission,
+} from "./toolPermissionHandler";
 import { createBridgeRunAnalysis } from "./bridgeAnalysis";
 
 export { type PendingPermission } from "./toolPermissionHandler";
@@ -297,6 +301,11 @@ export async function initializeAgent(
       mutate: ctx.mutate,
       pendingPermissions,
     });
+  });
+
+  // Never suspended: free chat and Get Solution share pendingPermissions.
+  agentClient.on("permissionsCancelled", (requestIds: number[]) => {
+    retireCancelledPermissions(agentClient, requestIds, pendingPermissions, ctx.mutate);
   });
 
   startAgent(agentClient, ctx);

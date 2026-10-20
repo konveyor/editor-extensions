@@ -593,6 +593,16 @@ const actions: {
   [STOP_WORKFLOW]: async (_payload, state, logger) => {
     logger.info("Stop workflow requested by user");
 
+    // End the Get Solution run itself: cancel the agent prompt (or the direct
+    // LLM workflow) and wait for the run to unwind. Flipping the flags below
+    // alone would leave the agent editing files and let a second run start.
+    try {
+      const { getActiveOrchestrator } = await import("./features/agent/agentOrchestrator");
+      await getActiveOrchestrator()?.stop();
+    } catch (error) {
+      logger.error("Error stopping the solution run:", error);
+    }
+
     // Update state to reflect workflow stopped
     state.mutate((draft) => {
       draft.isFetchingSolution = false;

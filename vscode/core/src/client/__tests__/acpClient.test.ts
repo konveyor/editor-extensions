@@ -331,6 +331,56 @@ describe("AcpClient prompt lifecycle", () => {
     expect(client.isPromptActive()).toBe(false);
   });
 
+  it("cancelGeneration answers pending permission requests with 'cancelled' (ACP spec)", async () => {
+    const { client } = runningClient();
+    const retired: number[][] = [];
+    client.on("permissionsCancelled", (ids: number[]) => retired.push(ids));
+    const requested: number[] = [];
+    client.on("permissionRequest", (data: { requestId: number }) => requested.push(data.requestId));
+
+    const handle = (
+      client as unknown as { handlePermissionRequest: (p: unknown) => Promise<unknown> }
+    ).handlePermissionRequest;
+    const params = (id: string) => ({
+      sessionId: "session-1",
+      toolCall: { toolCallId: id, title: "edit", rawInput: { filePath: `/ws/${id}` } },
+      options: [{ optionId: "once", kind: "allow_once", name: "Allow once" }],
+    });
+    const first = handle.call(client, params("t1"));
+    const second = handle.call(client, params("t2"));
+    expect(requested).toEqual([1, 2]);
+
+    void client.sendMessage("edit", "A");
+    await client.cancelGeneration();
+
+    expect(await first).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(await second).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(retired).toEqual([[1, 2]]);
+
+    // Nothing pending any more: a late answer is ignored, and a second cancel
+    // emits nothing.
+    client.respondToRequest(1, { outcome: { outcome: "selected", optionId: "once" } });
+    await client.cancelGeneration();
+    expect(retired).toEqual([[1, 2]]);
+  });
+
+  it("stop() keeps a send parked in its beforeDispatch hook off the next session", async () => {
+    const { client, prompts, settle } = runningClient();
+    const hookDone = deferred<void>();
+
+    const a = client.sendMessage("A", "A", { beforeDispatch: () => hookDone.promise });
+    await client.stop(); // no process in the fake: state -> stopped, epoch bumped
+    // Simulate a quick restart onto a fresh session before the hook resolves.
+    const internals = client as unknown as { state: string; sessionId: string | null };
+    internals.state = "running";
+    internals.sessionId = "session-2";
+    hookDone.resolve();
+
+    expect(await a).toBe("cancelled");
+    await settle();
+    expect(prompts).toHaveLength(0);
+  });
+
   it("a synchronous beforeDispatch keeps the idle fast path synchronous", () => {
     const { client, prompts } = runningClient();
     let ran = false;

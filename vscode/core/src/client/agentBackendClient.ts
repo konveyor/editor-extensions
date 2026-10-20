@@ -89,6 +89,8 @@ export interface McpServerConfig {
  *
  * Events emitted (AcpClient only):
  * - `permissionRequest(data: PermissionRequestData)`
+ * - `permissionsCancelled(requestIds: number[])` — pending requests answered
+ *   with `cancelled` because the prompt was cancelled or the agent stopped
  */
 export interface AgentBackendClient extends EventEmitter {
   getState(): AgentState;

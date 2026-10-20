@@ -1575,3 +1575,7 @@
 .chat-solution-indicator__label {
   line-height: 1.4;
 }
+
+.chat-solution-indicator__stop {
+  margin-left: auto;
+}

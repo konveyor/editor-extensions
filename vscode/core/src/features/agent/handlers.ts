@@ -94,10 +94,11 @@ export const agentMessageHandlers: Record<
     }
 
     try {
-      if (agentClient.isPromptActive()) {
-        logger.info("AGENT_CANCEL_GENERATION: cancelling active generation");
-        await agentClient.cancelGeneration();
-      }
+      // Stop means stop: also drop messages queued behind the active reply
+      // (and one parked between turns, when no prompt is active yet), which
+      // would otherwise start as soon as the cancelled reply settles.
+      logger.info("AGENT_CANCEL_GENERATION: interrupting freeform sends");
+      await agentClient.interruptSends();
     } catch (err) {
       logger.error("AGENT_CANCEL_GENERATION failed:", err);
     }
