@@ -546,3 +546,128 @@ describe("AcpClient permission and cancellation edge cases (#1389 self-review)",
     expect(await sending).toBe("cancelled");
   });
 });
+
+describe("AcpClient permission mode (ACP session modes)", () => {
+  const gooseModes = {
+    currentModeId: "auto",
+    availableModes: [
+      { id: "auto", name: "auto" },
+      { id: "approve", name: "approve" },
+      { id: "smart_approve", name: "smart_approve" },
+      { id: "chat", name: "chat" },
+    ],
+  };
+
+  /** A running client whose fake agent answers newSession / setSessionMode. */
+  function clientWithModes(modes: unknown, options: { failSetMode?: boolean } = {}) {
+    const client = new AcpClient({
+      workspaceDir: "/tmp/ws",
+      logger: silentLogger,
+      binaryName: "fake",
+      binaryArgs: ["acp"],
+      minimumVersion: "0.0.0",
+    });
+    let sessions = 0;
+    const setModeCalls: Array<{ sessionId: string; modeId: string }> = [];
+    const connection = {
+      newSession: async () => ({ sessionId: `session-${++sessions}`, modes }),
+      setSessionMode: async (params: { sessionId: string; modeId: string }) => {
+        setModeCalls.push(params);
+        if (options.failSetMode) {
+          throw new Error("agent refused");
+        }
+        return {};
+      },
+    };
+    const internals = client as unknown as { state: string; connection: unknown };
+    internals.state = "running";
+    internals.connection = connection;
+    const states: Array<{ current: string | null; supported: boolean }> = [];
+    client.on("permissionModeChange", (s: { current: string | null; supported: boolean }) =>
+      states.push(s),
+    );
+    return { client, setModeCalls, states };
+  }
+
+  it("reports the agent's modes and leaves them alone when no mode is chosen", async () => {
+    const { client, setModeCalls } = clientWithModes(gooseModes);
+    await client.createSession();
+    expect(client.getPermissionModeState()).toEqual({ current: "auto", supported: true });
+    expect(setModeCalls).toEqual([]);
+  });
+
+  it("applies the chosen mode to every new session, Get Solution's included", async () => {
+    const { client, setModeCalls, states } = clientWithModes(gooseModes);
+    await client.setPermissionMode("approve");
+    await client.createSession(); // e.g. the freeform session
+    await client.createSession(); // e.g. the Get Solution session
+    expect(setModeCalls).toEqual([
+      { sessionId: "session-1", modeId: "approve" },
+      { sessionId: "session-2", modeId: "approve" },
+    ]);
+    expect(client.getPermissionModeState()).toEqual({ current: "approve", supported: true });
+    expect(states[states.length - 1]).toEqual({ current: "approve", supported: true });
+  });
+
+  it("switches the current session when the mode changes while running", async () => {
+    const { client, setModeCalls } = clientWithModes(gooseModes);
+    await client.createSession();
+    await client.setPermissionMode("approve");
+    await client.setPermissionMode("approve"); // already in effect: no second call
+    expect(setModeCalls).toEqual([{ sessionId: "session-1", modeId: "approve" }]);
+  });
+
+  it("does nothing for an agent that does not offer the modes (OpenCode)", async () => {
+    const opencodeModes = {
+      currentModeId: "build",
+      availableModes: [
+        { id: "build", name: "build" },
+        { id: "plan", name: "plan" },
+      ],
+    };
+    const { client, setModeCalls } = clientWithModes(opencodeModes);
+    await client.setPermissionMode("approve");
+    await client.createSession();
+    expect(setModeCalls).toEqual([]);
+    expect(client.getPermissionModeState()).toEqual({ current: "build", supported: false });
+  });
+
+  it("does nothing for an agent that reports no modes", async () => {
+    const { client, setModeCalls } = clientWithModes(undefined);
+    await client.setPermissionMode("approve");
+    await client.createSession();
+    expect(setModeCalls).toEqual([]);
+    expect(client.getPermissionModeState()).toEqual({ current: null, supported: false });
+  });
+
+  it("keeps the session usable when the agent refuses the mode switch", async () => {
+    const { client } = clientWithModes(gooseModes, { failSetMode: true });
+    await client.setPermissionMode("approve");
+    expect(await client.createSession()).toBe("session-1");
+    expect(client.getPermissionModeState().current).toBe("auto");
+  });
+
+  it("follows current_mode_update from the agent for the current session only", async () => {
+    const { client } = clientWithModes(gooseModes);
+    await client.createSession();
+    const handle = (client as unknown as { handleSessionUpdate: (p: unknown) => void })
+      .handleSessionUpdate;
+    handle.call(client, {
+      sessionId: "session-1",
+      update: { sessionUpdate: "current_mode_update", currentModeId: "smart_approve" },
+    });
+    handle.call(client, {
+      sessionId: "old-session",
+      update: { sessionUpdate: "current_mode_update", currentModeId: "chat" },
+    });
+    expect(client.getPermissionModeState().current).toBe("smart_approve");
+  });
+
+  it("clears the mode state when the agent stops", async () => {
+    const { client, states } = clientWithModes(gooseModes);
+    await client.createSession();
+    await client.stop();
+    expect(client.getPermissionModeState()).toEqual({ current: null, supported: false });
+    expect(states[states.length - 1]).toEqual({ current: null, supported: false });
+  });
+});

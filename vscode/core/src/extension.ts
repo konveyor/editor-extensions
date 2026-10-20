@@ -33,6 +33,7 @@ import {
   getConfigAutoAcceptOnSave,
   getConfigAgentMode,
   getConfigFreeformChat,
+  getConfigAgentPermissionMode,
   updateConfigErrors,
 } from "./utilities";
 import {
@@ -63,6 +64,7 @@ import { FileEditor } from "./utilities/ideUtils";
 import { ProviderRegistry, HealthCheckRegistry, createCoreApi } from "./api";
 import { KonveyorCoreApi } from "@editor-extensions/shared";
 import { initFeatures } from "./features/featureRegistry";
+import type { AcpClient } from "./client/acpClient";
 
 class VsCodeExtension {
   public state: ExtensionState;
@@ -675,6 +677,15 @@ class VsCodeExtension {
               transport.level = newLogLevel;
             }
             this.state.logger.info(`Log level changed to ${newLogLevel}`);
+          }
+
+          if (event.affectsConfiguration(`${EXTENSION_NAME}.experimentalChat.permissionMode`)) {
+            const mode = getConfigAgentPermissionMode();
+            const agentClient = this.state.featureClients.get("agentClient") as
+              | AcpClient
+              | undefined;
+            void agentClient?.setPermissionMode(mode);
+            this.state.logger.info(`Agent permission mode from settings: ${mode ?? "agent"}`);
           }
 
           if (event.affectsConfiguration(`${EXTENSION_NAME}.genai.agentMode`)) {

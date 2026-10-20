@@ -479,6 +479,23 @@
           "scope": "window",
           "order": 32
         },
+        "konveyor-core.experimentalChat.permissionMode": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "approve",
+            "auto"
+          ],
+          "enumDescriptions": [
+            "Leave the agent's own configured mode in place (for Goose, GOOSE_MODE, which defaults to autonomous).",
+            "Ask before each tool call: file edits and shell commands appear as Accept/Reject cards in the chat.",
+            "Approve every tool call automatically; changes are reported in the chat after they are made."
+          ],
+          "default": "agent",
+          "markdownDescription": "(Experimental) Whether the agent asks before it edits files or runs commands. Applied through the agent's ACP session modes, so it takes effect only with agents that offer both `approve` and `auto` (Goose does; OpenCode does not). Also switchable from the Migration Assistant chat.",
+          "scope": "window",
+          "order": 33
+        },
         "konveyor-core.debug.webview": {
           "type": "boolean",
           "default": false,

@@ -129,6 +129,16 @@
   background: var(--vscode-button-secondaryHoverBackground, #454545);
 }
 
+.chat-mode-select {
+  font-size: 10px;
+  padding: 1px 2px;
+  border: 1px solid var(--vscode-dropdown-border, transparent);
+  border-radius: 3px;
+  background: var(--vscode-dropdown-background, #3c3c3c);
+  color: var(--vscode-dropdown-foreground, #ccc);
+  cursor: pointer;
+}
+
 .chat-error-banner {
   padding: 6px 10px;
   background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
