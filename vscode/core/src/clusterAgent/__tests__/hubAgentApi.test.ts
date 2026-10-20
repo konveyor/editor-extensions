@@ -92,3 +92,42 @@ describe("HubAgentApi", () => {
     expect((err as Error).message).toMatch(/0\.11 or newer/);
   });
 });
+
+describe("HubAgentApi workflows", () => {
+  it("lists workflows and reads a workflow run", async () => {
+    const { fn, calls } = fakeFetch((call) => ({
+      status: 200,
+      body: call.url.endsWith("/workflows")
+        ? [{ metadata: { name: "java-ee-to-quarkus" } }]
+        : { metadata: { name: "ide-1" } },
+    }));
+    const api = new HubAgentApi({ baseUrl: "https://hub.example", bearerToken: "t", fetchFn: fn });
+    expect(await api.listWorkflows()).toEqual([{ metadata: { name: "java-ee-to-quarkus" } }]);
+    await api.getWorkflowRun("ide-1");
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://hub.example/hub/agentic/workflows",
+      "https://hub.example/hub/agentic/workflowruns/ide-1",
+    ]);
+  });
+
+  it("starts a workflow run with the application context and no run-level mode", async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 201, body: { metadata: { name: "ide-1" } } }));
+    const api = new HubAgentApi({ baseUrl: "https://hub.example", bearerToken: "t", fetchFn: fn });
+    await api.createWorkflowRun({
+      workflowRef: "java-ee-to-quarkus",
+      applicationId: 7,
+      targetBranch: "konveyor/migration-2",
+    });
+    expect(calls[0].url).toBe("https://hub.example/hub/agentic/workflowruns");
+    expect(calls[0].body).toEqual({
+      metadata: { generateName: "ide-", labels: { "konveyor.io/application": "7" } },
+      spec: {
+        workflowRef: "java-ee-to-quarkus",
+        env: [
+          { name: "APP_ID", value: "7" },
+          { name: "TARGET_BRANCH", value: "konveyor/migration-2" },
+        ],
+      },
+    });
+  });
+});

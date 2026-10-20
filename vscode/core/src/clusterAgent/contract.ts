@@ -83,6 +83,56 @@ export interface AgentResource {
   status?: { conditions?: Condition[] };
 }
 
+export interface AgentWorkflowStage {
+  name: string;
+  agentRef: string;
+  instructions?: string;
+  execution?: { mode?: ExecutionMode; askUser?: boolean };
+}
+
+export interface AgentWorkflow {
+  metadata: ObjectMeta;
+  spec: {
+    guide?: string;
+    stages: AgentWorkflowStage[];
+    params?: AgentParam[];
+  };
+  status?: { conditions?: Condition[] };
+}
+
+/** One stage of a workflow run, with the stage definition snapshotted at start. */
+export interface AgentWorkflowRunStageStatus {
+  name: string;
+  phase: AgentRunPhase;
+  /** The AgentRun the controller created for this stage, once it has. */
+  agentRunName?: string;
+  agentRef?: string;
+  execution?: { mode?: ExecutionMode; askUser?: boolean };
+}
+
+export interface AgentWorkflowRun {
+  apiVersion?: string;
+  kind?: string;
+  metadata: ObjectMeta;
+  spec: {
+    workflowRef: string;
+    gateway?: string;
+    params?: Array<{ name: string; value: string }>;
+    env?: Array<{ name: string; value: string }>;
+  };
+  status?: {
+    phase?: AgentRunPhase;
+    currentStage?: string;
+    stages?: AgentWorkflowRunStageStatus[];
+    startTime?: string;
+    completionTime?: string;
+    conditions?: Condition[];
+  };
+}
+
+/** The default Java EE to Quarkus workflow MTA ships (plan, execute, verify). */
+export const DEFAULT_WORKFLOW = "java-ee-to-quarkus";
+
 /**
  * The run's ACP endpoint accepts connections (agentic-controller#160):
  * True once the sandbox listens, False/Finished once the run is over.
