@@ -17,13 +17,14 @@ import type { Logger } from "winston";
 import { ChatMessageType } from "@editor-extensions/shared";
 import type { ExtensionState } from "../extensionState";
 import { executeExtensionCommand } from "../commands";
-import { getGitRepository } from "../utilities/git";
+import { getGitRepository, preferredRemote } from "../utilities/git";
 import { routeFileChange } from "../features/agent/fileChangeRouter";
 import { resolveHubContext } from "./hubContext";
+import { pickApplicationRun } from "./runPicker";
 import {
+  changedOnBothSides,
   consoleUrl,
   reviewablePaths,
-  runsForApplication,
   workspaceRelative,
   type RunSummary,
 } from "./runSelection";
@@ -43,19 +44,13 @@ export async function reviewClusterRun(
     if (!hub) {
       return;
     }
-    const { api, application, repoInfo } = hub;
-    const [workflowRuns, agentRuns] = await Promise.all([
-      api.listWorkflowRuns().catch(() => []),
-      api.listRuns(),
-    ]);
-    const runs = runsForApplication(application.id, workflowRuns, agentRuns);
-    const run = preselectedRun
-      ? runs.find((r) => r.name === preselectedRun)
-      : await pickRun(runs, application.name);
+    const { application, repoInfo } = hub;
+    const run = await pickApplicationRun(
+      hub,
+      `Review a cluster run for ${application.name}`,
+      preselectedRun,
+    );
     if (!run) {
-      if (preselectedRun) {
-        vscode.window.showWarningMessage(`Run ${preselectedRun} was not found on the Hub.`);
-      }
       return;
     }
     if (!run.branch) {
@@ -68,8 +63,7 @@ export async function reviewClusterRun(
       vscode.window.showWarningMessage("Could not open the workspace's git repository.");
       return;
     }
-    const remote =
-      repo.state.remotes.find((r) => r.name === "origin")?.name ?? repo.state.remotes[0]?.name;
+    const remote = preferredRemote(repo);
     if (!remote) {
       vscode.window.showWarningMessage("The workspace repository has no remote to fetch from.");
       return;
@@ -112,6 +106,7 @@ export async function reviewClusterRun(
         let queued = 0;
         let unchanged = 0;
         const deleted: string[] = [];
+        const bothSides: string[] = [];
         for (const rel of inWorkspace) {
           const repoPath = prefix ? `${prefix}/${rel}` : rel;
           const absPath = path.join(repoRoot, ...repoPath.split("/"));
@@ -129,12 +124,22 @@ export async function reviewClusterRun(
             unchanged++;
             continue;
           }
+          const base = await repo.show(mergeBase, absPath).catch(() => "");
+          if (changedOnBothSides(base, local, content)) {
+            bothSides.push(rel);
+          }
           // Review against what the developer has now, so applying a file
           // shows exactly what changes in their working tree.
           await routeFileChange(state, absPath, content, local, true);
           queued++;
         }
-        return { queued, unchanged, deleted, outside: changedPaths.length - inWorkspace.length };
+        return {
+          queued,
+          unchanged,
+          deleted,
+          bothSides,
+          outside: changedPaths.length - inWorkspace.length,
+        };
       },
     );
 
@@ -145,7 +150,10 @@ export async function reviewClusterRun(
     }
     const summary =
       loaded.queued > 0
-        ? `${loaded.queued} changed file${loaded.queued === 1 ? "" : "s"} from ${run.name} are ready for review in the Migration Assistant.`
+        ? `${loaded.queued} changed file${loaded.queued === 1 ? "" : "s"} from ${run.name} are ready for review in the Migration Assistant.` +
+          (loaded.bothSides.length > 0
+            ? ` ${loaded.bothSides.length} also changed on your side; applying them replaces your version.`
+            : "")
         : `No changes from ${run.name} differ from your working tree.`;
     const choice = await vscode.window.showInformationMessage(summary, "Open in console");
     if (choice === "Open in console") {
@@ -158,35 +166,27 @@ export async function reviewClusterRun(
   }
 }
 
-async function pickRun(
-  runs: RunSummary[],
-  applicationName: string,
-): Promise<RunSummary | undefined> {
-  if (runs.length === 0) {
-    vscode.window.showInformationMessage(`No cluster runs found for ${applicationName}.`);
-    return undefined;
-  }
-  const pick = await vscode.window.showQuickPick(
-    runs.map((run) => ({
-      label: run.name,
-      description: `${run.kind === "workflow" ? "workflow" : "agent"} ${run.ref} · ${run.phase ?? "Pending"}`,
-      detail: run.branch ? `Branch ${run.branch}` : "No target branch",
-      run,
-    })),
-    { title: `Review a cluster run for ${applicationName}`, ignoreFocusOut: true },
-  );
-  return pick?.run;
-}
-
 function noteInChat(
   state: ExtensionState,
   run: RunSummary,
-  loaded: { queued: number; unchanged: number; deleted: string[]; outside: number },
+  loaded: {
+    queued: number;
+    unchanged: number;
+    deleted: string[];
+    bothSides: string[];
+    outside: number;
+  },
 ): void {
   const parts = [
     `**Changes from cluster run \`${run.name}\`** (${run.ref}, ${run.phase ?? "Pending"}) on \`${run.branch}\`: ` +
       `${loaded.queued} file${loaded.queued === 1 ? "" : "s"} to review below.`,
   ];
+  if (loaded.bothSides.length > 0) {
+    parts.push(
+      `**Changed on your side too:** ${loaded.bothSides.map((f) => `\`${f}\``).join(", ")}. ` +
+        "Applying one of these replaces your version; use Review to keep both sets of changes.",
+    );
+  }
   if (loaded.unchanged > 0) {
     parts.push(`${loaded.unchanged} already match your working tree.`);
   }

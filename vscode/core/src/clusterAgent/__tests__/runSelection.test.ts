@@ -1,6 +1,7 @@
 import expect from "expect";
 import type { AgentRun, AgentWorkflowRun } from "../contract";
 import {
+  changedOnBothSides,
   consoleUrl,
   reviewablePaths,
   runsForApplication,
@@ -85,5 +86,17 @@ describe("reviewablePaths", () => {
     expect(
       reviewablePaths([".konveyor/handoff.md", "docs/plan.md", "pom.xml", ".konveyorrc"]),
     ).toEqual(["docs/plan.md", "pom.xml", ".konveyorrc"]);
+  });
+});
+
+describe("changedOnBothSides", () => {
+  it("flags a file both the developer and the run changed differently", () => {
+    expect(changedOnBothSides("v0", "mine", "theirs")).toBe(true);
+  });
+
+  it("does not flag one-sided or identical changes", () => {
+    expect(changedOnBothSides("v0", "v0", "theirs")).toBe(false); // only the run changed it
+    expect(changedOnBothSides("v0", "mine", "v0")).toBe(false); // only the developer did
+    expect(changedOnBothSides("v0", "same", "same")).toBe(false); // both made the same change
   });
 });

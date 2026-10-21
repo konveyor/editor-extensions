@@ -18,6 +18,11 @@ interface Repository {
   rootUri: vscode.Uri;
   state: RepositoryState;
   // Subset of the vscode.git API (extensions/git/src/api/git.d.ts).
+  checkout(treeish: string): Promise<void>;
+  createBranch(name: string, checkout: boolean, ref?: string): Promise<void>;
+  getBranch(name: string): Promise<Branch>;
+  setBranchUpstream(name: string, upstream: string): Promise<void>;
+  pull(unshallow?: boolean): Promise<void>;
   fetch(remote?: string, ref?: string, depth?: number): Promise<void>;
   getMergeBase(ref1: string, ref2: string): Promise<string | undefined>;
   diffBetween(ref1: string, ref2: string): Promise<Change[]>;
@@ -32,6 +37,19 @@ export interface Change {
 }
 
 export type GitRepository = Repository;
+
+/** The remote to fetch run branches from: `origin`, else the first one. */
+export function preferredRemote(repo: GitRepository): string | undefined {
+  return repo.state.remotes.find((r) => r.name === "origin")?.name ?? repo.state.remotes[0]?.name;
+}
+
+/** Tracked files with uncommitted changes (untracked files do not block a checkout). */
+export function uncommittedChangeCount(repo: GitRepository): number {
+  const { mergeChanges, indexChanges, workingTreeChanges } = repo.state;
+  return (
+    (mergeChanges?.length ?? 0) + (indexChanges?.length ?? 0) + (workingTreeChanges?.length ?? 0)
+  );
+}
 
 /** The vscode.git repository that contains `workspaceRoot`, if any. */
 export function getGitRepository(workspaceRoot: string): GitRepository | null {
@@ -48,6 +66,9 @@ export function getGitRepository(workspaceRoot: string): GitRepository | null {
 interface RepositoryState {
   remotes: Remote[];
   HEAD?: Branch;
+  readonly mergeChanges: Change[];
+  readonly indexChanges: Change[];
+  readonly workingTreeChanges: Change[];
 }
 
 interface Branch {

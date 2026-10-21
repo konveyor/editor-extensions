@@ -93,14 +93,17 @@ export async function startClusterRun(state: ExtensionState, logger: Logger): Pr
     const url = consoleUrl(hub.hubUrl, { kind, name: runName });
     const choice = await vscode.window.showInformationMessage(
       `Started ${kind === "workflow" ? "workflow run" : "run"} ${runName} for ${application.name}. ` +
-        `Follow it in the Konveyor console; when it finishes, review its changes on ${branch} here.` +
+        `Follow it in the Konveyor console; when it finishes, check out ${branch} or review its changes here.` +
         (mode === "approve" ? " Its approvals and questions are answered in the console." : ""),
       "Open in console",
-      "Review results",
+      "Check out branch",
+      "Review changes",
     );
     if (choice === "Open in console") {
       await vscode.env.openExternal(vscode.Uri.parse(url));
-    } else if (choice === "Review results") {
+    } else if (choice === "Check out branch") {
+      await executeExtensionCommand("checkoutClusterRun", runName);
+    } else if (choice === "Review changes") {
       await executeExtensionCommand("reviewClusterRun", runName);
     }
   } catch (err) {

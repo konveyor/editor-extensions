@@ -89,6 +89,16 @@ export function reviewablePaths(workspacePaths: string[]): string[] {
   return workspacePaths.filter((p) => p !== ".konveyor" && !p.startsWith(".konveyor/"));
 }
 
+/**
+ * The file changed on both sides since the run's branch left the base: the
+ * developer's copy differs from the merge-base version, and so does the
+ * run's, and they differ from each other. Applying the run's file would
+ * overwrite the developer's change, so the review flags it.
+ */
+export function changedOnBothSides(base: string, local: string, run: string): boolean {
+  return local !== base && run !== base && local !== run;
+}
+
 /** Paths of the run's changed files that fall inside the workspace, relative to it. */
 export function workspaceRelative(repoRelativePaths: string[], workspaceSubdir: string): string[] {
   const prefix = workspaceSubdir.replace(/^\/+|\/+$/g, "");

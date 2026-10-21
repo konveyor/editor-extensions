@@ -163,6 +163,10 @@ const commandsMap: (
       const { startClusterRun } = await import("./clusterAgent/clusterRun");
       await startClusterRun(state, logger);
     },
+    [`${EXTENSION_NAME}.checkoutClusterRun`]: async (runName?: string) => {
+      const { checkoutClusterRun } = await import("./clusterAgent/checkoutRun");
+      await checkoutClusterRun(state, logger, typeof runName === "string" ? runName : undefined);
+    },
     [`${EXTENSION_NAME}.reviewClusterRun`]: async (runName?: string) => {
       const { reviewClusterRun } = await import("./clusterAgent/runReview");
       await reviewClusterRun(state, logger, typeof runName === "string" ? runName : undefined);

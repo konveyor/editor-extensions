@@ -54,6 +54,12 @@
         "icon": "$(cloud-upload)"
       },
       {
+        "command": "konveyor-core.checkoutClusterRun",
+        "title": "Check Out Cluster Run Branch (Preview)",
+        "category": "Konveyor",
+        "icon": "$(git-branch)"
+      },
+      {
         "command": "konveyor-core.reviewClusterRun",
         "title": "Review Cluster Run Results (Preview)",
         "category": "Konveyor",
