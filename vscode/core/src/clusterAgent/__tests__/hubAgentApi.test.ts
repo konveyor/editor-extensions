@@ -63,22 +63,6 @@ describe("HubAgentApi", () => {
     });
   });
 
-  it("mints a nonce and builds the WebSocket URL from it", async () => {
-    const { fn, calls } = fakeFetch(() => ({ status: 201, body: "n0nce" }));
-    const api = new HubAgentApi({ baseUrl: "https://hub.example", bearerToken: "t", fetchFn: fn });
-    expect(await api.mintAcpNonce("ide-x")).toBe("n0nce");
-    expect(calls[0].url).toBe("https://hub.example/hub/agentic/agentruns/ide-x/acp/nonce");
-    expect(api.acpUrl("ide-x", "a b")).toBe(
-      "wss://hub.example/hub/agentic/agentruns/ide-x/acp?nonce=a%20b",
-    );
-    const plain = new HubAgentApi({
-      baseUrl: "http://localhost:8080",
-      bearerToken: null,
-      fetchFn: fn,
-    });
-    expect(plain.acpUrl("r", "n")).toBe("ws://localhost:8080/hub/agentic/agentruns/r/acp?nonce=n");
-  });
-
   it("explains missing scopes and a Hub without the agentic API", async () => {
     const forbidden = fakeFetch(() => ({ status: 403, body: { error: "nope" } }));
     const api1 = new HubAgentApi({ baseUrl: "https://h", bearerToken: "t", fetchFn: forbidden.fn });
@@ -94,6 +78,17 @@ describe("HubAgentApi", () => {
 });
 
 describe("HubAgentApi workflows", () => {
+  it("lists runs and workflow runs", async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 200, body: [] }));
+    const api = new HubAgentApi({ baseUrl: "https://hub.example", bearerToken: "t", fetchFn: fn });
+    await api.listRuns();
+    await api.listWorkflowRuns();
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://hub.example/hub/agentic/agentruns",
+      "https://hub.example/hub/agentic/workflowruns",
+    ]);
+  });
+
   it("lists workflows and reads a workflow run", async () => {
     const { fn, calls } = fakeFetch((call) => ({
       status: 200,

@@ -1,10 +1,10 @@
 kind: feature
 description: >
-  (Preview) New command "Konveyor: Run Migration on Cluster" starts a
-  migration workflow (such as java-ee-to-quarkus: plan, execute, verify) or a
-  single agent for the open application through the Hub's agentic API, and
-  follows it stage by stage in the Migration Assistant chat. The run's output
-  streams into the chat, its permission requests appear as Accept/Reject
-  cards, and its questions are asked in VS Code's own input; a warning notes
-  that unanswered requests fail the run after about three minutes. Needs a
-  Hub (0.11 or newer) with agentic enabled and profile sync connected.
+  (Preview) Two new commands connect the IDE to Konveyor's agentic platform
+  through the Hub. "Konveyor: Start Migration on Cluster" starts a migration
+  workflow (such as java-ee-to-quarkus) or a single agent for the open
+  application and links to the run in the Konveyor console, where it is
+  followed and supervised. "Konveyor: Review Cluster Run Results" fetches a
+  run's branch and loads its changed files into the Migration Assistant's
+  batch review, to apply or reject per file or review inline. Needs a Hub
+  (0.11 or newer) with agentic enabled and profile sync connected.

@@ -48,10 +48,16 @@
         "icon": "$(comment-discussion)"
       },
       {
-        "command": "konveyor-core.runClusterAgent",
-        "title": "Run Migration on Cluster (Preview)",
+        "command": "konveyor-core.startClusterRun",
+        "title": "Start Migration on Cluster (Preview)",
         "category": "Konveyor",
-        "icon": "$(cloud)"
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "konveyor-core.reviewClusterRun",
+        "title": "Review Cluster Run Results (Preview)",
+        "category": "Konveyor",
+        "icon": "$(git-pull-request)"
       },
       {
         "command": "konveyor-core.openChatInEditor",
@@ -549,7 +555,6 @@
     "@types/jsesc": "^3.0.3",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.93.0",
-    "@types/ws": "^8.18.2",
     "@vscode/test-cli": "^0.0.14",
     "@vscode/test-electron": "^3.1.0",
     "copy-webpack-plugin": "^14.0.0",
@@ -576,7 +581,6 @@
     "undici": "^7.14.0",
     "winston": "^3.17.0",
     "winston-transport-vscode": "^0.1.0",
-    "ws": "^8.22.0",
     "zustand": "^5.0.11"
   }
 }

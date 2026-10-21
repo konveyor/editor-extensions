@@ -17,6 +17,32 @@ interface GitAPI {
 interface Repository {
   rootUri: vscode.Uri;
   state: RepositoryState;
+  // Subset of the vscode.git API (extensions/git/src/api/git.d.ts).
+  fetch(remote?: string, ref?: string, depth?: number): Promise<void>;
+  getMergeBase(ref1: string, ref2: string): Promise<string | undefined>;
+  diffBetween(ref1: string, ref2: string): Promise<Change[]>;
+  show(ref: string, path: string): Promise<string>;
+}
+
+/** A changed file between two refs; `uri` is the file's path in the working tree. */
+export interface Change {
+  readonly uri: vscode.Uri;
+  readonly originalUri: vscode.Uri;
+  readonly renameUri: vscode.Uri | undefined;
+}
+
+export type GitRepository = Repository;
+
+/** The vscode.git repository that contains `workspaceRoot`, if any. */
+export function getGitRepository(workspaceRoot: string): GitRepository | null {
+  const api = getGitAPI();
+  if (!api) {
+    return null;
+  }
+  const uri = workspaceRoot.startsWith("file:")
+    ? vscode.Uri.parse(workspaceRoot)
+    : vscode.Uri.file(workspaceRoot);
+  return api.getRepository(uri);
 }
 
 interface RepositoryState {

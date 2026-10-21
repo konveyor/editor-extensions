@@ -2,14 +2,7 @@ import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import type { ExtensionData, ChatMessage, ToolMessageValue } from "@editor-extensions/shared";
 import { ChatMessageType } from "@editor-extensions/shared";
-/**
- * Whatever answers a permission request: the local AcpClient, or a cluster
- * run's viewer connection. Request ids are numbers the responder assigns.
- */
-export interface PermissionResponder {
-  isPermissionPending(requestId: number): boolean;
-  respondToRequest(requestId: number, result: unknown): void;
-}
+import type { AcpClient } from "../../client/acpClient";
 import type { PermissionOption, PermissionRequestData } from "../../client/agentBackendClient";
 import { getToolFilePath, type AgentFileTracker } from "./fileTracker";
 
@@ -179,7 +172,7 @@ export function formatPermissionPreview(
 
 export interface PendingPermission {
   requestId: number;
-  client: PermissionResponder;
+  client: AcpClient;
   /** The options the agent offered, so the reply can be judged by kind. */
   options: PermissionOption[];
   filePath?: string;
@@ -187,18 +180,12 @@ export interface PendingPermission {
 }
 
 export interface PermissionHandlerContext {
-  agentClient: PermissionResponder;
+  agentClient: AcpClient;
   data: PermissionRequestData;
   workspaceRoot: string;
   fileTracker: AgentFileTracker | undefined;
   mutate: (recipe: (draft: ExtensionData) => void) => void;
   pendingPermissions: Map<string, PendingPermission>;
-  /**
-   * Report the decision on a file write to the solution server
-   * (changeApplied / changeDiscarded). Off for cluster runs, whose files
-   * live in the run's own checkout rather than this workspace. Default true.
-   */
-  reportFileOutcome?: boolean;
 }
 
 /**
@@ -216,7 +203,6 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
     fileTracker,
     mutate,
     pendingPermissions: pending,
-    reportFileOutcome = true,
   } = ctx;
 
   if (fileTracker && (data.rawInput || data.locations)) {
@@ -301,7 +287,7 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
     requestId: data.requestId,
     client: agentClient,
     options: data.options,
-    filePath: reportFileOutcome ? rawFilePath : undefined,
+    filePath: rawFilePath,
     fileContent: rawFileContent,
   });
 
@@ -330,7 +316,7 @@ export async function handlePermissionRequest(ctx: PermissionHandlerContext): Pr
  * buttons left, which also clears the chat's "waiting for your approval".
  */
 export function retireCancelledPermissions(
-  client: PermissionResponder,
+  client: AcpClient,
   requestIds: readonly number[],
   pending: Map<string, PendingPermission>,
   mutate: (recipe: (draft: ExtensionData) => void) => void,

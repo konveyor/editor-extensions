@@ -1,10 +1,10 @@
 /**
  * Client for the Hub's agentic API (tackle2-hub >= v0.11, internal/api/agentic.go).
  *
- * The Hub is the IDE's front door to cluster agents, the same as for
- * tackle2-ui: it lists Agents, creates AgentRuns (minting the run's Hub token
- * and HUB_BASE_URL itself), and proxies the run's ACP WebSocket after a
- * single-use nonce. Routes are guarded by the `agentic.*` scopes.
+ * The Hub is the IDE's front door to the agentic platform, the same as for
+ * tackle2-ui. The IDE starts runs here and picks up their results; watching
+ * and supervising a run happens in the Konveyor console (epic #1511).
+ * Routes are guarded by the `agentic.*` scopes.
  */
 import {
   APPLICATION_LABEL,
@@ -130,6 +130,14 @@ export class HubAgentApi {
     return this.request<AgentWorkflowRun>("POST", "/workflowruns", body);
   }
 
+  listRuns(): Promise<AgentRun[]> {
+    return this.request<AgentRun[]>("GET", "/agentruns");
+  }
+
+  listWorkflowRuns(): Promise<AgentWorkflowRun[]> {
+    return this.request<AgentWorkflowRun[]>("GET", "/workflowruns");
+  }
+
   getRun(name: string): Promise<AgentRun> {
     return this.request<AgentRun>("GET", `/agentruns/${encodeURIComponent(name)}`);
   }
@@ -157,23 +165,6 @@ export class HubAgentApi {
       },
     };
     return this.request<AgentRun>("POST", "/agentruns", body);
-  }
-
-  /**
-   * A single-use nonce (about 30 s) that authorizes one WebSocket upgrade to
-   * the run's ACP endpoint. Mint one per dial; never reuse across retries.
-   */
-  mintAcpNonce(runName: string): Promise<string> {
-    return this.request<string>("POST", `/agentruns/${encodeURIComponent(runName)}/acp/nonce`);
-  }
-
-  /** WebSocket URL for the run's ACP endpoint, authorized by `nonce`. */
-  acpUrl(runName: string, nonce: string): string {
-    const ws = this.url(`/agentruns/${encodeURIComponent(runName)}/acp`).replace(
-      /^http(s?):/,
-      "ws$1:",
-    );
-    return `${ws}?nonce=${encodeURIComponent(nonce)}`;
   }
 }
 

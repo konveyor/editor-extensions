@@ -133,23 +133,13 @@ export interface AgentWorkflowRun {
 /** The default Java EE to Quarkus workflow MTA ships (plan, execute, verify). */
 export const DEFAULT_WORKFLOW = "java-ee-to-quarkus";
 
-/**
- * The run's ACP endpoint accepts connections (agentic-controller#160):
- * True once the sandbox listens, False/Finished once the run is over.
- * Clients dial on this condition and nothing else.
- */
-export const ACP_READY_CONDITION = "ACPReady";
-export const ACP_FINISHED_REASON = "Finished";
-
 /** Marks an agent whose harness needs Hub context (APP_ID, TARGET_BRANCH). */
 export const MANAGED_LABEL = "konveyor.io/managed";
 /** Stamped on runs at create so per-application views are a label selector. */
 export const APPLICATION_LABEL = "konveyor.io/application";
+/** On the AgentRuns the controller creates for a workflow run's stages. */
+export const WORKFLOW_RUN_LABEL = "konveyor.io/agentworkflowrun";
 
 export function isTerminalPhase(phase: AgentRunPhase | undefined): boolean {
   return phase === "Succeeded" || phase === "Failed";
-}
-
-export function acpReady(run: AgentRun): Condition | undefined {
-  return run.status?.conditions?.find((c) => c.type === ACP_READY_CONDITION);
 }
