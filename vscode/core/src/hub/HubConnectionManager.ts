@@ -288,6 +288,16 @@ export class HubConnectionManager {
     return this.scopedFetch ?? undefined;
   }
 
+  /** The configured Hub base URL (empty when no Hub is configured). */
+  public getHubUrl(): string {
+    return this.config.url ?? "";
+  }
+
+  /** Whether TLS verification is disabled for this Hub connection. */
+  public isInsecure(): boolean {
+    return this.config.auth.insecure === true;
+  }
+
   /**
    * Check if authentication is enabled in the Hub configuration
    */
