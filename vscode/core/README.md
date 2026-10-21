@@ -12,6 +12,7 @@ to newer platforms or architectures.
 - **Code Analysis**: Comprehensive analysis of your codebase for modernization opportunities
 - **AI-Powered Solutions**: Optional generative AI integration for automated fix suggestions
 - **Agent Mode**: Experimental automated fixes with diagnostics integration
+- **Cluster Runs (Preview)**: Start migration workflows on Konveyor's agentic platform and pick up their results in the editor
 - **Customizable Rules**: Configure analysis settings, rulesets, and filters
 - **Interactive UI**: Dedicated views for analysis results and solution management
 
@@ -47,6 +48,58 @@ To enable AI-powered solution generation, enable AI features and configure your 
 - Select issues you want to fix
 - Generate AI solutions or apply manual fixes
 - Review and accept/reject proposed changes
+
+---
+
+## Cluster Runs (Preview)
+
+When your Konveyor Hub has the agentic platform enabled, migration agents can
+run in the cluster instead of on your machine. The Konveyor console follows
+and supervises those runs; the extension starts them and brings their results
+into the editor, where you finish the work.
+
+### Requirements
+
+- A Hub (Konveyor 0.11 or newer) with agentic enabled, connected with
+  **Profile Sync** on.
+- A workspace whose git remote matches an application in the Hub inventory.
+  The extension finds the application by repository URL.
+- For **Check Out Cluster Run Branch**, a target profile on the application's
+  archetype, so analysis uses the same targets as the Hub.
+
+### Commands
+
+Run these from the Command Palette:
+
+| Command                                    | Use it to                                                                                                                                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Konveyor: Start Migration on Cluster**   | Start a migration workflow (such as `java-ee-to-quarkus`: plan → execute → verify) or a single agent for this application. Then open the run in the Konveyor console to follow it. |
+| **Konveyor: Check Out Cluster Run Branch** | Continue a run's migration on its own branch.                                                                                                                                      |
+| **Konveyor: Review Cluster Run Results**   | Bring part of a run into the branch you are on.                                                                                                                                    |
+
+### Which way to pick up a run
+
+A run pushes its changes to a branch (its _target branch_). There are two ways
+to work with that branch in the editor:
+
+- **Check out the branch** to continue the migration. The command checks out
+  the run's branch with its commits, syncs the application's analysis profile
+  from the Hub, activates it, and runs analysis. What analysis still reports is
+  what is left to migrate: fix it with Get Solution or the agent, then push to
+  keep the migration on the run's branch. Your working tree must be clean.
+  If the application has no Hub profile, the command says so and asks before
+  analyzing with your current profile, whose targets may differ from the ones
+  the run used.
+- **Review the results** to adopt only some of the run's changes into the
+  branch you are on. The run's changed files appear in the Migration
+  Assistant's review list as proposals, compared with your current files.
+  Apply or reject each one, or choose **Review** to accept or reject
+  individual changes in the editor. Nothing is written until you apply it.
+  Files you have also changed locally are flagged: applying one replaces your
+  version, so review those change by change.
+
+A run that is still in progress can be picked up too, because the agent pushes
+its changes as it works.
 
 ---
 
