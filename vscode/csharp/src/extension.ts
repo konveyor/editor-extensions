@@ -34,6 +34,42 @@ function findDotnetToolPath(toolName: string): string | undefined {
   return undefined;
 }
 
+/** Project files that mark a workspace folder as relevant for C# analysis */
+const CSHARP_PROJECT_GLOBS = ["**/*.csproj", "**/*.sln"];
+
+/**
+ * Resolve the analysis locations: one per workspace folder containing a C#
+ * project. Folders without one are skipped — a failed provider init on an
+ * unrelated folder would break analysis for all of them. Falls back to the
+ * first folder so a multi-root workspace is never worse off than before.
+ */
+async function getAnalysisLocations(): Promise<string[]> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    return [process.cwd()];
+  }
+  if (folders.length === 1) {
+    return [folders[0].uri.fsPath];
+  }
+  const matches = await Promise.all(
+    folders.map(async (folder) => {
+      for (const glob of CSHARP_PROJECT_GLOBS) {
+        const found = await vscode.workspace.findFiles(
+          new vscode.RelativePattern(folder, glob),
+          "**/node_modules/**",
+          1,
+        );
+        if (found.length > 0) {
+          return folder;
+        }
+      }
+      return undefined;
+    }),
+  );
+  const relevant = matches.filter((f) => f !== undefined).map((f) => f.uri.fsPath);
+  return relevant.length > 0 ? relevant : [folders[0].uri.fsPath];
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   // Setup logger
   const outputChannel = vscode.window.createOutputChannel(EXTENSION_DISPLAY_NAME);
@@ -157,9 +193,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  // Get workspace location for analysis
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+  // Get workspace locations for analysis (one per C# workspace folder)
+  const workspaceLocations = await getAnalysisLocations();
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
@@ -171,7 +206,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   logger.info("Provider configuration", {
     providerAddress,
-    workspaceLocation,
+    workspaceLocations,
   });
 
   // Register C# provider with core
@@ -181,17 +216,15 @@ export async function activate(context: vscode.ExtensionContext) {
       name: "csharp",
       address: providerAddress, // GRPC socket address
       useSocket: true,
-      initConfig: [
-        {
-          location: workspaceLocation,
-          analysisMode: "source-only",
-          providerSpecificConfig: {
-            // Pass explicit paths since provider auto-detect looks for "ilspy" not "ilspycmd"
-            ...(ilspyCmdPath && { ilspy_cmd: ilspyCmdPath }),
-            ...(paketCmdPath && { paket_cmd: paketCmdPath }),
-          },
+      initConfig: workspaceLocations.map((location) => ({
+        location,
+        analysisMode: "source-only",
+        providerSpecificConfig: {
+          // Pass explicit paths since provider auto-detect looks for "ilspy" not "ilspycmd"
+          ...(ilspyCmdPath && { ilspy_cmd: ilspyCmdPath }),
+          ...(paketCmdPath && { paket_cmd: paketCmdPath }),
         },
-      ],
+      })),
       contextLines: 10,
     },
     rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
@@ -208,7 +241,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   logger.info("Konveyor C# extension activated and registered with core", {
     providerSocket: providerSocketPath,
-    workspaceLocation,
+    workspaceLocations,
   });
 }
 

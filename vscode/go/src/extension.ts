@@ -17,6 +17,42 @@ import {
   EXTENSION_VERSION,
 } from "./utilities/constants";
 
+/** Project files that mark a workspace folder as relevant for Go analysis */
+const GO_PROJECT_GLOBS = ["**/go.mod", "**/go.sum"];
+
+/**
+ * Resolve the analysis locations: one per workspace folder containing a Go
+ * project. Folders without one are skipped — a failed provider init on an
+ * unrelated folder would break analysis for all of them. Falls back to the
+ * first folder so a multi-root workspace is never worse off than before.
+ */
+async function getAnalysisLocations(): Promise<string[]> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    return [process.cwd()];
+  }
+  if (folders.length === 1) {
+    return [folders[0].uri.fsPath];
+  }
+  const matches = await Promise.all(
+    folders.map(async (folder) => {
+      for (const glob of GO_PROJECT_GLOBS) {
+        const found = await vscode.workspace.findFiles(
+          new vscode.RelativePattern(folder, glob),
+          "**/node_modules/**",
+          1,
+        );
+        if (found.length > 0) {
+          return folder;
+        }
+      }
+      return undefined;
+    }),
+  );
+  const relevant = matches.filter((f) => f !== undefined).map((f) => f.uri.fsPath);
+  return relevant.length > 0 ? relevant : [folders[0].uri.fsPath];
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   // Setup logger
   const outputChannel = vscode.window.createOutputChannel(EXTENSION_DISPLAY_NAME);
@@ -170,9 +206,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  // Get workspace location for analysis
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+  // Get workspace locations for analysis (one per Go workspace folder)
+  const workspaceLocations = await getAnalysisLocations();
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
@@ -184,7 +219,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   logger.info("Provider configuration", {
     providerAddress,
-    workspaceLocation,
+    workspaceLocations,
   });
 
   // Register Go provider with core
@@ -194,16 +229,14 @@ export async function activate(context: vscode.ExtensionContext) {
       name: "go",
       address: providerAddress, // GRPC socket address
       useSocket: true,
-      initConfig: [
-        {
-          location: workspaceLocation,
-          analysisMode: "source-only",
-          pipeName: lspProxySocketPath, // JSON-RPC socket for vscode proxy communication
-          providerSpecificConfig: {
-            lspServerName: "go",
-          },
+      initConfig: workspaceLocations.map((location) => ({
+        location,
+        analysisMode: "source-only",
+        pipeName: lspProxySocketPath, // JSON-RPC socket for vscode proxy communication
+        providerSpecificConfig: {
+          lspServerName: "go",
         },
-      ],
+      })),
       contextLines: 10,
     },
     rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
@@ -221,7 +254,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Konveyor Go extension activated and registered with core", {
     providerSocket: providerSocketPath,
     lspProxySocket: lspProxySocketPath,
-    workspaceLocation,
+    workspaceLocations,
   });
 }
 

@@ -38,10 +38,8 @@
     "onLanguage:go.sum",
     "onLanguage:gotmpl",
     "onLanguage:go.mod",
-    "workspaceContains:go.mod",
-    "workspaceContains:*/go.mod",
-    "workspaceContains:go.sum",
-    "workspaceContains:*/go.sum"
+    "workspaceContains:**/go.mod",
+    "workspaceContains:**/go.sum"
   ],
   "contributes": {},
   "includedAssetPaths": {

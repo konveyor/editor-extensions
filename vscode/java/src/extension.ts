@@ -31,6 +31,49 @@ interface RedHatJavaExtensionApi {
   onDidServerModeChange: vscode.Event<string>;
 }
 
+/** Project files that mark a workspace folder as relevant for Java analysis */
+const JAVA_PROJECT_GLOBS = [
+  "**/pom.xml",
+  "**/build.gradle",
+  "**/settings.gradle",
+  "**/build.gradle.kts",
+  "**/settings.gradle.kts",
+  "**/.classpath",
+];
+
+/**
+ * Resolve the analysis locations: one per workspace folder containing a Java
+ * project. Folders without one are skipped — a failed provider init on an
+ * unrelated folder would break analysis for all of them. Falls back to the
+ * first folder so a multi-root workspace is never worse off than before.
+ */
+async function getAnalysisLocations(): Promise<string[]> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    return [process.cwd()];
+  }
+  if (folders.length === 1) {
+    return [folders[0].uri.fsPath];
+  }
+  const matches = await Promise.all(
+    folders.map(async (folder) => {
+      for (const glob of JAVA_PROJECT_GLOBS) {
+        const found = await vscode.workspace.findFiles(
+          new vscode.RelativePattern(folder, glob),
+          "**/node_modules/**",
+          1,
+        );
+        if (found.length > 0) {
+          return folder;
+        }
+      }
+      return undefined;
+    }),
+  );
+  const relevant = matches.filter((f) => f !== undefined).map((f) => f.uri.fsPath);
+  return relevant.length > 0 ? relevant : [folders[0].uri.fsPath];
+}
+
 /**
  * Check if a command is available on the system
  */
@@ -324,9 +367,8 @@ async function initializeProviders(
     return;
   }
 
-  // Get workspace location for analysis
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+  // Get workspace locations for analysis (one per Java workspace folder)
+  const workspaceLocations = await getAnalysisLocations();
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
@@ -339,7 +381,7 @@ async function initializeProviders(
   logger.info("Provider configuration", {
     platform: process.platform,
     providerAddress,
-    workspaceLocation,
+    workspaceLocations,
     providerSocketPath,
   });
 
@@ -350,13 +392,11 @@ async function initializeProviders(
       name: "java",
       address: providerAddress, // GRPC socket address
       useSocket: true,
-      initConfig: [
-        {
-          location: workspaceLocation,
-          analysisMode: "source-only",
-          pipeName: lspProxySocketPath, // JSON-RPC socket for JDTLS communication
-        },
-      ],
+      initConfig: workspaceLocations.map((location) => ({
+        location,
+        analysisMode: "source-only",
+        pipeName: lspProxySocketPath, // JSON-RPC socket for JDTLS communication
+      })),
       contextLines: 10,
     },
     rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
@@ -381,7 +421,7 @@ async function initializeProviders(
   logger.info("Konveyor Java extension activated and registered with core", {
     providerSocket: providerSocketPath,
     lspProxySocket: lspProxySocketPath,
-    workspaceLocation,
+    workspaceLocations,
   });
 
   // Signal completion for E2E tests with a persistent status bar item

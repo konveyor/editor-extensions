@@ -1,7 +1,6 @@
-import { relative, dirname, join } from "node:path";
-import { isOutsideWorkspace } from "./utilities/workspaceBoundary";
+import { dirname, join } from "node:path";
 import { createWriteStream, createReadStream } from "node:fs";
-import { globbySync, isIgnoredByIgnoreFilesSync } from "globby";
+import { globbySync } from "globby";
 import * as vscode from "vscode";
 import winston from "winston";
 import { createHash } from "node:crypto";
@@ -11,11 +10,8 @@ import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
-import {
-  createIgnoreFromWorkspace,
-  getIgnorePatternsForGlob,
-  DEFAULT_IGNORE_PATTERNS,
-} from "./utilities/ignorePatterns";
+import { createIgnoreFromWorkspace, getIgnorePatternsForGlob } from "./utilities/ignorePatterns";
+import { isPathIgnoredInRoot } from "./utilities/multiRootIgnore";
 import AdmZip from "adm-zip";
 
 /**
@@ -352,10 +348,10 @@ export async function ensurePaths(
   const workspaceScope = context.storageUri!;
 
   if (vscode.workspace.workspaceFolders.length > 1) {
-    const message =
-      "Multi-root workspaces are not supported! Only the first workspace folder will be analyzed.";
-    logger.warn(message);
-    vscode.window.showWarningMessage(message);
+    logger.info(
+      "Multi-root workspace detected: analysis covers all workspace folders; " +
+        "extension data and agentic features use the first folder.",
+    );
   }
 
   const firstWorkspace = vscode.workspace.workspaceFolders[0];
@@ -408,67 +404,27 @@ export function fsPaths(): ExtensionFsPaths {
   return _fsPaths;
 }
 
-const IGNORE_FILE_IN_PRIORITY_ORDER = [".konveyorignore", ".gitignore"];
-
-let _ignoreByFunction: undefined | ((path: string) => boolean);
-
-/**
- * Find and use the right ignore settings to be able to ignore changes to a path.
- */
-function isIgnoredBy(path: string): boolean {
-  if (!_ignoreByFunction) {
-    // Check for ignore files
-    for (const glob of IGNORE_FILE_IN_PRIORITY_ORDER) {
-      const ignoreFiles = globbySync(glob, { cwd: fsPaths().workspaceRepo });
-      if (ignoreFiles.length > 0) {
-        _ignoreByFunction = isIgnoredByIgnoreFilesSync(glob, {
-          cwd: fsPaths().workspaceRepo,
-        });
-        break;
-      }
-    }
-
-    // If no ignore files, use the default ignore patterns
-    if (!_ignoreByFunction) {
-      _ignoreByFunction = (path: string): boolean => {
-        const found = globbySync(path, {
-          cwd: fsPaths().workspaceRepo,
-          ignore: DEFAULT_IGNORE_PATTERNS,
-        });
-        return found.length === 0;
-      };
-    }
-  }
-
-  return _ignoreByFunction(path);
-}
-
 /**
  * Check a Uri to see if it should be ignored by a partial analysis on save.
+ *
+ * The Uri is judged against the workspace folder that contains it, using that
+ * folder's own ignore files — anything outside every workspace folder
+ * (including the extension's global provider-settings.yaml) is ignored.
  */
 export const isUriIgnored = (uri: vscode.Uri): boolean => {
   if (uri.scheme !== "file") {
     return true;
   }
 
-  const f = relative(fsPaths().workspaceRepo, uri.fsPath);
+  const folder = vscode.workspace.getWorkspaceFolder(uri);
   _logger?.debug(
-    `isUriIgnored: path=${uri.fsPath}, relative=${f}, workspaceRepo=${fsPaths().workspaceRepo}`,
+    `isUriIgnored: path=${uri.fsPath}, workspaceFolder=${folder?.uri.fsPath ?? "<none>"}`,
   );
-
-  // Ignore files outside the workspace (including the extension's global
-  // provider-settings.yaml). `relative()` gives "../…" for those, or an
-  // absolute path across Windows drives, which the ignore matchers reject.
-  if (isOutsideWorkspace(f)) {
+  if (!folder) {
     return true;
   }
 
-  // Always ignore .konveyor directory
-  if (f.startsWith(".konveyor/") || f === ".konveyor") {
-    return true;
-  }
-
-  return isIgnoredBy(f);
+  return isPathIgnoredInRoot(folder.uri.fsPath, uri.fsPath);
 };
 
 /**
@@ -485,24 +441,28 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
  *   - `.gitignore` - Standard git ignore file
  *   - Default patterns if no ignore file found
  *
- * Only directories will be returned.
+ * Only directories will be returned. Each workspace folder contributes
+ * exclusions from its own ignore files.
  */
 export const ignoresToExcludedPaths = () => {
-  const cwd = fsPaths().workspaceRepo;
+  const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+  return [...new Set(roots.flatMap(excludedPathsForRoot))];
+};
 
-  // Get ignore patterns from workspace
+const excludedPathsForRoot = (cwd: string): string[] => {
+  // Get ignore patterns from this workspace folder
   const { ignoreFile } = createIgnoreFromWorkspace(cwd);
   const patterns = getIgnorePatternsForGlob(cwd);
 
   if (ignoreFile) {
     _logger?.debug(`Using ignore file: ${ignoreFile}`);
   } else {
-    _logger?.debug(`No ignore file found, using defaults`);
+    _logger?.debug(`No ignore file found in ${cwd}, using defaults`);
   }
 
   // Use globby to find directories matching the ignore patterns
   // This is much more efficient than scanning everything and filtering
-  const exclude = globbySync(patterns, {
+  return globbySync(patterns, {
     cwd,
     expandDirectories: false,
     dot: true,
@@ -511,6 +471,4 @@ export const ignoresToExcludedPaths = () => {
     absolute: true,
     unique: true,
   });
-
-  return exclude;
 };
