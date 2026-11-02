@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
+import { dirname } from "node:path";
 import {
   KonveyorCoreApi,
   generateSafePipeName,
   getIncludedRulesetsPath,
+  topMostDirs,
+  MAX_ANALYSIS_LOCATIONS,
 } from "@editor-extensions/shared";
 import {
   CORE_EXTENSION_ID,
@@ -31,47 +34,78 @@ interface RedHatJavaExtensionApi {
   onDidServerModeChange: vscode.Event<string>;
 }
 
-/** Project files that mark a workspace folder as relevant for Java analysis */
-const JAVA_PROJECT_GLOBS = [
-  "**/pom.xml",
-  "**/build.gradle",
-  "**/settings.gradle",
-  "**/build.gradle.kts",
-  "**/settings.gradle.kts",
-  "**/.classpath",
-];
+/**
+ * Build files the Java provider can start an analysis from.
+ *
+ * analyzer-lsp looks for these directly in the location it is given — pom.xml
+ * for Maven, build.gradle for Gradle — and fails provider init when it finds
+ * neither, which aborts the analysis for every location rather than just the
+ * offending one. The other Java project markers (settings.gradle, .classpath,
+ * the Kotlin DSL build files) activate the extension but cannot serve as an
+ * analysis location.
+ */
+const JAVA_BUILD_FILES = ["pom.xml", "build.gradle"];
+
+/** Directories that never hold the project a workspace folder was opened for */
+const PROJECT_SEARCH_EXCLUDE = "**/{node_modules,target,build,dist,out,.git}/**";
+
+/** Upper bound on the build files a single folder's search may return */
+const MAX_PROJECT_FILES = 200;
 
 /**
- * Resolve the analysis locations: one per workspace folder containing a Java
- * project. Folders without one are skipped — a failed provider init on an
- * unrelated folder would break analysis for all of them. Falls back to the
- * first folder so a multi-root workspace is never worse off than before.
+ * Find the Java projects in a workspace folder: the folder itself when it
+ * holds a build file, otherwise the directories of the projects nested inside
+ * it. Dev Spaces layouts (issue #1515) put the project several levels below
+ * the folder, where handing the provider the folder finds no build tool.
  */
-async function getAnalysisLocations(): Promise<string[]> {
+async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+  for (const buildFile of JAVA_BUILD_FILES) {
+    const atFolderRoot = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(folder, buildFile),
+      null,
+      1,
+    );
+    if (atFolderRoot.length > 0) {
+      return [folder.uri.fsPath];
+    }
+  }
+
+  const nested = await Promise.all(
+    JAVA_BUILD_FILES.map((buildFile) =>
+      vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, `**/${buildFile}`),
+        PROJECT_SEARCH_EXCLUDE,
+        MAX_PROJECT_FILES,
+      ),
+    ),
+  );
+  return nested.flat().map((uri) => dirname(uri.fsPath));
+}
+
+/**
+ * Resolve the analysis locations: one per Java project across all workspace
+ * folders. Folders without a project contribute nothing, and a workspace with
+ * no project at all falls back to the first folder, so this is never worse off
+ * than analyzing that folder alone.
+ */
+async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   if (folders.length === 0) {
     return [process.cwd()];
   }
-  if (folders.length === 1) {
+
+  const projectDirs = (await Promise.all(folders.map(findProjectDirs))).flat();
+  const locations = topMostDirs(projectDirs);
+  if (locations.length === 0) {
+    logger.info("No Java build file found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];
   }
-  const matches = await Promise.all(
-    folders.map(async (folder) => {
-      for (const glob of JAVA_PROJECT_GLOBS) {
-        const found = await vscode.workspace.findFiles(
-          new vscode.RelativePattern(folder, glob),
-          "**/node_modules/**",
-          1,
-        );
-        if (found.length > 0) {
-          return folder;
-        }
-      }
-      return undefined;
-    }),
-  );
-  const relevant = matches.filter((f) => f !== undefined).map((f) => f.uri.fsPath);
-  return relevant.length > 0 ? relevant : [folders[0].uri.fsPath];
+  if (locations.length > MAX_ANALYSIS_LOCATIONS) {
+    logger.warn(
+      `Found ${locations.length} Java projects, analyzing the first ${MAX_ANALYSIS_LOCATIONS}`,
+    );
+  }
+  return locations.slice(0, MAX_ANALYSIS_LOCATIONS);
 }
 
 /**
@@ -367,8 +401,8 @@ async function initializeProviders(
     return;
   }
 
-  // Get workspace locations for analysis (one per Java workspace folder)
-  const workspaceLocations = await getAnalysisLocations();
+  // Get workspace locations for analysis (one per Java project)
+  const workspaceLocations = await getAnalysisLocations(logger);
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes

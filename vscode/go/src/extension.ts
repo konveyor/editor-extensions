@@ -1,11 +1,14 @@
 import * as vscode from "vscode";
 import { exec } from "node:child_process";
+import { dirname } from "node:path";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import {
   type KonveyorCoreApi,
   generateSafePipeName,
   getIncludedRulesetsPath,
+  topMostDirs,
+  MAX_ANALYSIS_LOCATIONS,
 } from "@editor-extensions/shared";
 import { GoVscodeProxyServer } from "./goVscodeProxyServer";
 import { GoExternalProviderManager } from "./goExternalProviderManager";
@@ -17,40 +20,69 @@ import {
   EXTENSION_VERSION,
 } from "./utilities/constants";
 
-/** Project files that mark a workspace folder as relevant for Go analysis */
-const GO_PROJECT_GLOBS = ["**/go.mod", "**/go.sum"];
+/** Files that mark a directory as the root of a Go module */
+const GO_PROJECT_FILES = ["go.mod", "go.sum"];
+
+/** Directories that never hold the project a workspace folder was opened for */
+const PROJECT_SEARCH_EXCLUDE = "**/{node_modules,vendor,target,build,dist,out,.git}/**";
+
+/** Upper bound on the project files a single folder's search may return */
+const MAX_PROJECT_FILES = 200;
 
 /**
- * Resolve the analysis locations: one per workspace folder containing a Go
- * project. Folders without one are skipped — a failed provider init on an
- * unrelated folder would break analysis for all of them. Falls back to the
- * first folder so a multi-root workspace is never worse off than before.
+ * Find the Go modules in a workspace folder: the folder itself when it holds
+ * a module file, otherwise the directories of the modules nested inside it.
+ * The provider makes the location the language server's root, so a nested
+ * module has to be given its own directory rather than the folder above it.
  */
-async function getAnalysisLocations(): Promise<string[]> {
+async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+  for (const projectFile of GO_PROJECT_FILES) {
+    const atFolderRoot = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(folder, projectFile),
+      null,
+      1,
+    );
+    if (atFolderRoot.length > 0) {
+      return [folder.uri.fsPath];
+    }
+  }
+
+  const nested = await Promise.all(
+    GO_PROJECT_FILES.map((projectFile) =>
+      vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, `**/${projectFile}`),
+        PROJECT_SEARCH_EXCLUDE,
+        MAX_PROJECT_FILES,
+      ),
+    ),
+  );
+  return nested.flat().map((uri) => dirname(uri.fsPath));
+}
+
+/**
+ * Resolve the analysis locations: one per Go module across all workspace
+ * folders. Folders without a module contribute nothing, and a workspace with
+ * no module at all falls back to the first folder, so this is never worse off
+ * than analyzing that folder alone.
+ */
+async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   if (folders.length === 0) {
     return [process.cwd()];
   }
-  if (folders.length === 1) {
+
+  const projectDirs = (await Promise.all(folders.map(findProjectDirs))).flat();
+  const locations = topMostDirs(projectDirs);
+  if (locations.length === 0) {
+    logger.info("No Go module found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];
   }
-  const matches = await Promise.all(
-    folders.map(async (folder) => {
-      for (const glob of GO_PROJECT_GLOBS) {
-        const found = await vscode.workspace.findFiles(
-          new vscode.RelativePattern(folder, glob),
-          "**/node_modules/**",
-          1,
-        );
-        if (found.length > 0) {
-          return folder;
-        }
-      }
-      return undefined;
-    }),
-  );
-  const relevant = matches.filter((f) => f !== undefined).map((f) => f.uri.fsPath);
-  return relevant.length > 0 ? relevant : [folders[0].uri.fsPath];
+  if (locations.length > MAX_ANALYSIS_LOCATIONS) {
+    logger.warn(
+      `Found ${locations.length} Go modules, analyzing the first ${MAX_ANALYSIS_LOCATIONS}`,
+    );
+  }
+  return locations.slice(0, MAX_ANALYSIS_LOCATIONS);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -206,8 +238,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  // Get workspace locations for analysis (one per Go workspace folder)
-  const workspaceLocations = await getAnalysisLocations();
+  // Get workspace locations for analysis (one per Go module)
+  const workspaceLocations = await getAnalysisLocations(logger);
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
