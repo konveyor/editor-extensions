@@ -11,7 +11,7 @@ import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import { createIgnoreFromWorkspace, getIgnorePatternsForGlob } from "./utilities/ignorePatterns";
-import { isPathIgnoredInRoot } from "./utilities/multiRootIgnore";
+import { isPathIgnoredInRoot, scopeExcludedPathsToRoot } from "./utilities/multiRootIgnore";
 import AdmZip from "adm-zip";
 
 /**
@@ -442,11 +442,16 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
  *   - Default patterns if no ignore file found
  *
  * Only directories will be returned. Each workspace folder contributes
- * exclusions from its own ignore files.
+ * exclusions from its own ignore files, scoped so that a folder containing
+ * another workspace folder cannot exclude it.
  */
 export const ignoresToExcludedPaths = () => {
   const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
-  return [...new Set(roots.flatMap(excludedPathsForRoot))];
+  return [
+    ...new Set(
+      roots.flatMap((root) => scopeExcludedPathsToRoot(root, excludedPathsForRoot(root), roots)),
+    ),
+  ];
 };
 
 const excludedPathsForRoot = (cwd: string): string[] => {

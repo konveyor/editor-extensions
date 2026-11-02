@@ -1,5 +1,9 @@
 import expect from "expect";
-import { isPathIgnoredInRoot, resetIgnoreCache } from "../multiRootIgnore";
+import {
+  isPathIgnoredInRoot,
+  resetIgnoreCache,
+  scopeExcludedPathsToRoot,
+} from "../multiRootIgnore";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -76,5 +80,93 @@ describe("multiRootIgnore module", () => {
     expect(isPathIgnoredInRoot(rootA, join(rootA, "sub", "f.txt"))).toBe(true);
     // rootB has no ignore file; "sub" is not in the defaults.
     expect(isPathIgnoredInRoot(rootB, join(rootB, "sub", "f.txt"))).toBe(false);
+  });
+});
+
+describe("scopeExcludedPathsToRoot", () => {
+  let repo: string;
+
+  const mkdirs = (...segments: string[]) => mkdirSync(join(repo, ...segments), { recursive: true });
+  const sorted = (paths: string[]) => [...paths].sort();
+
+  beforeEach(() => {
+    repo = mkdtempSync(join(tmpdir(), "konveyor-nested-"));
+  });
+
+  afterEach(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it("does not let a parent exclusion cover a nested root, in either root order", () => {
+    mkdirs("apps", "service", "src");
+    mkdirs("apps", "other");
+    writeFileSync(join(repo, "apps", "notes.txt"), "");
+    const service = join(repo, "apps", "service");
+
+    for (const roots of [
+      [service, repo],
+      [repo, service],
+    ]) {
+      expect(sorted(scopeExcludedPathsToRoot(repo, [join(repo, "apps") + "/"], roots))).toEqual([
+        join(repo, "apps", "notes.txt"),
+        join(repo, "apps", "other"),
+      ]);
+    }
+  });
+
+  it("narrows through intermediate directories down to a deeply nested root", () => {
+    mkdirs("apps", "group", "service");
+    mkdirs("apps", "group", "sibling");
+    mkdirs("apps", "other");
+    const service = join(repo, "apps", "group", "service");
+
+    expect(sorted(scopeExcludedPathsToRoot(repo, [join(repo, "apps")], [repo, service]))).toEqual([
+      join(repo, "apps", "group", "sibling"),
+      join(repo, "apps", "other"),
+    ]);
+  });
+
+  it("drops an exclusion that is exactly another root", () => {
+    mkdirs("apps", "service");
+    const service = join(repo, "apps", "service");
+
+    expect(scopeExcludedPathsToRoot(repo, [service], [repo, service])).toEqual([]);
+  });
+
+  it("leaves paths inside a nested root to that root's own rules", () => {
+    mkdirs("apps", "service", "generated");
+    mkdirs("apps", "service", "target");
+    const service = join(repo, "apps", "service");
+    const generated = join(service, "generated");
+    const target = join(service, "target");
+
+    expect(scopeExcludedPathsToRoot(repo, [generated], [repo, service])).toEqual([]);
+    expect(scopeExcludedPathsToRoot(service, [target], [repo, service])).toEqual([target]);
+  });
+
+  it("does not let a name prefix cover a sibling root, since the analyzer matches unanchored", () => {
+    mkdirs("build", "out");
+    mkdirs("build-tools", "src");
+    const buildTools = join(repo, "build-tools");
+
+    expect(scopeExcludedPathsToRoot(repo, [join(repo, "build")], [repo, buildTools])).toEqual([
+      join(repo, "build", "out"),
+    ]);
+  });
+
+  it("keeps exclusions that do not touch another root", () => {
+    mkdirs("target");
+    mkdirs("apps", "service");
+    const service = join(repo, "apps", "service");
+
+    expect(scopeExcludedPathsToRoot(repo, [join(repo, "target")], [repo, service])).toEqual([
+      join(repo, "target"),
+    ]);
+  });
+
+  it("returns paths untouched in a single-root workspace", () => {
+    const excluded = [join(repo, "target") + "/"];
+
+    expect(scopeExcludedPathsToRoot(repo, excluded, [repo])).toEqual(excluded);
   });
 });
