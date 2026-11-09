@@ -5,7 +5,7 @@
 import * as fs from "fs-extra";
 import * as path from "path";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
-import { CheckResultBuilder, withErrorHandling, formatError } from "../helpers";
+import { CheckResultBuilder, withErrorHandling, formatError } from "@editor-extensions/shared";
 
 interface WriteTestResult {
   location: string;

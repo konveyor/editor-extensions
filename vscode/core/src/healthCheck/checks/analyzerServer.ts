@@ -3,7 +3,7 @@
  */
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
-import { CheckResultBuilder, withErrorHandling, formatDetails } from "../helpers";
+import { CheckResultBuilder, withErrorHandling, formatDetails } from "@editor-extensions/shared";
 import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 
 const SERVER_STATUS_MAP: Record<string, string> = {

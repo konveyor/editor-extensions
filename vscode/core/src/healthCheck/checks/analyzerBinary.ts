@@ -6,7 +6,12 @@ import * as fs from "fs-extra";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { buildAssetPaths } from "../../client/paths";
 import { getConfigAnalyzerPath } from "../../utilities";
-import { CheckResultBuilder, withErrorHandling, formatError, formatDetails } from "../helpers";
+import {
+  CheckResultBuilder,
+  withErrorHandling,
+  formatError,
+  formatDetails,
+} from "@editor-extensions/shared";
 
 export const analyzerBinaryCheck: HealthCheckModule = {
   id: "analyzer-binary",

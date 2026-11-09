@@ -6,10 +6,15 @@
 import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
-import { generateSafePipeName } from "@editor-extensions/shared";
+import {
+  CheckResultBuilder,
+  formatDetails,
+  formatError,
+  generateSafePipeName,
+  withErrorHandling,
+} from "@editor-extensions/shared";
 import { EXTENSION_NAME } from "../../utilities/constants";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
-import { CheckResultBuilder, withErrorHandling, formatError, formatDetails } from "../helpers";
 
 async function getXdgInfo(): Promise<string | undefined> {
   if (process.platform === "win32") {

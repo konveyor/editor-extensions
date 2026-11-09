@@ -3,7 +3,7 @@
  */
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
-import { CheckResultBuilder, withErrorHandling } from "../helpers";
+import { CheckResultBuilder, withErrorHandling } from "@editor-extensions/shared";
 import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 
 export const languageProvidersCheck: HealthCheckModule = {
