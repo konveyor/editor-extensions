@@ -3,7 +3,7 @@ import { renderPrompt } from "../src/registry.js";
 /**
  * SEMANTIC REGRESSION (deterministic / mock model).
  *
- * ISO 42001 A.5.2 asks that prompt changes be evaluated against a baseline
+ * ISO 42001 A.6.1.3 asks that prompt changes be evaluated against a baseline
  * dataset of legacy-migration challenges using mock model responses, so that a
  * reworded prompt cannot silently degrade migration quality. This suite runs
  * with NO live model: each baseline case renders the real prompt, pairs it with
