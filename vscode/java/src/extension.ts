@@ -6,7 +6,7 @@ import {
   KonveyorCoreApi,
   generateSafePipeName,
   getIncludedRulesetsPath,
-  topMostDirs,
+  analysisLocations,
   MAX_ANALYSIS_LOCATIONS,
 } from "@editor-extensions/shared";
 import {
@@ -94,14 +94,9 @@ async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
     return [process.cwd()];
   }
 
-  const projectDirs = (await Promise.all(folders.map(findProjectDirs))).flat();
-  // A folder opened on its own stays a location even when another folder
-  // contains it: being below a project on disk does not make it one of that
-  // project's modules.
-  const locations = topMostDirs(
-    projectDirs,
-    folders.map((folder) => folder.uri.fsPath),
-  );
+  // Reduced within each folder, not across them: a project below another
+  // folder's project on disk is not thereby one of its modules.
+  const locations = analysisLocations(await Promise.all(folders.map(findProjectDirs)));
   if (locations.length === 0) {
     logger.info("No Java build file found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];
