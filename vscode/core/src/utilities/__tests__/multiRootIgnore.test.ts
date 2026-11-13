@@ -198,6 +198,38 @@ describe("scopeExcludedPathsToRoot", () => {
     ]);
   });
 
+  itWhereDotIsWildcard(
+    "drops an exclusion whose wildcard can stand for a separator below another root",
+    () => {
+      mkdirs("app.v1", "generated");
+      mkdirs("app", "v1", "generated");
+      mkdirs("lib", "generated");
+      const dotted = join(repo, "app.v1");
+      const app = join(repo, "app");
+      const lib = join(repo, "lib");
+      const generated = join(dotted, "generated") + "/";
+
+      // The analyzer would match this against /repo/app/v1/generated/Main.java.
+      expect(new RegExp(generated).test(join(app, "v1", "generated", "Main.java"))).toBe(true);
+      expect(scopeExcludedPathsToRoot(dotted, [generated], [dotted, app])).toEqual([]);
+      // It holds before the directory exists, too.
+      rmSync(join(app, "v1"), { recursive: true });
+      expect(scopeExcludedPathsToRoot(dotted, [generated], [dotted, app])).toEqual([]);
+      // A root the pattern cannot land in leaves it alone.
+      expect(scopeExcludedPathsToRoot(dotted, [generated], [dotted, lib])).toEqual([generated]);
+    },
+  );
+
+  itWhereDotIsWildcard("keeps a dotted exclusion that cannot land in another root", () => {
+    mkdirs(".cache");
+    mkdirs("apps", "service");
+    const service = join(repo, "apps", "service");
+
+    expect(scopeExcludedPathsToRoot(repo, [join(repo, ".cache")], [repo, service])).toEqual([
+      join(repo, ".cache"),
+    ]);
+  });
+
   it("keeps a nested root's own exclusions when its parent is also a root", () => {
     mkdirs("apps", "service", "target");
     const service = join(repo, "apps", "service");

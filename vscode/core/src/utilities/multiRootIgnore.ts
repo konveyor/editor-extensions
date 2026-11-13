@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { dirname, join, normalize, relative, sep } from "node:path";
+import { join, normalize, relative, sep } from "node:path";
 import { Ignore } from "ignore";
 import { createIgnoreFromWorkspace, isPathIgnored } from "./ignorePatterns";
 import { isOutsideWorkspace } from "./workspaceBoundary";
@@ -51,39 +51,67 @@ const isInside = (parent: string, child: string): boolean => {
   return rel !== "" && !isOutsideWorkspace(rel);
 };
 
-const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/;
 
 /**
- * The regex analyzer-lsp makes of an excluded path. Off Windows it compiles
- * the path as it stands, so a `.` in a directory name is a wildcard; on
- * Windows it quotes the path first and accepts either separator. A path that
- * does not compile is skipped by the analyzer's regex scope and only matched
- * as a literal directory.
+ * Whether analyzer-lsp reads this excluded path as a regex with something
+ * other than literal characters in it. Off Windows it compiles the path as it
+ * stands, so a `.` in a directory name stands for any character — a path
+ * separator included. On Windows it quotes the path first, and a path that
+ * does not compile is skipped by its regex scope; both are matched literally.
  */
-const analyzerPattern = (path: string): string => {
-  if (sep === "\\") {
-    return escapeRegExp(path).replace(/\\\\/g, "[\\\\/]");
+const isReadAsRegex = (path: string): boolean => {
+  if (sep === "\\" || !REGEX_SPECIAL.test(path)) {
+    return false;
   }
   try {
     new RegExp(path);
-    return path;
+    return true;
   } catch {
-    return escapeRegExp(path);
+    return false;
   }
 };
 
-const selfAndAncestors = (path: string): string[] => {
-  const parent = dirname(path);
-  return parent === path ? [path] : [path, ...selfAndAncestors(parent)];
+const matchesWhole = (pattern: string, text: string): boolean => {
+  try {
+    return new RegExp(`^(?:${pattern})$`).test(text);
+  } catch {
+    // Not a pattern on its own, e.g. cut in the middle of a group.
+    return false;
+  }
 };
 
 /**
- * Whether the exclusion, read the way the analyzer reads it, is the other root
- * or a path below it: some leading directory of the exclusion matches the
- * root's path through to its end.
+ * Whether the exclusion could match a path in the other root's tree: the root
+ * itself, or anything below it, whether or not it exists yet.
+ *
+ * Read literally that is plain containment. Read as a regex, it is so when
+ * some leading part of the pattern matches the root's path through to the
+ * separator that follows it — `/repo/app.v1/generated` lands in `/repo/app`,
+ * because `/repo/app.` matches `/repo/app/` and the rest can match below it.
  */
-const landsInRoot = (path: string, otherRoot: string): boolean =>
-  selfAndAncestors(path).some((dir) => new RegExp(`(?:${analyzerPattern(dir)})$`).test(otherRoot));
+const landsInRoot = (path: string, otherRoot: string): boolean => {
+  if (path === otherRoot || isInside(otherRoot, path)) {
+    return true;
+  }
+  if (!isReadAsRegex(path)) {
+    return false;
+  }
+  if (matchesWhole(path, otherRoot)) {
+    return true;
+  }
+  const rootDir = otherRoot + sep;
+  const literalLength = path.search(REGEX_SPECIAL);
+  if (!rootDir.startsWith(path.slice(0, literalLength))) {
+    return false;
+  }
+  for (let end = literalLength + 1; end <= path.length; end++) {
+    if (matchesWhole(path.slice(0, end), rootDir)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 /**
  * Whether the exclusion matches somewhere along the other root's own path, so
@@ -91,7 +119,7 @@ const landsInRoot = (path: string, otherRoot: string): boolean =>
  * a name prefix with it, or by a regex wildcard standing in for a character.
  */
 const reachesRoot = (path: string, otherRoot: string): boolean =>
-  new RegExp(analyzerPattern(path)).test(otherRoot);
+  isReadAsRegex(path) ? new RegExp(path).test(otherRoot) : otherRoot.startsWith(path);
 
 /**
  * Keep one workspace root's excluded paths from reaching into another root.
@@ -105,10 +133,9 @@ const reachesRoot = (path: string, otherRoot: string): boolean =>
  * them.
  *
  * Such an exclusion is narrowed to the children that don't reach the other
- * root, and exclusions that land inside another root are dropped so that
- * root's own rules decide. An exclusion that cannot be told apart from another
- * root by the analyzer is dropped too: analyzing an ignored directory costs
- * time, excluding a workspace root loses its incidents.
+ * root. One that could match a path anywhere in another root's tree is
+ * dropped, so that root's own rules decide: analyzing an ignored directory
+ * costs time, excluding another root's sources loses its incidents.
  *
  * Roots that contain this one are not considered: everything this root
  * excludes is inside them by definition.
