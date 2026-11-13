@@ -20,10 +20,16 @@ const isSameOrInside = (path: string, maybeParent: string): boolean => {
  * a build file per module, but the analyzer only needs the directory the
  * build starts from; the nested ones would re-analyze the same sources.
  *
+ * Directories listed in `keep` survive even when another directory contains
+ * them. A workspace folder the user opened on its own is one: sitting below
+ * another project on disk does not make it a module of that project, and
+ * dropping it would leave it without its own dependency analysis.
+ *
  * Directories are returned in their original form (the analyzer is given
  * these verbatim as locations), shallowest first.
  */
-export function topMostDirs(dirs: string[]): string[] {
+export function topMostDirs(dirs: string[], keep: string[] = []): string[] {
+  const kept = new Set(keep.map(toComparable));
   const seen = new Set<string>();
   const unique = dirs.filter((dir) => {
     const key = toComparable(dir);
@@ -40,7 +46,7 @@ export function topMostDirs(dirs: string[]): string[] {
   });
 
   return shallowestFirst.reduce<string[]>((topMost, dir) => {
-    if (!topMost.some((kept) => isSameOrInside(dir, kept))) {
+    if (kept.has(toComparable(dir)) || !topMost.some((other) => isSameOrInside(dir, other))) {
       topMost.push(dir);
     }
     return topMost;

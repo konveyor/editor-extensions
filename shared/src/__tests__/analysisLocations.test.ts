@@ -35,6 +35,27 @@ describe("topMostDirs", () => {
     expect(topMostDirs(["C:\\repo\\a", "C:/repo/a"])).toEqual(["C:\\repo\\a"]);
   });
 
+  it("keeps a nested directory that was opened as its own workspace folder", () => {
+    expect(
+      topMostDirs(["/repo/independent-service", "/repo"], ["/repo/independent-service", "/repo"]),
+    ).toEqual(["/repo", "/repo/independent-service"]);
+  });
+
+  it("still collapses modules below a kept directory, and ignores kept entries that hold no project", () => {
+    expect(
+      topMostDirs(
+        ["/repo", "/repo/module-a", "/repo/service", "/repo/service/module-b"],
+        ["/repo/service/", "/repo/docs"],
+      ),
+    ).toEqual(["/repo", "/repo/service"]);
+  });
+
+  it("does not duplicate a kept directory found from two workspace folders", () => {
+    expect(topMostDirs(["/repo/service", "/repo/service"], ["/repo/service"])).toEqual([
+      "/repo/service",
+    ]);
+  });
+
   it("ignores empty entries and tolerates an empty list", () => {
     expect(topMostDirs([])).toEqual([]);
     expect(topMostDirs(["", "/repo"])).toEqual(["/repo"]);

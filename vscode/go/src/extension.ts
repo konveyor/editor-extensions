@@ -72,7 +72,13 @@ async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
   }
 
   const projectDirs = (await Promise.all(folders.map(findProjectDirs))).flat();
-  const locations = topMostDirs(projectDirs);
+  // A folder opened on its own stays a location even when another folder
+  // contains it: being below a project on disk does not make it one of that
+  // project's modules.
+  const locations = topMostDirs(
+    projectDirs,
+    folders.map((folder) => folder.uri.fsPath),
+  );
   if (locations.length === 0) {
     logger.info("No Go module found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];
