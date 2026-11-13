@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
+import { dirname } from "node:path";
 import {
   KonveyorCoreApi,
   generateSafePipeName,
   getIncludedRulesetsPath,
+  analysisLocations,
+  MAX_ANALYSIS_LOCATIONS,
 } from "@editor-extensions/shared";
 import {
   CORE_EXTENSION_ID,
@@ -29,6 +32,81 @@ const JDTLS_READY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 interface RedHatJavaExtensionApi {
   serverReady(): Promise<boolean>;
   onDidServerModeChange: vscode.Event<string>;
+}
+
+/**
+ * Build files the Java provider can start an analysis from.
+ *
+ * analyzer-lsp looks for these directly in the location it is given — pom.xml
+ * for Maven, build.gradle for Gradle — and fails provider init when it finds
+ * neither, which aborts the analysis for every location rather than just the
+ * offending one. The other Java project markers (settings.gradle, .classpath,
+ * the Kotlin DSL build files) activate the extension but cannot serve as an
+ * analysis location.
+ */
+const JAVA_BUILD_FILES = ["pom.xml", "build.gradle"];
+
+/** Directories that never hold the project a workspace folder was opened for */
+const PROJECT_SEARCH_EXCLUDE = "**/{node_modules,target,build,dist,out,.git}/**";
+
+/** Upper bound on the build files a single folder's search may return */
+const MAX_PROJECT_FILES = 200;
+
+/**
+ * Find the Java projects in a workspace folder: the folder itself when it
+ * holds a build file, otherwise the directories of the projects nested inside
+ * it. Dev Spaces layouts (issue #1515) put the project several levels below
+ * the folder, where handing the provider the folder finds no build tool.
+ */
+async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+  for (const buildFile of JAVA_BUILD_FILES) {
+    const atFolderRoot = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(folder, buildFile),
+      null,
+      1,
+    );
+    if (atFolderRoot.length > 0) {
+      return [folder.uri.fsPath];
+    }
+  }
+
+  const nested = await Promise.all(
+    JAVA_BUILD_FILES.map((buildFile) =>
+      vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, `**/${buildFile}`),
+        PROJECT_SEARCH_EXCLUDE,
+        MAX_PROJECT_FILES,
+      ),
+    ),
+  );
+  return nested.flat().map((uri) => dirname(uri.fsPath));
+}
+
+/**
+ * Resolve the analysis locations: one per Java project across all workspace
+ * folders. Folders without a project contribute nothing, and a workspace with
+ * no project at all falls back to the first folder, so this is never worse off
+ * than analyzing that folder alone.
+ */
+async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    return [process.cwd()];
+  }
+
+  // Reduced within each folder, not across them: a project below another
+  // folder's project on disk is not thereby one of its modules.
+  const locations = analysisLocations(await Promise.all(folders.map(findProjectDirs)));
+  if (locations.length === 0) {
+    logger.info("No Java build file found in the workspace, analyzing the first folder");
+    return [folders[0].uri.fsPath];
+  }
+  if (locations.length > MAX_ANALYSIS_LOCATIONS) {
+    logger.warn(
+      `Found ${locations.length} Java projects, analyzing the first ${MAX_ANALYSIS_LOCATIONS}`,
+    );
+  }
+  return locations.slice(0, MAX_ANALYSIS_LOCATIONS);
 }
 
 /**
@@ -324,9 +402,8 @@ async function initializeProviders(
     return;
   }
 
-  // Get workspace location for analysis
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+  // Get workspace locations for analysis (one per Java project)
+  const workspaceLocations = await getAnalysisLocations(logger);
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
@@ -339,7 +416,7 @@ async function initializeProviders(
   logger.info("Provider configuration", {
     platform: process.platform,
     providerAddress,
-    workspaceLocation,
+    workspaceLocations,
     providerSocketPath,
   });
 
@@ -350,13 +427,11 @@ async function initializeProviders(
       name: "java",
       address: providerAddress, // GRPC socket address
       useSocket: true,
-      initConfig: [
-        {
-          location: workspaceLocation,
-          analysisMode: "source-only",
-          pipeName: lspProxySocketPath, // JSON-RPC socket for JDTLS communication
-        },
-      ],
+      initConfig: workspaceLocations.map((location) => ({
+        location,
+        analysisMode: "source-only",
+        pipeName: lspProxySocketPath, // JSON-RPC socket for JDTLS communication
+      })),
       contextLines: 10,
     },
     rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
@@ -381,7 +456,7 @@ async function initializeProviders(
   logger.info("Konveyor Java extension activated and registered with core", {
     providerSocket: providerSocketPath,
     lspProxySocket: lspProxySocketPath,
-    workspaceLocation,
+    workspaceLocations,
   });
 
   // Signal completion for E2E tests with a persistent status bar item

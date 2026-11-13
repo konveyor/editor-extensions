@@ -8,6 +8,8 @@ import {
   type KonveyorCoreApi,
   generateSafePipeName,
   getIncludedRulesetsPath,
+  analysisLocations,
+  MAX_ANALYSIS_LOCATIONS,
 } from "@editor-extensions/shared";
 import { CSharpExternalProviderManager } from "./csharpExternalProviderManager";
 import {
@@ -32,6 +34,72 @@ function findDotnetToolPath(toolName: string): string | undefined {
   }
 
   return undefined;
+}
+
+/** Files that mark a directory as the root of a C# project */
+const CSHARP_PROJECT_FILES = ["*.sln", "*.csproj"];
+
+/** Directories that never hold the project a workspace folder was opened for */
+const PROJECT_SEARCH_EXCLUDE = "**/{node_modules,bin,obj,target,build,dist,out,.git}/**";
+
+/** Upper bound on the project files a single folder's search may return */
+const MAX_PROJECT_FILES = 200;
+
+/**
+ * Find the C# projects in a workspace folder: the folder itself when it holds
+ * a solution or project file, otherwise the directories of the projects
+ * nested inside it. A nested project has to be given its own directory rather
+ * than the folder above it, which holds nothing the provider recognizes.
+ */
+async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+  for (const projectFile of CSHARP_PROJECT_FILES) {
+    const atFolderRoot = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(folder, projectFile),
+      null,
+      1,
+    );
+    if (atFolderRoot.length > 0) {
+      return [folder.uri.fsPath];
+    }
+  }
+
+  const nested = await Promise.all(
+    CSHARP_PROJECT_FILES.map((projectFile) =>
+      vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, `**/${projectFile}`),
+        PROJECT_SEARCH_EXCLUDE,
+        MAX_PROJECT_FILES,
+      ),
+    ),
+  );
+  return nested.flat().map((uri) => path.dirname(uri.fsPath));
+}
+
+/**
+ * Resolve the analysis locations: one per C# project across all workspace
+ * folders. Folders without a project contribute nothing, and a workspace with
+ * no project at all falls back to the first folder, so this is never worse
+ * off than analyzing that folder alone.
+ */
+async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    return [process.cwd()];
+  }
+
+  // Reduced within each folder, not across them: a project below another
+  // folder's project on disk is not thereby one of its modules.
+  const locations = analysisLocations(await Promise.all(folders.map(findProjectDirs)));
+  if (locations.length === 0) {
+    logger.info("No C# project found in the workspace, analyzing the first folder");
+    return [folders[0].uri.fsPath];
+  }
+  if (locations.length > MAX_ANALYSIS_LOCATIONS) {
+    logger.warn(
+      `Found ${locations.length} C# projects, analyzing the first ${MAX_ANALYSIS_LOCATIONS}`,
+    );
+  }
+  return locations.slice(0, MAX_ANALYSIS_LOCATIONS);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -157,9 +225,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  // Get workspace location for analysis
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+  // Get workspace locations for analysis (one per C# project)
+  const workspaceLocations = await getAnalysisLocations(logger);
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
@@ -171,7 +238,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   logger.info("Provider configuration", {
     providerAddress,
-    workspaceLocation,
+    workspaceLocations,
   });
 
   // Register C# provider with core
@@ -181,17 +248,15 @@ export async function activate(context: vscode.ExtensionContext) {
       name: "csharp",
       address: providerAddress, // GRPC socket address
       useSocket: true,
-      initConfig: [
-        {
-          location: workspaceLocation,
-          analysisMode: "source-only",
-          providerSpecificConfig: {
-            // Pass explicit paths since provider auto-detect looks for "ilspy" not "ilspycmd"
-            ...(ilspyCmdPath && { ilspy_cmd: ilspyCmdPath }),
-            ...(paketCmdPath && { paket_cmd: paketCmdPath }),
-          },
+      initConfig: workspaceLocations.map((location) => ({
+        location,
+        analysisMode: "source-only",
+        providerSpecificConfig: {
+          // Pass explicit paths since provider auto-detect looks for "ilspy" not "ilspycmd"
+          ...(ilspyCmdPath && { ilspy_cmd: ilspyCmdPath }),
+          ...(paketCmdPath && { paket_cmd: paketCmdPath }),
         },
-      ],
+      })),
       contextLines: 10,
     },
     rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
@@ -208,7 +273,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   logger.info("Konveyor C# extension activated and registered with core", {
     providerSocket: providerSocketPath,
-    workspaceLocation,
+    workspaceLocations,
   });
 }
 

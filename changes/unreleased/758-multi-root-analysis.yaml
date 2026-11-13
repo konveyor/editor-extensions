@@ -1,0 +1,10 @@
+kind: enhancement
+extensions: [core, java, go, javascript, csharp]
+description: >
+  Analysis now covers all folders of a multi-root workspace: each language
+  extension registers an analyzer init-config per project found across the
+  workspace folders, incidents in non-first folders are no longer filtered
+  out, and each folder's own .konveyorignore/.gitignore is honored. Projects
+  nested below the workspace folder now both activate their language
+  extension and are analyzed where they actually live, instead of handing the
+  analyzer a folder it finds no project in.
