@@ -5,7 +5,7 @@ import {
   scopeExcludedPathsToRoot,
 } from "../multiRootIgnore";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { tmpdir } from "node:os";
 
 /**
@@ -152,6 +152,58 @@ describe("scopeExcludedPathsToRoot", () => {
     expect(scopeExcludedPathsToRoot(repo, [join(repo, "build")], [repo, buildTools])).toEqual([
       join(repo, "build", "out"),
     ]);
+  });
+
+  // Off Windows the analyzer compiles an excluded path as a regex unquoted.
+  const itWhereDotIsWildcard = sep === "/" ? it : it.skip;
+
+  itWhereDotIsWildcard(
+    "does not emit an ignored sibling whose name matches a nested root as a regex",
+    () => {
+      mkdirs("apps", "service-v1", "src");
+      mkdirs("apps", "service.v1", "src");
+      mkdirs("apps", "other");
+      const service = join(repo, "apps", "service-v1");
+
+      const scoped = scopeExcludedPathsToRoot(repo, [join(repo, "apps") + "/"], [repo, service]);
+
+      expect(scoped).toEqual([join(repo, "apps", "other")]);
+      for (const excluded of scoped) {
+        expect(new RegExp(excluded).test(join(service, "src", "Main.java"))).toBe(false);
+      }
+    },
+  );
+
+  itWhereDotIsWildcard("drops a path under a sibling whose name matches a nested root", () => {
+    mkdirs("apps", "service-v1", "target");
+    mkdirs("apps", "service.v1", "target");
+    const service = join(repo, "apps", "service-v1");
+
+    expect(
+      scopeExcludedPathsToRoot(repo, [join(repo, "apps", "service.v1", "target")], [repo, service]),
+    ).toEqual([]);
+  });
+
+  itWhereDotIsWildcard("does not let one root's exclusion match a root beside it", () => {
+    mkdirs("app.v1", "target");
+    mkdirs("app-v1", "target");
+    const dotted = join(repo, "app.v1");
+    const dashed = join(repo, "app-v1");
+
+    expect(scopeExcludedPathsToRoot(dotted, [join(dotted, "target")], [dotted, dashed])).toEqual(
+      [],
+    );
+    expect(scopeExcludedPathsToRoot(dashed, [join(dashed, "target")], [dotted, dashed])).toEqual([
+      join(dashed, "target"),
+    ]);
+  });
+
+  it("keeps a nested root's own exclusions when its parent is also a root", () => {
+    mkdirs("apps", "service", "target");
+    const service = join(repo, "apps", "service");
+    const target = join(service, "target");
+
+    expect(scopeExcludedPathsToRoot(service, [target], [service, repo])).toEqual([target]);
   });
 
   it("keeps exclusions that do not touch another root", () => {
