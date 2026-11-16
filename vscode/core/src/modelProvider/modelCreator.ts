@@ -160,6 +160,7 @@ class ChatBedrockCreator implements ModelCreator {
       region: env.AWS_DEFAULT_REGION,
       credentials: auth.credentials,
       ...(auth.profile ? { profile: auth.profile } : {}),
+      ...(auth.authSchemePreference ? { authSchemePreference: auth.authSchemePreference } : {}),
       requestHandler,
     });
     config.client = runtimeClient;
@@ -347,7 +348,17 @@ export interface BedrockAuth {
   credentials?: { accessKeyId: string; secretAccessKey: string; sessionToken?: string };
   /** Named profile from the shared AWS config for the default credential chain to use. */
   profile?: string;
+  /**
+   * Auth schemes the client should try first. Set whenever the credentials or
+   * profile come from provider-settings.yaml: left to itself, the AWS SDK
+   * prefers a Bedrock API key inherited through AWS_BEARER_TOKEN_BEDROCK over
+   * both, so the explicit setting would be silently ignored.
+   */
+  authSchemePreference?: string[];
 }
+
+/** Sign requests with the configured credentials rather than a bearer token. */
+const BEDROCK_SIGV4_PREFERENCE = ["sigv4"];
 
 /**
  * Decides how the Bedrock client authenticates.
@@ -356,7 +367,9 @@ export interface BedrockAuth {
  * provider-settings.yaml) and `providerEnv` is the raw `environment:` block.
  * Settings written in provider-settings.yaml win over anything inherited from
  * the process, so a profile named there is not shadowed by access keys that
- * happen to be exported in the shell VS Code was started from.
+ * happen to be exported in the shell VS Code was started from. The same goes
+ * for an inherited Bedrock API key (AWS_BEARER_TOKEN_BEDROCK): credentials or a
+ * profile written in provider-settings.yaml are used instead of it.
  *
  * A session token is only ever paired with the access key it came with: taking
  * it from the merged environment would attach an unrelated inherited token to
@@ -377,15 +390,16 @@ export function resolveBedrockAuth(
 
   const providerCredentials = staticCredentials(providerEnv);
   if (providerCredentials) {
-    return { credentials: providerCredentials };
+    return { credentials: providerCredentials, authSchemePreference: BEDROCK_SIGV4_PREFERENCE };
   }
   if (providerEnv.AWS_PROFILE) {
-    return { profile: providerEnv.AWS_PROFILE };
+    return { profile: providerEnv.AWS_PROFILE, authSchemePreference: BEDROCK_SIGV4_PREFERENCE };
   }
 
   // Nothing explicit in provider-settings.yaml: use inherited access keys if
   // present, otherwise leave it to the SDK, which reads AWS_PROFILE and the
-  // shared config files from the process environment itself.
+  // shared config files from the process environment itself. The SDK's own
+  // choice between those and an inherited Bedrock API key is left untouched.
   const inheritedCredentials = staticCredentials(env);
   return inheritedCredentials ? { credentials: inheritedCredentials } : {};
 }

@@ -5,4 +5,6 @@ description: >
   dropped, so temporary credentials were rejected, and `AWS_PROFILE` was ignored,
   so a named profile such as one signed in with `aws sso login` fell back to the
   default profile. Credentials written in provider-settings.yaml take precedence
-  over AWS variables inherited from the environment VS Code was started from.
+  over AWS variables inherited from the environment VS Code was started from,
+  including a Bedrock API key in `AWS_BEARER_TOKEN_BEDROCK`, which previously
+  replaced them without warning.

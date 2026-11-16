@@ -9,6 +9,9 @@ import { ModelCreators, resolveBedrockAuth } from "../modelCreator";
 
 describe("resolveBedrockAuth", () => {
   const staticKeys = { AWS_ACCESS_KEY_ID: "AKIAEXAMPLE", AWS_SECRET_ACCESS_KEY: "secret" };
+  // Anything taken from provider settings must also ask for request signing,
+  // or an inherited Bedrock API key would be used in its place.
+  const signed = { authSchemePreference: ["sigv4"] };
 
   it("returns nothing when no credentials are configured, leaving it to the SDK", () => {
     expect(resolveBedrockAuth({ AWS_DEFAULT_REGION: "us-east-1" }, {})).toEqual({});
@@ -17,6 +20,7 @@ describe("resolveBedrockAuth", () => {
   it("uses access keys from provider settings", () => {
     expect(resolveBedrockAuth({ ...staticKeys }, { ...staticKeys })).toEqual({
       credentials: { accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret" },
+      ...signed,
     });
   });
 
@@ -24,24 +28,29 @@ describe("resolveBedrockAuth", () => {
     const providerEnv = { ...staticKeys, AWS_SESSION_TOKEN: "token" };
     expect(resolveBedrockAuth({ ...providerEnv }, providerEnv)).toEqual({
       credentials: { accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret", sessionToken: "token" },
+      ...signed,
     });
   });
 
   it("uses a profile named in provider settings", () => {
     const providerEnv = { AWS_PROFILE: "my-sso" };
-    expect(resolveBedrockAuth({ ...providerEnv }, providerEnv)).toEqual({ profile: "my-sso" });
+    expect(resolveBedrockAuth({ ...providerEnv }, providerEnv)).toEqual({
+      profile: "my-sso",
+      ...signed,
+    });
   });
 
   it("prefers a profile in provider settings over inherited access keys", () => {
     const providerEnv = { AWS_PROFILE: "my-sso" };
     const env = { AWS_ACCESS_KEY_ID: "AKIAINHERITED", AWS_SECRET_ACCESS_KEY: "s", ...providerEnv };
-    expect(resolveBedrockAuth(env, providerEnv)).toEqual({ profile: "my-sso" });
+    expect(resolveBedrockAuth(env, providerEnv)).toEqual({ profile: "my-sso", ...signed });
   });
 
   it("prefers access keys in provider settings over an inherited profile", () => {
     const env = { AWS_PROFILE: "inherited", ...staticKeys };
     expect(resolveBedrockAuth(env, { ...staticKeys })).toEqual({
       credentials: { accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret" },
+      ...signed,
     });
   });
 
@@ -49,6 +58,7 @@ describe("resolveBedrockAuth", () => {
     const env = { AWS_SESSION_TOKEN: "inherited-token", ...staticKeys };
     expect(resolveBedrockAuth(env, { ...staticKeys })).toEqual({
       credentials: { accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret" },
+      ...signed,
     });
   });
 
@@ -67,9 +77,17 @@ describe("resolveBedrockAuth", () => {
     expect(resolveBedrockAuth({ AWS_PROFILE: "inherited" }, {})).toEqual({});
   });
 
+  it("does not override the SDK's auth choice when nothing comes from provider settings", () => {
+    const env = { ...staticKeys, AWS_BEARER_TOKEN_BEDROCK: "inherited-api-key" };
+    expect(resolveBedrockAuth(env, {}).authSchemePreference).toBeUndefined();
+  });
+
   it("treats empty placeholder values from the sample settings as unset", () => {
     const providerEnv = { AWS_ACCESS_KEY_ID: "", AWS_SECRET_ACCESS_KEY: "", AWS_PROFILE: "my-sso" };
-    expect(resolveBedrockAuth({ ...providerEnv }, providerEnv)).toEqual({ profile: "my-sso" });
+    expect(resolveBedrockAuth({ ...providerEnv }, providerEnv)).toEqual({
+      profile: "my-sso",
+      ...signed,
+    });
   });
 });
 
@@ -130,14 +148,16 @@ describe("ChatBedrock credential resolution", () => {
   });
 
   /** Mirrors getModelProviderFromConfig: the provider block overlays the process environment. */
-  const resolveCredentials = async (providerEnv: Record<string, string>) => {
+  const createClient = async (providerEnv: Record<string, string>) => {
     const mergedEnv = { ...(process.env as Record<string, string>), ...providerEnv };
     const model = (await ModelCreators.ChatBedrock(logger, providerEnv).create(
       args,
       mergedEnv,
     )) as ChatBedrockConverse;
-    return model.client.config.credentials();
+    return model.client;
   };
+  const resolveCredentials = async (providerEnv: Record<string, string>) =>
+    (await createClient(providerEnv)).config.credentials();
 
   it("resolves the profile named in provider settings", async () => {
     const credentials = await resolveCredentials({
@@ -179,5 +199,30 @@ describe("ChatBedrock credential resolution", () => {
     process.env.AWS_PROFILE = "my-sso";
     const credentials = await resolveCredentials({ AWS_DEFAULT_REGION: "us-east-1" });
     expect(credentials.accessKeyId).toBe("AKIANAMEDPROFILE0000");
+  });
+
+  describe("with a Bedrock API key inherited from the process environment", () => {
+    beforeEach(() => {
+      process.env.AWS_BEARER_TOKEN_BEDROCK = "inherited-api-key";
+    });
+
+    it("signs with the profile named in provider settings instead", async () => {
+      const client = await createClient({ AWS_PROFILE: "my-sso", AWS_DEFAULT_REGION: "us-east-1" });
+      expect(await client.config.authSchemePreference()).toEqual(["sigv4"]);
+    });
+
+    it("signs with the access keys in provider settings instead", async () => {
+      const client = await createClient({
+        AWS_ACCESS_KEY_ID: "AKIAEXAMPLE000000000",
+        AWS_SECRET_ACCESS_KEY: "fake",
+        AWS_DEFAULT_REGION: "us-east-1",
+      });
+      expect(await client.config.authSchemePreference()).toEqual(["sigv4"]);
+    });
+
+    it("still uses the API key when provider settings name no credentials", async () => {
+      const client = await createClient({ AWS_DEFAULT_REGION: "us-east-1" });
+      expect(await client.config.authSchemePreference()).toEqual(["httpBearerAuth"]);
+    });
   });
 });
