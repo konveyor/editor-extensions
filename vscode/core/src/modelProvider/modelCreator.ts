@@ -142,11 +142,9 @@ class ChatBedrockCreator implements ModelCreator {
       ...args,
       region: env.AWS_DEFAULT_REGION,
     };
-    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
-      config.credentials = {
-        accessKeyId: env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-      };
+    const auth = resolveBedrockAuth(env, this.providerEnv);
+    if (auth.credentials) {
+      config.credentials = auth.credentials;
     }
 
     const httpProtocol = getConfigHttpProtocol();
@@ -160,7 +158,8 @@ class ChatBedrockCreator implements ModelCreator {
     );
     const runtimeClient = new BedrockRuntimeClient({
       region: env.AWS_DEFAULT_REGION,
-      credentials: config.credentials,
+      credentials: auth.credentials,
+      ...(auth.profile ? { profile: auth.profile } : {}),
       requestHandler,
     });
     config.client = runtimeClient;
@@ -341,6 +340,54 @@ function getCaBundleAndInsecure(env: Record<string, string>): {
     insecure = true;
   }
   return { caBundle, insecure };
+}
+
+export interface BedrockAuth {
+  /** Explicit credentials. When unset, the AWS SDK's default credential chain applies. */
+  credentials?: { accessKeyId: string; secretAccessKey: string; sessionToken?: string };
+  /** Named profile from the shared AWS config for the default credential chain to use. */
+  profile?: string;
+}
+
+/**
+ * Decides how the Bedrock client authenticates.
+ *
+ * `env` is the merged environment (process environment overlaid with
+ * provider-settings.yaml) and `providerEnv` is the raw `environment:` block.
+ * Settings written in provider-settings.yaml win over anything inherited from
+ * the process, so a profile named there is not shadowed by access keys that
+ * happen to be exported in the shell VS Code was started from.
+ *
+ * A session token is only ever paired with the access key it came with: taking
+ * it from the merged environment would attach an unrelated inherited token to
+ * long-lived keys written in provider-settings.yaml.
+ */
+export function resolveBedrockAuth(
+  env: Record<string, string>,
+  providerEnv: Record<string, string> = {},
+): BedrockAuth {
+  const staticCredentials = (source: Record<string, string>): BedrockAuth["credentials"] =>
+    source.AWS_ACCESS_KEY_ID && source.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: source.AWS_ACCESS_KEY_ID,
+          secretAccessKey: source.AWS_SECRET_ACCESS_KEY,
+          ...(source.AWS_SESSION_TOKEN ? { sessionToken: source.AWS_SESSION_TOKEN } : {}),
+        }
+      : undefined;
+
+  const providerCredentials = staticCredentials(providerEnv);
+  if (providerCredentials) {
+    return { credentials: providerCredentials };
+  }
+  if (providerEnv.AWS_PROFILE) {
+    return { profile: providerEnv.AWS_PROFILE };
+  }
+
+  // Nothing explicit in provider-settings.yaml: use inherited access keys if
+  // present, otherwise leave it to the SDK, which reads AWS_PROFILE and the
+  // shared config files from the process environment itself.
+  const inheritedCredentials = staticCredentials(env);
+  return inheritedCredentials ? { credentials: inheritedCredentials } : {};
 }
 
 /**
