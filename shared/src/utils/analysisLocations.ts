@@ -60,7 +60,25 @@ export function topMostDirs(dirs: string[]): string[] {
  * be a module of a project in a folder that happens to contain it, and
  * dropping it would leave it without its own dependency analysis. The same
  * directory found from two folders is still one location.
+ *
+ * Folders then take turns, each contributing its shallowest remaining project
+ * before any folder contributes a second one. Callers cap the list at
+ * MAX_ANALYSIS_LOCATIONS, and taking turns keeps that cap from spending
+ * itself on one folder full of projects while a folder the user opened
+ * deliberately is left without a location at all. A folder that runs out of
+ * projects drops out, leaving the rest of the cap to the others.
  */
 export function analysisLocations(projectDirsByFolder: string[][]): string[] {
-  return shallowestFirst(withoutDuplicates(projectDirsByFolder.flatMap(topMostDirs)));
+  const byFolder = projectDirsByFolder.map(topMostDirs);
+  const mostProjectsInAFolder = Math.max(0, ...byFolder.map((dirs) => dirs.length));
+
+  const takingTurns: string[] = [];
+  for (let turn = 0; turn < mostProjectsInAFolder; turn++) {
+    for (const dirs of byFolder) {
+      if (turn < dirs.length) {
+        takingTurns.push(dirs[turn]);
+      }
+    }
+  }
+  return withoutDuplicates(takingTurns);
 }
