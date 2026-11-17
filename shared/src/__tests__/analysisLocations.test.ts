@@ -76,6 +76,9 @@ describe("analysisLocations", () => {
   it("tolerates folders without a project", () => {
     expect(analysisLocations([])).toEqual([]);
     expect(analysisLocations([[], ["/repo"]])).toEqual(["/repo"]);
+    // Empty only when every folder is: the callers read an empty result as
+    // "nothing the user wants analyzed" and emit no location for it.
+    expect(analysisLocations([[], []])).toEqual([]);
   });
 
   it("gives every folder a turn before any folder takes a second", () => {

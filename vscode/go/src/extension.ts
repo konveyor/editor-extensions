@@ -63,7 +63,8 @@ async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]
  * Resolve the analysis locations: one per Go module across all workspace
  * folders. Folders without a module contribute nothing, and a workspace with
  * no module at all falls back to the first folder, so this is never worse off
- * than analyzing that folder alone.
+ * than analyzing that folder alone. A workspace whose every module is ignored
+ * gets no location: there is nothing the user wants analyzed.
  */
 async function getAnalysisLocations(
   logger: winston.Logger,
@@ -74,11 +75,16 @@ async function getAnalysisLocations(
     return [process.cwd()];
   }
 
+  const discovered = await Promise.all(folders.map(findProjectDirs));
+  if (discovered.every((dirs) => dirs.length === 0)) {
+    logger.info("No Go module found in the workspace, analyzing the first folder");
+    return [folders[0].uri.fsPath];
+  }
+
   // Ignored projects are dropped before the reduction and the cap rather than
   // left to the analyzer's excluded paths: those cannot add back a location
   // that was never emitted, and an ignored project that reaches the list takes
   // a place under the cap that a wanted project needs.
-  const discovered = await Promise.all(folders.map(findProjectDirs));
   const wanted = discovered.map((dirs) => dirs.filter((dir) => !coreApi.isProjectDirIgnored(dir)));
   const ignoredCount = discovered.flat().length - wanted.flat().length;
   if (ignoredCount > 0) {
@@ -89,8 +95,12 @@ async function getAnalysisLocations(
   // folder's project on disk is not thereby one of its modules.
   const locations = analysisLocations(wanted);
   if (locations.length === 0) {
-    logger.info("No Go module found in the workspace, analyzing the first folder");
-    return [folders[0].uri.fsPath];
+    // Every project found was ignored. Falling back to the first folder here
+    // would analyze exactly what the user excluded, and would hand the
+    // provider a folder with no build file in it, whose failing init aborts
+    // the whole analysis rather than just this language's part of it.
+    logger.warn("Every Go module in the workspace is ignored, skipping Go analysis");
+    return [];
   }
   if (locations.length > MAX_ANALYSIS_LOCATIONS) {
     logger.warn(
