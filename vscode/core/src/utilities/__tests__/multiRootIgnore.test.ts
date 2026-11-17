@@ -1,9 +1,11 @@
 import expect from "expect";
 import {
   isPathIgnoredInRoot,
+  isProjectDirIgnoredInWorkspace,
   resetIgnoreCache,
   scopeExcludedPathsToRoot,
 } from "../multiRootIgnore";
+import { analysisLocations, MAX_ANALYSIS_LOCATIONS } from "@editor-extensions/shared";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join, sep } from "node:path";
 import { tmpdir } from "node:os";
@@ -252,5 +254,94 @@ describe("scopeExcludedPathsToRoot", () => {
     const excluded = [join(repo, "target") + "/"];
 
     expect(scopeExcludedPathsToRoot(repo, excluded, [repo])).toEqual(excluded);
+  });
+});
+
+/**
+ * Filtering discovered projects (issue #758): a project the user ignored must
+ * not become an analysis location, because the excluded paths handed to the
+ * analyzer at init cannot add back a location that was never emitted, and an
+ * ignored project that reaches the list consumes the location cap.
+ */
+describe("isProjectDirIgnoredInWorkspace", () => {
+  let healthy: string;
+  let wrapper: string;
+
+  const mkdirs = (root: string, ...segments: string[]): string => {
+    const dir = join(root, ...segments);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  };
+
+  beforeEach(() => {
+    healthy = mkdtempSync(join(tmpdir(), "konveyor-healthy-"));
+    wrapper = mkdtempSync(join(tmpdir(), "konveyor-wrapper-"));
+    resetIgnoreCache();
+  });
+
+  afterEach(() => {
+    for (const dir of [healthy, wrapper]) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("never ignores a root itself, whatever its own rules say", () => {
+    writeFileSync(join(healthy, ".konveyorignore"), "*\n");
+
+    expect(isProjectDirIgnoredInWorkspace([healthy], healthy)).toBe(false);
+  });
+
+  it("ignores a project under a directory the root's ignore file excludes", () => {
+    writeFileSync(join(wrapper, ".konveyorignore"), "fixtures/\n");
+    const fixture = mkdirs(wrapper, "fixtures", "p00");
+    const service = mkdirs(wrapper, "services", "app");
+
+    expect(isProjectDirIgnoredInWorkspace([wrapper], fixture)).toBe(true);
+    expect(isProjectDirIgnoredInWorkspace([wrapper], service)).toBe(false);
+  });
+
+  it("ignores a project that is itself the excluded directory", () => {
+    writeFileSync(join(wrapper, ".konveyorignore"), "fixtures/\n");
+    const fixtures = mkdirs(wrapper, "fixtures");
+
+    expect(isProjectDirIgnoredInWorkspace([wrapper], fixtures)).toBe(true);
+  });
+
+  it("judges a project by the deepest root holding it", () => {
+    writeFileSync(join(wrapper, ".konveyorignore"), "nested/\n");
+    const nested = mkdirs(wrapper, "nested");
+    const project = mkdirs(wrapper, "nested", "service");
+
+    // Judged by the wrapper while only the wrapper is open...
+    expect(isProjectDirIgnoredInWorkspace([wrapper], project)).toBe(true);
+    // ...and by the nested folder's own rules once that is opened too, which
+    // is the folder the user asked for.
+    expect(isProjectDirIgnoredInWorkspace([wrapper, nested], project)).toBe(false);
+    expect(isProjectDirIgnoredInWorkspace([wrapper, nested], nested)).toBe(false);
+  });
+
+  it("ignores a path outside every root", () => {
+    expect(isProjectDirIgnoredInWorkspace([healthy], join(wrapper, "services", "app"))).toBe(true);
+    expect(isProjectDirIgnoredInWorkspace([], join(healthy, "services", "app"))).toBe(true);
+  });
+
+  it("leaves room under the location cap for a project the user wants", () => {
+    // The reviewer's case: a healthy first root, and a wrapper holding ten
+    // ignored fixtures plus one real service. Unfiltered, the fixtures fill
+    // the cap and services/app never gets an init-config.
+    const fixtures = Array.from({ length: 10 }, (_, i) => mkdirs(wrapper, "fixtures", `p0${i}`));
+    const service = mkdirs(wrapper, "services", "app");
+    writeFileSync(join(wrapper, ".konveyorignore"), "fixtures/\n");
+
+    const discovered = [[healthy], [...fixtures, service]];
+    const unfiltered = analysisLocations(discovered).slice(0, MAX_ANALYSIS_LOCATIONS);
+    expect(unfiltered).not.toContain(service);
+
+    const filtered = analysisLocations(
+      discovered.map((dirs) =>
+        dirs.filter((dir) => !isProjectDirIgnoredInWorkspace([healthy, wrapper], dir)),
+      ),
+    ).slice(0, MAX_ANALYSIS_LOCATIONS);
+    expect(filtered).toEqual([healthy, service]);
   });
 });

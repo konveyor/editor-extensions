@@ -15,6 +15,7 @@ const originalRequire = (Module.prototype as any).require;
   ) {
     return {
       isUriIgnored: (_uri: any) => false,
+      isProjectDirIgnored: (_fsPath: string) => false,
       // Add other exports from paths.ts if needed by other tests
     };
   }

@@ -11,7 +11,11 @@ import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
 import { createIgnoreFromWorkspace, getIgnorePatternsForGlob } from "./utilities/ignorePatterns";
-import { isPathIgnoredInRoot, scopeExcludedPathsToRoot } from "./utilities/multiRootIgnore";
+import {
+  isPathIgnoredInRoot,
+  isProjectDirIgnoredInWorkspace,
+  scopeExcludedPathsToRoot,
+} from "./utilities/multiRootIgnore";
 import AdmZip from "adm-zip";
 
 /**
@@ -426,6 +430,20 @@ export const isUriIgnored = (uri: vscode.Uri): boolean => {
 
   return isPathIgnoredInRoot(folder.uri.fsPath, uri.fsPath);
 };
+
+/**
+ * Check a project directory discovered by a language extension's own search to
+ * see if the workspace folder holding it ignores it.
+ *
+ * Exposed to the language extensions through the core API so that every
+ * extension's project search agrees with the analyzer about what the user
+ * wants analyzed, and so the ignore files are read in one place.
+ */
+export const isProjectDirIgnored = (fsPath: string): boolean =>
+  isProjectDirIgnoredInWorkspace(
+    (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+    fsPath,
+  );
 
 /**
  * The analyzer needs to be told what paths to exclude from processing

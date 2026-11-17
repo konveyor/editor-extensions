@@ -65,15 +65,29 @@ async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]
  * no module at all falls back to the first folder, so this is never worse off
  * than analyzing that folder alone.
  */
-async function getAnalysisLocations(logger: winston.Logger): Promise<string[]> {
+async function getAnalysisLocations(
+  logger: winston.Logger,
+  coreApi: KonveyorCoreApi,
+): Promise<string[]> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   if (folders.length === 0) {
     return [process.cwd()];
   }
 
+  // Ignored projects are dropped before the reduction and the cap rather than
+  // left to the analyzer's excluded paths: those cannot add back a location
+  // that was never emitted, and an ignored project that reaches the list takes
+  // a place under the cap that a wanted project needs.
+  const discovered = await Promise.all(folders.map(findProjectDirs));
+  const wanted = discovered.map((dirs) => dirs.filter((dir) => !coreApi.isProjectDirIgnored(dir)));
+  const ignoredCount = discovered.flat().length - wanted.flat().length;
+  if (ignoredCount > 0) {
+    logger.info(`Skipping ${ignoredCount} ignored Go module(s)`);
+  }
+
   // Reduced within each folder, not across them: a project below another
   // folder's project on disk is not thereby one of its modules.
-  const locations = analysisLocations(await Promise.all(folders.map(findProjectDirs)));
+  const locations = analysisLocations(wanted);
   if (locations.length === 0) {
     logger.info("No Go module found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];
@@ -240,7 +254,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Get workspace locations for analysis (one per Go module)
-  const workspaceLocations = await getAnalysisLocations(logger);
+  const workspaceLocations = await getAnalysisLocations(logger, coreApi);
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes

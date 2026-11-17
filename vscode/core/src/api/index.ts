@@ -6,6 +6,7 @@ import {
   AnalysisResults,
   HealthCheckModule,
 } from "@editor-extensions/shared";
+import { isProjectDirIgnored } from "../paths";
 
 /**
  * Provider registry that manages registered language providers
@@ -158,5 +159,6 @@ export function createCoreApi(
       providerRegistry.onAnalysisComplete(handler),
     registerHealthCheck: (module: HealthCheckModule) =>
       healthCheckRegistry.registerHealthCheck(module),
+    isProjectDirIgnored: (fsPath: string) => isProjectDirIgnored(fsPath),
   };
 }

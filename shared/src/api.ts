@@ -150,4 +150,21 @@ export interface KonveyorCoreApi {
    * @returns Disposable to unregister the health check
    */
   registerHealthCheck(module: HealthCheckModule): Disposable;
+
+  /**
+   * Check whether a project directory is ignored by the ignore files of the
+   * workspace folder it sits in (.konveyorignore, .gitignore, or the default
+   * patterns when a folder has neither).
+   *
+   * Language extensions filter the projects their own search discovers through
+   * this before reducing them to analysis locations. The excluded paths the
+   * analyzer is given at init cannot add back a location that was never
+   * emitted, and an ignored project that reaches the location list takes a
+   * place under the location cap that a wanted project needs.
+   *
+   * @param fsPath Absolute filesystem path of the project directory
+   * @returns true when the directory is ignored, or lies outside every
+   *          workspace folder
+   */
+  isProjectDirIgnored(fsPath: string): boolean;
 }

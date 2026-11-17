@@ -51,6 +51,42 @@ const isInside = (parent: string, child: string): boolean => {
   return rel !== "" && !isOutsideWorkspace(rel);
 };
 
+const isSameOrInside = (parent: string, child: string): boolean =>
+  relative(parent, child) === "" || isInside(parent, child);
+
+/**
+ * The workspace root a path belongs to: the deepest root holding it, which is
+ * the folder VS Code itself resolves a Uri to, so a root nested inside another
+ * judges its own contents.
+ */
+const owningRoot = (roots: string[], absoluteFsPath: string): string | undefined => {
+  const holding = roots.filter((root) => isSameOrInside(root, absoluteFsPath));
+  const deeper = (a: string, b: string) =>
+    withoutTrailingSep(b).length > withoutTrailingSep(a).length ? b : a;
+  return holding.length === 0 ? undefined : holding.reduce(deeper);
+};
+
+/**
+ * Whether a project directory found by a search of the workspace is ignored by
+ * the rules of the root holding it.
+ *
+ * Project discovery runs before the analyzer is configured, so an ignored
+ * project has to be dropped here rather than left to the excluded paths: a
+ * location that is never emitted gets no init-config at all, and one that is
+ * emitted takes a place under the location cap that a wanted project needs.
+ *
+ * A root is never ignored by its own rules — it is the folder the user opened,
+ * and that holds for a nested folder they opened deliberately too, which is
+ * judged as the root of its own tree rather than as content of the one above.
+ */
+export function isProjectDirIgnoredInWorkspace(roots: string[], absoluteFsPath: string): boolean {
+  const root = owningRoot(roots, absoluteFsPath);
+  if (root === undefined) {
+    return true;
+  }
+  return relative(root, absoluteFsPath) !== "" && isPathIgnoredInRoot(root, absoluteFsPath);
+}
+
 const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/;
 
 /**
