@@ -47,10 +47,15 @@ interface RedHatJavaExtensionApi {
 const JAVA_BUILD_FILES = ["pom.xml", "build.gradle"];
 
 /** Directories that never hold the project a workspace folder was opened for */
-const PROJECT_SEARCH_EXCLUDE = "**/{node_modules,target,build,dist,out,.git}/**";
+const PROJECT_SEARCH_SKIP_DIRS = ["node_modules", "target", "build", "dist", "out", ".git"];
 
-/** Upper bound on the build files a single folder's search may return */
-const MAX_PROJECT_FILES = 200;
+/**
+ * Upper bound on the build files a single folder's search may return.
+ * Ignored directories are kept out of the search, so reaching this means a
+ * genuinely large workspace rather than a large ignored tree, and the search
+ * says so when it happens.
+ */
+const MAX_PROJECT_FILES = 2000;
 
 /**
  * Find the Java projects in a workspace folder: the folder itself when it
@@ -58,7 +63,11 @@ const MAX_PROJECT_FILES = 200;
  * it. Dev Spaces layouts (issue #1515) put the project several levels below
  * the folder, where handing the provider the folder finds no build tool.
  */
-async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+async function findProjectDirs(
+  folder: vscode.WorkspaceFolder,
+  logger: winston.Logger,
+  coreApi: KonveyorCoreApi,
+): Promise<string[]> {
   for (const buildFile of JAVA_BUILD_FILES) {
     const atFolderRoot = await vscode.workspace.findFiles(
       new vscode.RelativePattern(folder, buildFile),
@@ -70,15 +79,29 @@ async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]
     }
   }
 
+  // The search skips the ignored directories as well as the build output, so
+  // that a large ignored tree cannot use up MAX_PROJECT_FILES and leave a
+  // project the user wants beyond the budget and undiscovered. Correctness
+  // still rests on the filtering that follows, not on this glob.
+  const exclude = new vscode.RelativePattern(
+    folder,
+    coreApi.projectSearchExcludeGlob(folder.uri.fsPath, PROJECT_SEARCH_SKIP_DIRS),
+  );
+
   const nested = await Promise.all(
     JAVA_BUILD_FILES.map((buildFile) =>
       vscode.workspace.findFiles(
         new vscode.RelativePattern(folder, `**/${buildFile}`),
-        PROJECT_SEARCH_EXCLUDE,
+        exclude,
         MAX_PROJECT_FILES,
       ),
     ),
   );
+  if (nested.some((found) => found.length >= MAX_PROJECT_FILES)) {
+    logger.warn(
+      `Stopped searching ${folder.name} at ${MAX_PROJECT_FILES} build files; some Java projects may be missing from the analysis`,
+    );
+  }
   return nested.flat().map((uri) => dirname(uri.fsPath));
 }
 
@@ -98,7 +121,9 @@ async function getAnalysisLocations(
     return [process.cwd()];
   }
 
-  const discovered = await Promise.all(folders.map(findProjectDirs));
+  const discovered = await Promise.all(
+    folders.map((folder) => findProjectDirs(folder, logger, coreApi)),
+  );
   if (discovered.every((dirs) => dirs.length === 0)) {
     logger.info("No Java build file found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];

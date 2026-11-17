@@ -40,10 +40,24 @@ function findDotnetToolPath(toolName: string): string | undefined {
 const CSHARP_PROJECT_FILES = ["*.sln", "*.csproj"];
 
 /** Directories that never hold the project a workspace folder was opened for */
-const PROJECT_SEARCH_EXCLUDE = "**/{node_modules,bin,obj,target,build,dist,out,.git}/**";
+const PROJECT_SEARCH_SKIP_DIRS = [
+  "node_modules",
+  "bin",
+  "obj",
+  "target",
+  "build",
+  "dist",
+  "out",
+  ".git",
+];
 
-/** Upper bound on the project files a single folder's search may return */
-const MAX_PROJECT_FILES = 200;
+/**
+ * Upper bound on the project files a single folder's search may return.
+ * Ignored directories are kept out of the search, so reaching this means a
+ * genuinely large workspace rather than a large ignored tree, and the search
+ * says so when it happens.
+ */
+const MAX_PROJECT_FILES = 2000;
 
 /**
  * Find the C# projects in a workspace folder: the folder itself when it holds
@@ -51,7 +65,11 @@ const MAX_PROJECT_FILES = 200;
  * nested inside it. A nested project has to be given its own directory rather
  * than the folder above it, which holds nothing the provider recognizes.
  */
-async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]> {
+async function findProjectDirs(
+  folder: vscode.WorkspaceFolder,
+  logger: winston.Logger,
+  coreApi: KonveyorCoreApi,
+): Promise<string[]> {
   for (const projectFile of CSHARP_PROJECT_FILES) {
     const atFolderRoot = await vscode.workspace.findFiles(
       new vscode.RelativePattern(folder, projectFile),
@@ -63,15 +81,29 @@ async function findProjectDirs(folder: vscode.WorkspaceFolder): Promise<string[]
     }
   }
 
+  // The search skips the ignored directories as well as the build output, so
+  // that a large ignored tree cannot use up MAX_PROJECT_FILES and leave a
+  // project the user wants beyond the budget and undiscovered. Correctness
+  // still rests on the filtering that follows, not on this glob.
+  const exclude = new vscode.RelativePattern(
+    folder,
+    coreApi.projectSearchExcludeGlob(folder.uri.fsPath, PROJECT_SEARCH_SKIP_DIRS),
+  );
+
   const nested = await Promise.all(
     CSHARP_PROJECT_FILES.map((projectFile) =>
       vscode.workspace.findFiles(
         new vscode.RelativePattern(folder, `**/${projectFile}`),
-        PROJECT_SEARCH_EXCLUDE,
+        exclude,
         MAX_PROJECT_FILES,
       ),
     ),
   );
+  if (nested.some((found) => found.length >= MAX_PROJECT_FILES)) {
+    logger.warn(
+      `Stopped searching ${folder.name} at ${MAX_PROJECT_FILES} project files; some C# projects may be missing from the analysis`,
+    );
+  }
   return nested.flat().map((uri) => path.dirname(uri.fsPath));
 }
 
@@ -91,7 +123,9 @@ async function getAnalysisLocations(
     return [process.cwd()];
   }
 
-  const discovered = await Promise.all(folders.map(findProjectDirs));
+  const discovered = await Promise.all(
+    folders.map((folder) => findProjectDirs(folder, logger, coreApi)),
+  );
   if (discovered.every((dirs) => dirs.length === 0)) {
     logger.info("No C# project found in the workspace, analyzing the first folder");
     return [folders[0].uri.fsPath];

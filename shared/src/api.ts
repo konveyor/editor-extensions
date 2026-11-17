@@ -167,4 +167,21 @@ export interface KonveyorCoreApi {
    *          workspace folder
    */
   isProjectDirIgnored(fsPath: string): boolean;
+
+  /**
+   * Build the exclude glob for a workspace folder's project search: the
+   * caller's own build-output directory names, plus the directories that
+   * folder's ignore files exclude.
+   *
+   * An optimization rather than a correctness boundary — `isProjectDirIgnored`
+   * still decides what is analyzed — but a search that walks an ignored tree
+   * can exhaust its result budget there and never reach a project the user
+   * wants.
+   *
+   * @param folderFsPath Absolute path of the workspace folder being searched
+   * @param alwaysSkipDirs Directory names to skip at any depth, e.g. target
+   * @returns A glob suitable for the exclude argument of findFiles, relative
+   *          to the workspace folder
+   */
+  projectSearchExcludeGlob(folderFsPath: string, alwaysSkipDirs: string[]): string;
 }

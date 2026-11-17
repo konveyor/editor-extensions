@@ -16,6 +16,7 @@ const originalRequire = (Module.prototype as any).require;
     return {
       isUriIgnored: (_uri: any) => false,
       isProjectDirIgnored: (_fsPath: string) => false,
+      projectSearchExcludeGlob: (_folderFsPath: string, _alwaysSkipDirs: string[]) => "",
       // Add other exports from paths.ts if needed by other tests
     };
   }

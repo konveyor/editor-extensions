@@ -16,6 +16,7 @@ import {
   isProjectDirIgnoredInWorkspace,
   scopeExcludedPathsToRoot,
 } from "./utilities/multiRootIgnore";
+import { buildProjectSearchExclude, reIncludesSomething } from "./utilities/projectSearchExclude";
 import AdmZip from "adm-zip";
 
 /**
@@ -495,3 +496,26 @@ const excludedPathsForRoot = (cwd: string): string[] => {
     unique: true,
   });
 };
+
+/**
+ * A glob of directories to skip while searching a workspace folder for
+ * projects: the caller's own build-output directories, plus the directories
+ * this folder's ignore files exclude.
+ *
+ * This is an optimization and nothing more. `isProjectDirIgnored` stays the
+ * authority on what gets analyzed, so a directory missing here is still
+ * dropped after the search; what matters is that a search budget is not spent
+ * on a tree the user ignored, leaving a wanted project beyond the budget and
+ * never discovered. Since only over-exclusion could hide a project, a folder
+ * whose ignore rules re-include anything contributes none of its ignored
+ * directories — the resolved list names the ignored parent, not the exception
+ * inside it.
+ */
+export const projectSearchExcludeGlob = (folderFsPath: string, alwaysSkipDirs: string[]): string =>
+  buildProjectSearchExclude(
+    folderFsPath,
+    alwaysSkipDirs,
+    reIncludesSomething(getIgnorePatternsForGlob(folderFsPath))
+      ? []
+      : excludedPathsForRoot(folderFsPath),
+  );
