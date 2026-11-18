@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
+import { dirname } from "node:path";
 import winston from "winston";
 import { OutputChannelTransport } from "winston-transport-vscode";
 import {
   KonveyorCoreApi,
   generateSafePipeName,
   getIncludedRulesetsPath,
+  analysisLocations,
+  MAX_ANALYSIS_LOCATIONS,
 } from "@editor-extensions/shared";
 import {
   CORE_EXTENSION_ID,
@@ -15,6 +18,125 @@ import {
 } from "./utilities/constants";
 import { vscodeProxyServer } from "./vscodeProxyServer";
 import { JavaScriptExternalProviderManager } from "./javascriptExternalProviderManager";
+
+/** Files that mark a directory as the root of a JavaScript project */
+const JAVASCRIPT_PROJECT_FILES = ["package.json", "jsconfig.json", "tsconfig.json"];
+
+/** Directories that never hold the project a workspace folder was opened for */
+const PROJECT_SEARCH_SKIP_DIRS = ["node_modules", "target", "build", "dist", "out", ".git"];
+
+/**
+ * Upper bound on the project files a single folder's search may return.
+ * Ignored directories are kept out of the search, so reaching this means a
+ * genuinely large workspace rather than a large ignored tree, and the search
+ * says so when it happens.
+ */
+const MAX_PROJECT_FILES = 2000;
+
+/**
+ * Find the JavaScript projects in a workspace folder: the folder itself when
+ * it holds a project file, otherwise the directories of the projects nested
+ * inside it. The provider makes the location the language server's root, so a
+ * nested project has to be given its own directory rather than the folder
+ * above it.
+ */
+async function findProjectDirs(
+  folder: vscode.WorkspaceFolder,
+  logger: winston.Logger,
+  coreApi: KonveyorCoreApi,
+): Promise<string[]> {
+  for (const projectFile of JAVASCRIPT_PROJECT_FILES) {
+    const atFolderRoot = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(folder, projectFile),
+      null,
+      1,
+    );
+    if (atFolderRoot.length > 0) {
+      return [folder.uri.fsPath];
+    }
+  }
+
+  // The search skips the ignored directories as well as the build output, so
+  // that a large ignored tree cannot use up MAX_PROJECT_FILES and leave a
+  // project the user wants beyond the budget and undiscovered. Correctness
+  // still rests on the filtering that follows, not on this glob.
+  const exclude = new vscode.RelativePattern(
+    folder,
+    coreApi.projectSearchExcludeGlob(folder.uri.fsPath, PROJECT_SEARCH_SKIP_DIRS),
+  );
+
+  const nested = await Promise.all(
+    JAVASCRIPT_PROJECT_FILES.map((projectFile) =>
+      vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, `**/${projectFile}`),
+        exclude,
+        MAX_PROJECT_FILES,
+      ),
+    ),
+  );
+  if (nested.some((found) => found.length >= MAX_PROJECT_FILES)) {
+    logger.warn(
+      `Stopped searching ${folder.name} at ${MAX_PROJECT_FILES} project files; some JavaScript projects may be missing from the analysis`,
+    );
+  }
+  return nested.flat().map((uri) => dirname(uri.fsPath));
+}
+
+/**
+ * Resolve the analysis locations: one per JavaScript project across all
+ * workspace folders. Folders without a project contribute nothing, and a
+ * workspace with no project at all falls back to the first folder, so this is
+ * never worse off than analyzing that folder alone. A workspace whose every
+ * project is ignored gets no location: there is nothing the user wants
+ * analyzed.
+ */
+async function getAnalysisLocations(
+  logger: winston.Logger,
+  coreApi: KonveyorCoreApi,
+): Promise<string[]> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    return [process.cwd()];
+  }
+
+  const discovered = await Promise.all(
+    folders.map((folder) => findProjectDirs(folder, logger, coreApi)),
+  );
+  if (discovered.every((dirs) => dirs.length === 0)) {
+    logger.info("No JavaScript project found in the workspace, analyzing the first folder");
+    return [folders[0].uri.fsPath];
+  }
+
+  // Ignored projects are dropped before the reduction and the cap rather than
+  // left to the analyzer's excluded paths: those cannot add back a location
+  // that was never emitted, and an ignored project that reaches the list takes
+  // a place under the cap that a wanted project needs.
+  const wanted = discovered.map((dirs) => dirs.filter((dir) => !coreApi.isProjectDirIgnored(dir)));
+  const ignoredCount = discovered.flat().length - wanted.flat().length;
+  if (ignoredCount > 0) {
+    logger.info(`Skipping ${ignoredCount} ignored JavaScript project(s)`);
+  }
+
+  // Reduced within each folder, not across them: a project below another
+  // folder's project on disk is not thereby one of its modules.
+  const locations = analysisLocations(wanted);
+  if (locations.length === 0) {
+    // Every project found was ignored. Falling back to the first folder here
+    // would analyze exactly what the user excluded, and would hand the
+    // provider a folder with no build file in it, whose failing init aborts
+    // the whole analysis rather than just this language's part of it.
+    logger.warn(
+      "Every JavaScript project in the workspace is ignored, skipping JavaScript analysis",
+    );
+    return [];
+  }
+  if (locations.length > MAX_ANALYSIS_LOCATIONS) {
+    logger.warn(
+      `Found ${locations.length} JavaScript projects, analyzing the first ${MAX_ANALYSIS_LOCATIONS}`,
+    );
+  }
+  return locations.slice(0, MAX_ANALYSIS_LOCATIONS);
+}
 
 export async function activate(context: vscode.ExtensionContext) {
   // Setup logger
@@ -142,9 +264,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  // Get workspace location for analysis
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspaceLocation = workspaceFolder?.uri.fsPath || process.cwd();
+  // Get workspace locations for analysis (one per JavaScript project)
+  const workspaceLocations = await getAnalysisLocations(logger, coreApi);
 
   // Format provider address for GRPC
   // analyzer-lsp expects: passthrough:unix://\\.\pipe\... for Windows named pipes
@@ -157,7 +278,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Provider configuration", {
     platform: process.platform,
     providerAddress,
-    workspaceLocation,
+    workspaceLocations,
     providerSocketPath,
   });
 
@@ -168,16 +289,14 @@ export async function activate(context: vscode.ExtensionContext) {
       name: "nodejs",
       address: providerAddress, // GRPC socket address
       useSocket: true,
-      initConfig: [
-        {
-          location: workspaceLocation,
-          analysisMode: "source-only",
-          pipeName: lspProxySocketPath, // JSON-RPC socket for vscode proxy communication
-          providerSpecificConfig: {
-            lspServerName: "nodejs",
-          },
+      initConfig: workspaceLocations.map((location) => ({
+        location,
+        analysisMode: "source-only",
+        pipeName: lspProxySocketPath, // JSON-RPC socket for vscode proxy communication
+        providerSpecificConfig: {
+          lspServerName: "nodejs",
         },
-      ],
+      })),
       contextLines: 10,
     },
     rulesetsPaths: [context.asAbsolutePath(getIncludedRulesetsPath(context.extension.packageJSON))],
@@ -195,7 +314,7 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info("Konveyor JavaScript extension activated and registered with core", {
     providerSocket: providerSocketPath,
     lspProxySocket: lspProxySocketPath,
-    workspaceLocation,
+    workspaceLocations,
   });
 
   // Warm up TypeScript server so providers work even with no JS/TS editor open

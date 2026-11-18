@@ -150,4 +150,38 @@ export interface KonveyorCoreApi {
    * @returns Disposable to unregister the health check
    */
   registerHealthCheck(module: HealthCheckModule): Disposable;
+
+  /**
+   * Check whether a project directory is ignored by the ignore files of the
+   * workspace folder it sits in (.konveyorignore, .gitignore, or the default
+   * patterns when a folder has neither).
+   *
+   * Language extensions filter the projects their own search discovers through
+   * this before reducing them to analysis locations. The excluded paths the
+   * analyzer is given at init cannot add back a location that was never
+   * emitted, and an ignored project that reaches the location list takes a
+   * place under the location cap that a wanted project needs.
+   *
+   * @param fsPath Absolute filesystem path of the project directory
+   * @returns true when the directory is ignored, or lies outside every
+   *          workspace folder
+   */
+  isProjectDirIgnored(fsPath: string): boolean;
+
+  /**
+   * Build the exclude glob for a workspace folder's project search: the
+   * caller's own build-output directory names, plus the directories that
+   * folder's ignore files exclude.
+   *
+   * An optimization rather than a correctness boundary — `isProjectDirIgnored`
+   * still decides what is analyzed — but a search that walks an ignored tree
+   * can exhaust its result budget there and never reach a project the user
+   * wants.
+   *
+   * @param folderFsPath Absolute path of the workspace folder being searched
+   * @param alwaysSkipDirs Directory names to skip at any depth, e.g. target
+   * @returns A glob suitable for the exclude argument of findFiles, relative
+   *          to the workspace folder
+   */
+  projectSearchExcludeGlob(folderFsPath: string, alwaysSkipDirs: string[]): string;
 }
