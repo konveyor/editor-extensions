@@ -21,6 +21,12 @@ export interface ResolveExcludedPathsOptions {
 export interface ResolvedExcludedPaths {
   /** Absolute, directory-marked (trailing separator) paths to hand the analyzer. */
   excludedPaths: string[];
+  /**
+   * Ignored directories deliberately left off `excludedPaths` because the
+   * analyzer would have matched them against a neighbouring path the ignore
+   * rules accept. See {@link alsoExcludes}.
+   */
+  skippedPaths: string[];
   /** The ignore file the patterns came from, or `null` when defaults were used. */
   ignoreFile: string | null;
   /** True when the walk hit `maxDirectories` and stopped early. */
@@ -45,6 +51,24 @@ export function isDirectoryIgnored(relativePosixPath: string, ig: Ignore): boole
     ? relativePosixPath.slice(2)
     : relativePosixPath;
   return ig.ignores(normalized.endsWith("/") ? normalized : `${normalized}/`);
+}
+
+/**
+ * Would handing the analyzer `excludedPath` also exclude `otherPath`?
+ *
+ * The analyzer does not treat an excluded path as a directory boundary. Its
+ * `ExcludedPathsScope` runs every path we send through `filepath.Clean`, which
+ * drops the trailing separator, and then matches the result against each
+ * incident's absolute file name as an *unanchored* pattern. A plain path prefix
+ * is therefore enough to exclude a file: excluding `<root>/generated` also
+ * excludes `<root>/generated-api/App.java` and `<root>/generated.txt`, neither
+ * of which is inside `<root>/generated`.
+ */
+export function alsoExcludes(excludedPath: string, otherPath: string): boolean {
+  const asAnalyzerSeesIt = excludedPath.endsWith(sep)
+    ? excludedPath.slice(0, -sep.length)
+    : excludedPath;
+  return otherPath.startsWith(asAnalyzerSeesIt);
 }
 
 const toExcludedPath = (root: string, relativePosixPath: string): string =>
@@ -73,6 +97,14 @@ const toExcludedPath = (root: string, relativePosixPath: string): string =>
  * list therefore agrees with the ignore rules by construction: no path the
  * ignore rules accept can sit underneath an emitted excluded path.
  *
+ * Sitting underneath it is not the only way to be excluded, though — see
+ * {@link alsoExcludes}. An ignored directory whose path is a prefix of a
+ * neighbour's is left off the list entirely (and reported in `skippedPaths`)
+ * rather than excluding that neighbour as well, because over-exclusion loses
+ * incidents in files the user wanted analyzed while under-exclusion only
+ * reports incidents in files they ignored. The walk still prunes there, so
+ * skipping costs nothing but a directory the analyzer will now look at.
+ *
  * Only directories are returned, each absolute and marked with a trailing
  * separator, matching what the analyzer has always been given.
  *
@@ -88,10 +120,38 @@ export function resolveExcludedPaths(
   const { ig, ignoreFile } = createIgnoreFromWorkspace(root);
 
   const excludedPaths: string[] = [];
+  const skippedPaths: string[] = [];
   // Relative, posix-style directories still to be descended into. "" is the root.
   const pending: string[] = [""];
   let directoriesRead = 0;
   let truncated = false;
+
+  const relativeTo = (relativeDir: string, name: string): string =>
+    relativeDir ? `${relativeDir}/${name}` : name;
+
+  const isEntryIgnored = (relativePath: string, entry: Dirent): boolean =>
+    entry.isDirectory() ? isDirectoryIgnored(relativePath, ig) : ig.ignores(relativePath);
+
+  /**
+   * Record an ignored directory as excluded, unless excluding it would reach a
+   * sibling the ignore rules accept. Only siblings can collide: the entries
+   * above this one are shared with every neighbour, so the first place two
+   * paths can differ is the name itself.
+   */
+  const exclude = (excludedPath: string, relativeDir: string, name: string, siblings: Dirent[]) => {
+    const collides = siblings.some((sibling) => {
+      if (sibling.name === name) {
+        return false;
+      }
+      const siblingRelative = relativeTo(relativeDir, sibling.name);
+      return (
+        alsoExcludes(excludedPath, join(root, siblingRelative)) &&
+        !isEntryIgnored(siblingRelative, sibling)
+      );
+    });
+
+    (collides ? skippedPaths : excludedPaths).push(excludedPath);
+  };
 
   while (pending.length > 0) {
     if (directoriesRead >= maxDirectories) {
@@ -118,13 +178,13 @@ export function resolveExcludedPaths(
     }
 
     for (const entry of entries) {
-      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+      const relativePath = relativeTo(relativeDir, entry.name);
 
       if (entry.isDirectory()) {
         if (isDirectoryIgnored(relativePath, ig)) {
           // Everything below an ignored directory is ignored too, so this single
           // entry covers the whole subtree and there is nothing to descend into.
-          excludedPaths.push(toExcludedPath(root, relativePath));
+          exclude(toExcludedPath(root, relativePath), relativeDir, entry.name, entries);
         } else {
           pending.push(relativePath);
         }
@@ -134,7 +194,7 @@ export function resolveExcludedPaths(
       if (entry.isSymbolicLink() && isDirectoryIgnored(relativePath, ig)) {
         try {
           if (statSync(join(root, relativePath)).isDirectory()) {
-            excludedPaths.push(toExcludedPath(root, relativePath));
+            exclude(toExcludedPath(root, relativePath), relativeDir, entry.name, entries);
           }
         } catch {
           // Broken link, or a link we aren't allowed to resolve: nothing to exclude.
@@ -144,5 +204,6 @@ export function resolveExcludedPaths(
   }
 
   excludedPaths.sort();
-  return { excludedPaths, ignoreFile, truncated };
+  skippedPaths.sort();
+  return { excludedPaths, skippedPaths, ignoreFile, truncated };
 }

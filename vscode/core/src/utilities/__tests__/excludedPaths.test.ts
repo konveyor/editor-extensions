@@ -2,7 +2,7 @@ import expect from "expect";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, sep } from "node:path";
 import { tmpdir } from "node:os";
-import { resolveExcludedPaths, isDirectoryIgnored } from "../excludedPaths";
+import { resolveExcludedPaths, isDirectoryIgnored, alsoExcludes } from "../excludedPaths";
 import { createIgnoreFromWorkspace, isPathIgnored } from "../ignorePatterns";
 
 /**
@@ -41,19 +41,38 @@ describe("excludedPaths module", () => {
     writeFileSync(join(testDir, ".gitignore"), `${lines.join("\n")}\n`);
   };
 
-  /** Resolved excluded paths as root-relative posix paths, without the directory marker. */
-  const excluded = (): string[] =>
-    resolveExcludedPaths(testDir).excludedPaths.map((p) =>
-      p
-        .slice(testDir.length + 1)
-        .split(sep)
-        .join("/")
-        .replace(/\/$/, ""),
-    );
+  /** Root-relative posix paths, without the directory marker. */
+  const toRelative = (absolutePath: string): string =>
+    absolutePath
+      .slice(testDir.length + 1)
+      .split(sep)
+      .join("/")
+      .replace(/\/$/, "");
 
-  /** Is `relativePath` skipped because it is, or sits under, an excluded path? */
-  const isCoveredByExcludedPaths = (relativePath: string): boolean =>
-    excluded().some((e) => relativePath === e || relativePath.startsWith(`${e}/`));
+  const excluded = (): string[] => resolveExcludedPaths(testDir).excludedPaths.map(toRelative);
+
+  const skipped = (): string[] => resolveExcludedPaths(testDir).skippedPaths.map(toRelative);
+
+  /**
+   * Would the analyzer drop an incident reported in `relativePath`?
+   *
+   * This models what analyzer-lsp actually does with the list, rather than
+   * assuming it treats each entry as a directory boundary: `ExcludedPathsScope`
+   * runs every path through `filepath.Clean` (dropping the trailing separator
+   * we add) and `FilterResponse` then compiles the result as an *unanchored*
+   * regular expression and matches it against the incident's absolute file name
+   * (engine/scopes.go). So an exclusion of `<root>/generated` drops incidents in
+   * `<root>/generated-api/App.java` too, even though that file is not inside it.
+   */
+  const isExcludedByAnalyzer = (relativePath: string): boolean => {
+    const incidentFile = join(testDir, relativePath);
+    return resolveExcludedPaths(testDir).excludedPaths.some((excludedPath) => {
+      const cleaned = excludedPath.endsWith(sep)
+        ? excludedPath.slice(0, -sep.length)
+        : excludedPath;
+      return new RegExp(cleaned).test(incidentFile);
+    });
+  };
 
   describe("resolveExcludedPaths", () => {
     it("reports the ignore file the patterns came from", () => {
@@ -128,7 +147,7 @@ describe("excludedPaths module", () => {
 
         expect(result).toContain("modules/api/target");
         expect(result).not.toContain("target");
-        expect(isCoveredByExcludedPaths("target/classes")).toBe(false);
+        expect(isExcludedByAnalyzer("target/classes/Example.java")).toBe(false);
       });
 
       it("descends into an ignored directory that re-includes a direct child", () => {
@@ -139,7 +158,7 @@ describe("excludedPaths module", () => {
 
         expect(result).toContain("fixtures/drop");
         expect(result).not.toContain("fixtures");
-        expect(isCoveredByExcludedPaths("fixtures/keep")).toBe(false);
+        expect(isExcludedByAnalyzer("fixtures/keep/Example.java")).toBe(false);
       });
 
       it("descends into an ignored directory that re-includes a deeper descendant", () => {
@@ -152,7 +171,7 @@ describe("excludedPaths module", () => {
         expect(result).toContain("fixtures/a/drop");
         expect(result).not.toContain("fixtures");
         expect(result).not.toContain("fixtures/a");
-        expect(isCoveredByExcludedPaths("fixtures/a/keep")).toBe(false);
+        expect(isExcludedByAnalyzer("fixtures/a/keep/Example.java")).toBe(false);
       });
 
       it("excludes a re-included directory's ignored siblings", () => {
@@ -173,12 +192,70 @@ describe("excludedPaths module", () => {
       });
     });
 
+    /**
+     * The analyzer matches an excluded path as a prefix, not as a directory, so
+     * an excluded directory whose name starts another neighbour's name takes
+     * that neighbour down with it. Rather than over-exclude, such a directory is
+     * left off the list: over-exclusion loses incidents in files the user wanted
+     * analyzed, under-exclusion only reports incidents in files they ignored.
+     */
+    describe("neighbours the analyzer would also exclude", () => {
+      it("does not exclude a directory whose name starts a sibling the ignore rules accept", () => {
+        makeTree("generated", "generated-api", "src");
+        writeIgnoreFile("/generated");
+
+        expect(excluded()).toEqual([]);
+        expect(skipped()).toEqual(["generated"]);
+        expect(isExcludedByAnalyzer("generated-api/Example.java")).toBe(false);
+      });
+
+      it("does not exclude a directory whose name starts an accepted file's name", () => {
+        makeTree("generated");
+        writeFileSync(join(testDir, "generated.txt"), "keep me");
+        writeIgnoreFile("/generated");
+
+        expect(excluded()).toEqual([]);
+        expect(skipped()).toEqual(["generated"]);
+        expect(isExcludedByAnalyzer("generated.txt")).toBe(false);
+      });
+
+      it("still excludes it when the sibling it would reach is ignored too", () => {
+        makeTree("generated", "generated-api", "src");
+        writeIgnoreFile("generated*");
+
+        // Sorted by the emitted path, where the directory marker puts
+        // `generated-api/` ahead of `generated/`.
+        expect(excluded()).toEqual(["generated-api", "generated"]);
+        expect(skipped()).toEqual([]);
+      });
+
+      it("applies below the workspace root as well", () => {
+        makeTree("build/out", "build/output-api", "src");
+        writeIgnoreFile("build/out/");
+
+        expect(excluded()).toEqual([]);
+        expect(skipped()).toEqual(["build/out"]);
+        expect(isExcludedByAnalyzer("build/output-api/Example.java")).toBe(false);
+      });
+
+      it("excludes a directory whose name merely ends like a sibling's", () => {
+        makeTree("api-generated", "generated", "src");
+        writeIgnoreFile("/generated");
+
+        // `<root>/generated` is not a prefix of `<root>/api-generated`.
+        expect(excluded()).toEqual(["generated"]);
+        expect(isExcludedByAnalyzer("api-generated/Example.java")).toBe(false);
+      });
+    });
+
     describe("agreement with the ignore rules", () => {
       const allDirs = [
         "fixtures",
         "fixtures/keep",
         "fixtures/keep/deep",
         "fixtures/drop",
+        "generated",
+        "generated-api",
         "target",
         "target/classes",
         "modules",
@@ -197,6 +274,7 @@ describe("excludedPaths module", () => {
         ["fixtures/*", "!fixtures/keep/"],
         ["fixtures/*", "!fixtures/keep"],
         ["/node_modules", "/target"],
+        ["/generated"],
         ["*", "!src/", "!src/**"],
         ["node_modules", "target", "fixtures/drop"],
       ];
@@ -210,25 +288,31 @@ describe("excludedPaths module", () => {
           const accepted = allDirs.filter((d) => !isPathIgnored(d, ig));
 
           for (const dir of accepted) {
-            expect({ dir, excluded: isCoveredByExcludedPaths(dir) }).toEqual({
+            // Both the directory and the file in it: the analyzer filters
+            // incidents, which are always files.
+            expect({ dir, excluded: isExcludedByAnalyzer(dir) }).toEqual({ dir, excluded: false });
+            expect({
               dir,
-              excluded: false,
-            });
+              excluded: isExcludedByAnalyzer(`${dir}/Example.java`),
+            }).toEqual({ dir, excluded: false });
           }
         });
 
-        it(`excludes every ignored directory: ${JSON.stringify(patterns)}`, () => {
+        it(`accounts for every ignored directory: ${JSON.stringify(patterns)}`, () => {
           makeTree(...allDirs);
           writeIgnoreFile(...patterns);
 
           const { ig } = createIgnoreFromWorkspace(testDir);
           const ignoredDirs = allDirs.filter((d) => isDirectoryIgnored(d, ig));
+          // Excluded, or deliberately skipped because excluding it would have
+          // reached a neighbour the ignore rules accept.
+          const accountedFor = [...excluded(), ...skipped()];
 
           for (const dir of ignoredDirs) {
-            expect({ dir, excluded: isCoveredByExcludedPaths(dir) }).toEqual({
+            expect({
               dir,
-              excluded: true,
-            });
+              accountedFor: accountedFor.some((e) => dir === e || dir.startsWith(`${e}/`)),
+            }).toEqual({ dir, accountedFor: true });
           }
         });
       }
@@ -303,6 +387,24 @@ describe("excludedPaths module", () => {
 
       expect(isDirectoryIgnored("fixtures/drop", ig)).toBe(true);
       expect(isDirectoryIgnored("fixtures/keep", ig)).toBe(false);
+    });
+  });
+
+  describe("alsoExcludes", () => {
+    const excludedPath = join("/repo", "generated") + sep;
+
+    it("reaches a path that merely starts with the excluded directory's path", () => {
+      expect(alsoExcludes(excludedPath, join("/repo", "generated-api", "App.java"))).toBe(true);
+      expect(alsoExcludes(excludedPath, join("/repo", "generated.txt"))).toBe(true);
+    });
+
+    it("reaches paths inside the excluded directory", () => {
+      expect(alsoExcludes(excludedPath, join("/repo", "generated", "App.java"))).toBe(true);
+    });
+
+    it("leaves unrelated paths alone", () => {
+      expect(alsoExcludes(excludedPath, join("/repo", "src", "App.java"))).toBe(false);
+      expect(alsoExcludes(excludedPath, join("/repo", "api-generated", "App.java"))).toBe(false);
     });
   });
 });

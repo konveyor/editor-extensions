@@ -477,7 +477,7 @@ export const ignoresToExcludedPaths = () => {
 };
 
 const excludedPathsForRoot = (cwd: string): string[] => {
-  const { excludedPaths, ignoreFile } = resolveExcludedPaths(cwd, {
+  const { excludedPaths, skippedPaths, ignoreFile } = resolveExcludedPaths(cwd, {
     onWarning: (message) => _logger?.warn(message),
   });
 
@@ -485,6 +485,13 @@ const excludedPathsForRoot = (cwd: string): string[] => {
     _logger?.debug(`Using ignore file: ${ignoreFile}`);
   } else {
     _logger?.debug(`No ignore file found in ${cwd}, using defaults`);
+  }
+
+  if (skippedPaths.length) {
+    _logger?.debug(
+      `Not excluding ${skippedPaths.join(", ")}: the analyzer matches an excluded path as a ` +
+        `prefix, so excluding these would also exclude a neighbouring path the ignore rules accept`,
+    );
   }
 
   return excludedPaths;
