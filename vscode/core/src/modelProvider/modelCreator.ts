@@ -158,7 +158,10 @@ class ChatBedrockCreator implements ModelCreator {
     );
     const runtimeClient = new BedrockRuntimeClient({
       region: env.AWS_DEFAULT_REGION,
-      credentials: auth.credentials,
+      // config.credentials is the environment's credentials when there are
+      // any, otherwise whatever was set under `args.credentials`. A profile
+      // named in provider settings is used instead of the latter.
+      credentials: auth.profile ? undefined : config.credentials,
       ...(auth.profile ? { profile: auth.profile } : {}),
       ...(auth.authSchemePreference ? { authSchemePreference: auth.authSchemePreference } : {}),
       requestHandler,

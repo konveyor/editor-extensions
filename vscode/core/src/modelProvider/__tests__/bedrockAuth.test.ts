@@ -148,16 +148,56 @@ describe("ChatBedrock credential resolution", () => {
   });
 
   /** Mirrors getModelProviderFromConfig: the provider block overlays the process environment. */
-  const createClient = async (providerEnv: Record<string, string>) => {
+  const createClient = async (
+    providerEnv: Record<string, string>,
+    modelArgs: Record<string, any> = args,
+  ) => {
     const mergedEnv = { ...(process.env as Record<string, string>), ...providerEnv };
     const model = (await ModelCreators.ChatBedrock(logger, providerEnv).create(
-      args,
+      modelArgs,
       mergedEnv,
     )) as ChatBedrockConverse;
     return model.client;
   };
-  const resolveCredentials = async (providerEnv: Record<string, string>) =>
-    (await createClient(providerEnv)).config.credentials();
+  const resolveCredentials = async (
+    providerEnv: Record<string, string>,
+    modelArgs?: Record<string, any>,
+  ) => (await createClient(providerEnv, modelArgs)).config.credentials();
+
+  describe("with credentials set under the model args", () => {
+    const argsWithCredentials = {
+      ...args,
+      credentials: { accessKeyId: "AKIAFROMMODELARGS000", secretAccessKey: "fake" },
+    };
+
+    it("uses them when the environment names no credentials", async () => {
+      const credentials = await resolveCredentials(
+        { AWS_DEFAULT_REGION: "us-east-1" },
+        argsWithCredentials,
+      );
+      expect(credentials.accessKeyId).toBe("AKIAFROMMODELARGS000");
+    });
+
+    it("prefers access keys from the environment", async () => {
+      const credentials = await resolveCredentials(
+        {
+          AWS_ACCESS_KEY_ID: "AKIAEXAMPLE000000000",
+          AWS_SECRET_ACCESS_KEY: "fake",
+          AWS_DEFAULT_REGION: "us-east-1",
+        },
+        argsWithCredentials,
+      );
+      expect(credentials.accessKeyId).toBe("AKIAEXAMPLE000000000");
+    });
+
+    it("prefers a profile named in provider settings", async () => {
+      const credentials = await resolveCredentials(
+        { AWS_PROFILE: "my-sso", AWS_DEFAULT_REGION: "us-east-1" },
+        argsWithCredentials,
+      );
+      expect(credentials.accessKeyId).toBe("AKIANAMEDPROFILE0000");
+    });
+  });
 
   it("resolves the profile named in provider settings", async () => {
     const credentials = await resolveCredentials({
