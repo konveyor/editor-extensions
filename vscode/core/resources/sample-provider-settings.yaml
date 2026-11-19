@@ -59,6 +59,8 @@ models:
     environment:
       AWS_ACCESS_KEY_ID: "" # Required if a global ~/.aws/credentials file is not present
       AWS_SECRET_ACCESS_KEY: "" # Required if a global ~/.aws/credentials file is not present
+      # AWS_SESSION_TOKEN: "" # Required with temporary credentials, alongside the two keys above
+      # AWS_PROFILE: "" # Use a named profile from ~/.aws/config instead of the keys above, e.g. one signed in with `aws sso login`
       AWS_DEFAULT_REGION: "" # Required
     provider: ChatBedrock
     args:
