@@ -1,0 +1,13 @@
+kind: feature
+description: >
+  (Preview) New commands connect the IDE to Konveyor's agentic platform
+  through the Hub. "Konveyor: Start Migration on Cluster" starts a migration
+  workflow (such as java-ee-to-quarkus) or a single agent for the open
+  application and links to the run in the Konveyor console, where it is
+  followed and supervised. "Konveyor: Check Out Cluster Run Branch" checks out
+  a run's branch, activates the application's Hub analysis profile and starts
+  analysis, so what is left can be finished with Get Solution or the agent.
+  "Konveyor: Review Cluster Run Results" instead loads a run's changed files
+  into the Migration Assistant's batch review on the current branch, and
+  flags files that also changed locally. Needs a Hub (0.11 or newer) with
+  agentic enabled and profile sync connected.

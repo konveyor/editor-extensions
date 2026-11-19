@@ -595,7 +595,7 @@ export class ProfileSyncClient {
    * Returns null if no matching application found.
    * Throws error if match is ambiguous.
    **/
-  private async findApplicationForWorkspace(
+  public async findApplicationForWorkspace(
     repoInfo: RepositoryInfo,
   ): Promise<HubApplication | null> {
     // Step 1: Generate URL variations we'll match against
