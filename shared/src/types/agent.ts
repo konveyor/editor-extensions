@@ -60,6 +60,21 @@ export type AgentContentBlock =
     }
   | { type: "thinking"; text: string };
 
+/**
+ * Supervision mode for agent tool calls, mirroring the agentic platform's
+ * AgentRun `execution.mode` (agentic-controller ADR 0011): `auto` approves
+ * every tool call, `approve` asks before each one. Applied through ACP
+ * session modes, so it only works with agents that advertise both ids
+ * (Goose does; OpenCode's modes are its agents, not permissions).
+ */
+export type AgentPermissionMode = "auto" | "approve";
+
+export const AGENT_PERMISSION_MODES: readonly AgentPermissionMode[] = ["approve", "auto"];
+
+export function isAgentPermissionMode(value: unknown): value is AgentPermissionMode {
+  return value === "auto" || value === "approve";
+}
+
 export interface AgentChatMessage {
   id: string;
   role: "user" | "assistant" | "system" | "tool";

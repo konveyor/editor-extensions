@@ -2,7 +2,13 @@ import * as vscode from "vscode";
 import * as pathlib from "path";
 import { fileURLToPath } from "url";
 import { EXTENSION_NAME } from "./constants";
-import { AnalysisProfile, createConfigError, ExtensionData } from "@editor-extensions/shared";
+import {
+  AnalysisProfile,
+  createConfigError,
+  ExtensionData,
+  isAgentPermissionMode,
+  type AgentPermissionMode,
+} from "@editor-extensions/shared";
 
 function getConfigValue<T>(key: string): T | undefined {
   return vscode.workspace.getConfiguration(EXTENSION_NAME)?.get<T>(key);
@@ -84,6 +90,19 @@ export const getConfigAgentBackend = (): string => {
 
 export const getConfigAgentBinaryPath = (): string | null =>
   getConfigValue<string>("experimentalChat.agentBinaryPath") ?? null;
+
+/**
+ * The permission mode to apply to agent sessions, or null to leave the
+ * agent's own configured mode in place (the "agent" setting value).
+ */
+export const getConfigAgentPermissionMode = (): AgentPermissionMode | null => {
+  const value = getConfigValue<string>("experimentalChat.permissionMode");
+  return isAgentPermissionMode(value) ? value : null;
+};
+
+export async function updateConfigAgentPermissionMode(value: AgentPermissionMode): Promise<void> {
+  await updateConfigValue("experimentalChat.permissionMode", value);
+}
 
 // ─── Agent settings (persisted) ──────────────────────────────────────
 

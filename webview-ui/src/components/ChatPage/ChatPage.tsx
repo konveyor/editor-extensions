@@ -31,6 +31,7 @@ import { useContainerWidth } from "../../hooks/useContainerWidth";
 import AgentSettings from "./AgentSettings";
 import { CompactBatchReview } from "./CompactBatchReview";
 import { PermissionReviewMessage } from "./PermissionReviewMessage";
+import { PermissionModePicker } from "./PermissionModePicker";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ResourceLink } from "./ResourceLink";
 import { ResourceBlock } from "./ResourceBlock";
@@ -54,6 +55,8 @@ const ChatPage: React.FC = () => {
   // genai.freeformChat gates the open-ended input and suggestion chips; the
   // fix workflow and agent activity render regardless.
   const isFreeformChat = useExtensionStore((s) => s.isFreeformChat);
+  const agentPermissionMode = useExtensionStore((s) => s.agentPermissionMode);
+  const agentPermissionModeSupported = useExtensionStore((s) => s.agentPermissionModeSupported);
   const agentState = useExtensionStore((s) => s.agentState);
   const agentError = useExtensionStore((s) => s.agentError);
   const agentConfig = useExtensionStore((s) => s.agentConfig);
@@ -482,6 +485,9 @@ const ChatPage: React.FC = () => {
                   <span className="chat-config-label" title={configLabel}>
                     {configLabel}
                   </span>
+                  {isRunning && agentPermissionModeSupported && (
+                    <PermissionModePicker current={agentPermissionMode} />
+                  )}
                   {!isRunning && !isStarting && (
                     <button className="chat-action-btn" onClick={handleStartAgent}>
                       Start

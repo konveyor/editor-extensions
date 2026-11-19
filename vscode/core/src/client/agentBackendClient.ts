@@ -91,6 +91,8 @@ export interface McpServerConfig {
  * - `permissionRequest(data: PermissionRequestData)`
  * - `permissionsCancelled(requestIds: number[])` — pending requests answered
  *   with `cancelled` because the prompt was cancelled or the agent stopped
+ * - `permissionModeChange(state: { current: string | null; supported: boolean })`
+ *   — the session's ACP mode or the modes on offer changed
  */
 export interface AgentBackendClient extends EventEmitter {
   getState(): AgentState;
