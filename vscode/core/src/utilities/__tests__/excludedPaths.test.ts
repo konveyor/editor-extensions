@@ -407,4 +407,53 @@ describe("excludedPaths module", () => {
       expect(alsoExcludes(excludedPath, join("/repo", "api-generated", "App.java"))).toBe(false);
     });
   });
+  /**
+   * The collision check in {@link resolveExcludedPaths} once compared every
+   * ignored entry against every one of its siblings. That is quadratic in the
+   * size of a single directory, and resolution runs synchronously on the
+   * extension host before each analysis, so a directory of a few thousand
+   * ignored entries froze the editor: the tree below took 4.2s to resolve that
+   * way and takes ~10ms now.
+   */
+  describe("a directory holding thousands of ignored entries", () => {
+    /** Create `count` sibling directories under `parent`, named `<prefix><n>`. */
+    const makeSiblings = (parent: string, prefix: string, count: number): void => {
+      mkdirSync(join(testDir, parent), { recursive: true });
+      for (let index = 0; index < count; index++) {
+        mkdirSync(join(testDir, parent, `${prefix}${index}`));
+      }
+    };
+
+    it("resolves them without a quadratic sibling scan", () => {
+      makeSiblings("fixtures", "case-", 3000);
+      makeTree("src");
+      writeIgnoreFile("fixtures/*");
+
+      const startedAt = Date.now();
+      const { excludedPaths, skippedPaths, truncated } = resolveExcludedPaths(testDir);
+      const elapsed = Date.now() - startedAt;
+
+      expect(excludedPaths).toHaveLength(3000);
+      expect(skippedPaths).toEqual([]);
+      expect(truncated).toBe(false);
+      // Deliberately loose: two orders of magnitude above what it costs now,
+      // and still far below the seconds the all-pairs scan took.
+      expect(elapsed).toBeLessThan(1000);
+    });
+
+    it("still finds the one sibling the ignore rules accept among them", () => {
+      makeSiblings("fixtures", "case-", 2000);
+      makeTree("fixtures/case-1-keep");
+      writeIgnoreFile("fixtures/*", "!fixtures/case-1-keep/");
+
+      const { excludedPaths, skippedPaths } = resolveExcludedPaths(testDir);
+
+      // `fixtures/case-1` prefixes `fixtures/case-1-keep`, so the analyzer
+      // would drop incidents in the directory the negation re-includes.
+      expect(skippedPaths.map(toRelative)).toEqual(["fixtures/case-1"]);
+      expect(excludedPaths.map(toRelative)).not.toContain("fixtures/case-1");
+      expect(excludedPaths).toHaveLength(1999);
+      expect(isExcludedByAnalyzer("fixtures/case-1-keep/Example.java")).toBe(false);
+    });
+  });
 });

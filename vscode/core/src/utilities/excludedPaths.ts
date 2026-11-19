@@ -132,25 +132,37 @@ export function resolveExcludedPaths(
   const isEntryIgnored = (relativePath: string, entry: Dirent): boolean =>
     entry.isDirectory() ? isDirectoryIgnored(relativePath, ig) : ig.ignores(relativePath);
 
-  /**
-   * Record an ignored directory as excluded, unless excluding it would reach a
-   * sibling the ignore rules accept. Only siblings can collide: the entries
-   * above this one are shared with every neighbour, so the first place two
-   * paths can differ is the name itself.
-   */
-  const exclude = (excludedPath: string, relativeDir: string, name: string, siblings: Dirent[]) => {
-    const collides = siblings.some((sibling) => {
-      if (sibling.name === name) {
-        return false;
-      }
-      const siblingRelative = relativeTo(relativeDir, sibling.name);
-      return (
-        alsoExcludes(excludedPath, join(root, siblingRelative)) &&
-        !isEntryIgnored(siblingRelative, sibling)
-      );
-    });
+  /** The names of the entries the ignore rules accept, sorted. */
+  const acceptedNamesOf = (relativeDir: string, entries: Dirent[]): string[] =>
+    entries
+      .filter((entry) => !isEntryIgnored(relativeTo(relativeDir, entry.name), entry))
+      .map((entry) => entry.name)
+      .sort();
 
-    (collides ? skippedPaths : excludedPaths).push(excludedPath);
+  /**
+   * Would excluding the entry named `name` also reach one of its accepted
+   * siblings?
+   *
+   * Only siblings can collide: the path above them is shared with every
+   * neighbour, so the first place two sibling paths can differ is the name
+   * itself, and {@link alsoExcludes} reduces to a prefix test on the names. The
+   * names carrying `name` as a prefix form one contiguous run starting where
+   * `name` itself would be inserted, so a single binary search answers it —
+   * comparing every pair instead costs seconds in a directory holding
+   * thousands of ignored entries, and this runs synchronously before analysis.
+   */
+  const reachesAcceptedSibling = (name: string, sortedAcceptedNames: string[]): boolean => {
+    let low = 0;
+    let high = sortedAcceptedNames.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (sortedAcceptedNames[middle] < name) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    return sortedAcceptedNames[low]?.startsWith(name) ?? false;
   };
 
   while (pending.length > 0) {
@@ -177,6 +189,16 @@ export function resolveExcludedPaths(
       continue;
     }
 
+    // Only needed once a directory turns out to hold an ignored entry, which
+    // most directories do not: resolved on first use, then reused.
+    let acceptedNames: string[] | undefined;
+    const exclude = (excludedPath: string, name: string) => {
+      acceptedNames ??= acceptedNamesOf(relativeDir, entries);
+      (reachesAcceptedSibling(name, acceptedNames) ? skippedPaths : excludedPaths).push(
+        excludedPath,
+      );
+    };
+
     for (const entry of entries) {
       const relativePath = relativeTo(relativeDir, entry.name);
 
@@ -184,7 +206,7 @@ export function resolveExcludedPaths(
         if (isDirectoryIgnored(relativePath, ig)) {
           // Everything below an ignored directory is ignored too, so this single
           // entry covers the whole subtree and there is nothing to descend into.
-          exclude(toExcludedPath(root, relativePath), relativeDir, entry.name, entries);
+          exclude(toExcludedPath(root, relativePath), entry.name);
         } else {
           pending.push(relativePath);
         }
@@ -194,7 +216,7 @@ export function resolveExcludedPaths(
       if (entry.isSymbolicLink() && isDirectoryIgnored(relativePath, ig)) {
         try {
           if (statSync(join(root, relativePath)).isDirectory()) {
-            exclude(toExcludedPath(root, relativePath), relativeDir, entry.name, entries);
+            exclude(toExcludedPath(root, relativePath), entry.name);
           }
         } catch {
           // Broken link, or a link we aren't allowed to resolve: nothing to exclude.
