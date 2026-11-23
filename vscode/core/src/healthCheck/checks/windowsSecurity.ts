@@ -5,7 +5,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
-import { CheckResultBuilder, skipIfNotPlatform, formatDetails } from "../helpers";
+import { CheckResultBuilder, skipIfNotPlatform, formatDetails } from "@editor-extensions/shared";
 
 const execAsync = promisify(exec);
 

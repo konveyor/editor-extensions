@@ -4,7 +4,7 @@
 
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import * as vscode from "vscode";
-import { CheckResultBuilder, withErrorHandling, formatDetails } from "../helpers";
+import { CheckResultBuilder, withErrorHandling, formatDetails } from "@editor-extensions/shared";
 import { EXTENSION_NAME } from "../../utilities/constants";
 
 const PROXY_VARS = [

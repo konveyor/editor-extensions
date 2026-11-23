@@ -16,7 +16,7 @@ export class CheckResultBuilder {
       name: this.checkName,
       status: "pass",
       message,
-      details,
+      ...(details && { details }),
     };
   }
 
@@ -25,8 +25,8 @@ export class CheckResultBuilder {
       name: this.checkName,
       status: "fail",
       message,
-      details,
-      suggestion,
+      ...(details && { details }),
+      ...(suggestion && { suggestion }),
     };
   }
 
@@ -35,8 +35,8 @@ export class CheckResultBuilder {
       name: this.checkName,
       status: "warning",
       message,
-      details,
-      suggestion,
+      ...(details && { details }),
+      ...(suggestion && { suggestion }),
     };
   }
 
@@ -101,8 +101,8 @@ export function formatError(err: unknown): string {
 
 /**
  * Combines multiple strings into a formatted details string,
- * filtering out undefined values
+ * filtering out undefined and empty values
  */
 export function formatDetails(...lines: (string | undefined)[]): string {
-  return lines.filter((line): line is string => line !== undefined).join("\n");
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
 }

@@ -5,7 +5,7 @@
 import { HealthCheckModule, CheckResult, HealthCheckContext } from "../types";
 import { parseModelConfig, getModelProviderFromConfig } from "../../modelProvider/config";
 import { paths } from "../../paths";
-import { CheckResultBuilder, withErrorHandling, formatError } from "../helpers";
+import { CheckResultBuilder, withErrorHandling, formatError } from "@editor-extensions/shared";
 import { EXTENSION_SHORT_NAME } from "../../utilities/constants";
 import {
   getCacheDir,
