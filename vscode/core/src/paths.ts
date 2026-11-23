@@ -1,6 +1,5 @@
 import { dirname, join } from "node:path";
 import { createWriteStream, createReadStream } from "node:fs";
-import { globbySync } from "globby";
 import * as vscode from "vscode";
 import winston from "winston";
 import { createHash } from "node:crypto";
@@ -10,13 +9,14 @@ import { platform, arch } from "node:process";
 import { existsSync } from "node:fs";
 import { getConfigAnalyzerPath } from "./utilities/configuration";
 import { EXTENSION_NAME } from "./utilities/constants";
-import { createIgnoreFromWorkspace, getIgnorePatternsForGlob } from "./utilities/ignorePatterns";
+import { getIgnorePatternsForGlob } from "./utilities/ignorePatterns";
 import {
   isPathIgnoredInRoot,
   isProjectDirIgnoredInWorkspace,
   scopeExcludedPathsToRoot,
 } from "./utilities/multiRootIgnore";
 import { buildProjectSearchExclude, reIncludesSomething } from "./utilities/projectSearchExclude";
+import { resolveExcludedPaths } from "./utilities/excludedPaths";
 import AdmZip from "adm-zip";
 
 /**
@@ -452,8 +452,11 @@ export const isProjectDirIgnored = (fsPath: string): boolean =>
  * paths based on the contents of the workspace folder itself and the
  * ignore files that can be found.
  *
- * Uses the `ignore` npm package which properly implements gitignore specification,
- * supporting all patterns including negation (!), rooted (/), and wildcards.
+ * Resolution is done by {@link resolveExcludedPaths}, which walks the workspace
+ * and asks the `ignore` package about each directory, so the excluded paths
+ * follow full gitignore semantics (negation `!`, rooted `/`, directory-only
+ * trailing `/`, and matching at any depth) and can never exclude a directory
+ * the ignore rules re-include.
  *
  * Ignore files to consider (in priority order):
  *   - `.konveyorignore` - Konveyor-specific ignore file
@@ -474,9 +477,9 @@ export const ignoresToExcludedPaths = () => {
 };
 
 const excludedPathsForRoot = (cwd: string): string[] => {
-  // Get ignore patterns from this workspace folder
-  const { ignoreFile } = createIgnoreFromWorkspace(cwd);
-  const patterns = getIgnorePatternsForGlob(cwd);
+  const { excludedPaths, skippedPaths, ignoreFile } = resolveExcludedPaths(cwd, {
+    onWarning: (message) => _logger?.warn(message),
+  });
 
   if (ignoreFile) {
     _logger?.debug(`Using ignore file: ${ignoreFile}`);
@@ -484,17 +487,14 @@ const excludedPathsForRoot = (cwd: string): string[] => {
     _logger?.debug(`No ignore file found in ${cwd}, using defaults`);
   }
 
-  // Use globby to find directories matching the ignore patterns
-  // This is much more efficient than scanning everything and filtering
-  return globbySync(patterns, {
-    cwd,
-    expandDirectories: false,
-    dot: true,
-    onlyDirectories: true,
-    markDirectories: true,
-    absolute: true,
-    unique: true,
-  });
+  if (skippedPaths.length) {
+    _logger?.debug(
+      `Not excluding ${skippedPaths.join(", ")}: the analyzer matches an excluded path as a ` +
+        `prefix, so excluding these would also exclude a neighbouring path the ignore rules accept`,
+    );
+  }
+
+  return excludedPaths;
 };
 
 /**

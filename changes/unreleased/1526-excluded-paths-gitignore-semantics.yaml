@@ -1,0 +1,4 @@
+kind: bugfix
+description: >
+  resolve analyzer excluded paths with gitignore semantics so a directory
+  re-included by a negation (!) is no longer skipped
