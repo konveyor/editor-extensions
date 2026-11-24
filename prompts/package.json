@@ -3,7 +3,7 @@
   "version": "0.10.0",
   "private": true,
   "type": "module",
-  "description": "Governed, version-controlled prompt templates for Developer Lightspeed (ISO 42001 A.5.2).",
+  "description": "Governed, version-controlled prompt templates for Developer Lightspeed (ISO 42001 A.6.1.3).",
   "types": "./dist/index.d.ts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

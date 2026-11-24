@@ -1,8 +1,9 @@
 # Prompt Template Governance
 
 This document defines the change-management lifecycle for the LLM **prompt templates**
-that drive Developer Lightspeed for MTA. It exists to satisfy ISO/IEC 42001 Control
-**A.5.2 (Governance and lifecycle of AI systems)**: because the built-in prompts are the
+that drive Developer Lightspeed for MTA. It is evidence for ISO/IEC 42001
+**A.6.1.3 (Processes for responsible AI system design and development)**, whose guidance
+covers change control and approvals: because the built-in prompts are the
 core instruction set defining system behavior, they are treated as governed source code —
 version-controlled, peer-reviewed, and validated by CI before distribution.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Prompt template governance checks (ISO 42001 A.5.2).
+// Prompt template governance checks (ISO 42001 A.6.1.3).
 //
 // Validates the versioned prompt template set under prompts/:
 //   - every template/partial on disk is declared in prompts/manifest.yaml (and vice-versa)
@@ -264,7 +264,7 @@ function update() {
   }
   writeFileSync(
     MANIFEST_PATH,
-    "# Prompt template manifest — governed under ISO 42001 A.5.2.\n" +
+    "# Prompt template manifest — governed under ISO 42001 A.6.1.3.\n" +
       "# Checksums are maintained by scripts/prompts-version.js; do not edit by hand.\n" +
       yaml.dump(manifest, { lineWidth: 1000, quotingType: '"' }),
     "utf8",
