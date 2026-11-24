@@ -48,6 +48,24 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "konveyor-core.startClusterRun",
+        "title": "Start Migration on Cluster (Preview)",
+        "category": "Konveyor",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "konveyor-core.checkoutClusterRun",
+        "title": "Check Out Cluster Run Branch (Preview)",
+        "category": "Konveyor",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "konveyor-core.reviewClusterRun",
+        "title": "Review Cluster Run Results (Preview)",
+        "category": "Konveyor",
+        "icon": "$(git-pull-request)"
+      },
+      {
         "command": "konveyor-core.openChatInEditor",
         "title": "Open Migration Chat in Editor",
         "category": "Konveyor"
