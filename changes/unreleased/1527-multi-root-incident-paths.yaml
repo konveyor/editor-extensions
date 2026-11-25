@@ -1,0 +1,4 @@
+kind: bugfix
+description: >
+  show incident and modified file paths relative to their own workspace folder
+  in multi-root workspaces instead of as absolute paths

@@ -1,5 +1,6 @@
 import path from "path-browserify";
 import { Incident } from "@editor-extensions/shared";
+import { getWorkspaceRelativePath } from "./workspacePath";
 
 export function getIncidentFile(incident: Incident): string {
   return path.basename(incident.uri.replace(/\\/g, "/"));
@@ -22,4 +23,23 @@ export function getIncidentRelativePath(incident: Incident, workspaceRoot: strin
   const normalizedIncidentPath = incident.uri.replace(/\\/g, "/").toLocaleLowerCase();
 
   return normalizedIncidentPath.replace(normalizedRoot, "");
+}
+
+/**
+ * Returns the path to show for an incident. In a multi-root workspace the path is made
+ * relative to the folder that contains the incident and prefixed with that folder's name.
+ * With a single folder this is the same as `getIncidentRelativePath`.
+ */
+export function getIncidentDisplayPath(
+  incident: Incident,
+  workspaceRoot: string,
+  workspaceRoots: string[] = [],
+): string {
+  if (workspaceRoots.length > 1) {
+    const displayPath = getWorkspaceRelativePath(incident.uri, workspaceRoots);
+    if (displayPath) {
+      return displayPath;
+    }
+  }
+  return getIncidentRelativePath(incident, workspaceRoot);
 }

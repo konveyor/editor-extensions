@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useExtensionStore } from "../../store/store";
+import { getWorkspaceRelativePath } from "../../utils/workspacePath";
 import "./CompactBatchReview.css";
 
 export const CompactBatchReview: React.FC = () => {
@@ -7,6 +8,7 @@ export const CompactBatchReview: React.FC = () => {
   const activeDecorators = useExtensionStore((state) => state.activeDecorators);
   const isBatchOperationInProgress = useExtensionStore((state) => state.isBatchOperationInProgress);
   const workspaceRoot = useExtensionStore((state) => state.workspaceRoot);
+  const workspaceRoots = useExtensionStore((state) => state.workspaceRoots);
   const setBatchOperationInProgress = useExtensionStore(
     (state) => state.setBatchOperationInProgress,
   );
@@ -77,23 +79,14 @@ export const CompactBatchReview: React.FC = () => {
     return null;
   }
 
-  let root = (workspaceRoot || "").replace(/\\/g, "/");
-  if (root.startsWith("file:///")) {
-    root = root.slice("file://".length);
-  } else if (root.startsWith("file:")) {
-    root = root.slice("file:".length);
-  }
-  try {
-    root = decodeURIComponent(root); // "My%20Project" → "My Project"
-  } catch {
-    // leave a malformed escape as-is
-  }
-  root = root.replace(/\/$/, "");
   const normalizedPath = currentFile.path.replace(/\\/g, "/");
   const currentFileName =
-    root && normalizedPath.startsWith(root)
-      ? normalizedPath.slice(root.length + 1) || normalizedPath.split("/").pop() || currentFile.path
-      : normalizedPath.split("/").pop() || currentFile.path;
+    getWorkspaceRelativePath(
+      currentFile.path,
+      workspaceRoots.length > 0 ? workspaceRoots : [workspaceRoot],
+    ) ||
+    normalizedPath.split("/").pop() ||
+    currentFile.path;
   const noChanges = !currentFile.diff || currentFile.diff.trim() === "";
   const isProcessing = processingFiles.has(currentFile.messageToken) || isBatchOperationInProgress;
   // Keyed by the review's message token, which is unique per proposal. The
