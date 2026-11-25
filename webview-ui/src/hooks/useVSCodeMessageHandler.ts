@@ -179,6 +179,12 @@ export function useVSCodeMessageHandler() {
           if (message.chatSettingsRequest !== undefined) {
             store.setChatSettingsRequest(message.chatSettingsRequest);
           }
+          if (message.permissionModeSupported !== undefined) {
+            store.setAgentPermissionMode(
+              message.permissionMode ?? null,
+              message.permissionModeSupported,
+            );
+          }
           return;
         }
 

@@ -1,0 +1,7 @@
+kind: feature
+description: >
+  The Migration Assistant chat can switch the agent between asking before
+  each change and approving changes automatically, through the agent's ACP
+  session modes (Goose). The choice applies to every session, Get Solution's
+  included, and is saved as konveyor-core.experimentalChat.permissionMode.
+  By default the agent's own configured mode is left in place.

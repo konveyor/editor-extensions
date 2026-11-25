@@ -9,6 +9,8 @@ import {
   AGENT_OPEN_SETTINGS,
   AGENT_PERMISSION_RESPONSE,
   AGENT_CANCEL_GENERATION,
+  AGENT_SET_PERMISSION_MODE,
+  isAgentPermissionMode,
   SET_AGENT_MODE,
   OPEN_NATIVE_CONFIG,
   AgentMessageTypes,
@@ -101,6 +103,24 @@ export const agentMessageHandlers: Record<
       await agentClient.interruptSends();
     } catch (err) {
       logger.error("AGENT_CANCEL_GENERATION failed:", err);
+    }
+  },
+
+  [AGENT_SET_PERMISSION_MODE]: async ({ mode }: { mode: unknown }, state, logger) => {
+    if (!isAgentPermissionMode(mode)) {
+      logger.warn("AGENT_SET_PERMISSION_MODE: ignoring unknown mode", { mode });
+      return;
+    }
+    try {
+      // Applies to the current session (a Get Solution run included) and to
+      // every session created after it. Persisting it also fires the settings
+      // watcher, which re-applies the same value as a no-op.
+      await getAgentClient(state)?.setPermissionMode(mode);
+      const { updateConfigAgentPermissionMode } = await import("../../utilities/configuration");
+      await updateConfigAgentPermissionMode(mode);
+      logger.info(`Agent permission mode set to ${mode}`);
+    } catch (err) {
+      logger.error("AGENT_SET_PERMISSION_MODE failed:", err);
     }
   },
 
@@ -338,6 +358,11 @@ export const agentMessageHandlers: Record<
           agentState: currentAgentState,
           agentError,
           agentMode: config.agentMode,
+          permissionMode:
+            (state.store.getState().featureState?.permissionMode as string | null | undefined) ??
+            null,
+          permissionModeSupported:
+            state.store.getState().featureState?.permissionModeSupported === true,
           timestamp,
         });
       });

@@ -248,13 +248,17 @@ export function setupSyncBridges(
     agentMode: s.featureState?.agentMode,
     freeformChat: s.featureState?.freeformChat,
     chatSettingsRequest: s.featureState?.chatSettingsRequest,
+    permissionMode: s.featureState?.permissionMode as string | null | undefined,
+    permissionModeSupported: s.featureState?.permissionModeSupported as boolean | undefined,
   });
   const agentSliceEqual = (a: ReturnType<typeof agentSlice>, b: ReturnType<typeof agentSlice>) =>
     a.agentState === b.agentState &&
     a.agentError === b.agentError &&
     a.agentMode === b.agentMode &&
     a.freeformChat === b.freeformChat &&
-    a.chatSettingsRequest === b.chatSettingsRequest;
+    a.chatSettingsRequest === b.chatSettingsRequest &&
+    a.permissionMode === b.permissionMode &&
+    a.permissionModeSupported === b.permissionModeSupported;
   unsubscribers.push(
     store.subscribe(
       agentSlice,
@@ -270,6 +274,8 @@ export function setupSyncBridges(
           agentMode: current.agentMode,
           freeformChat: current.freeformChat,
           chatSettingsRequest: current.chatSettingsRequest,
+          permissionMode: current.permissionMode ?? null,
+          permissionModeSupported: current.permissionModeSupported === true,
           timestamp: new Date().toISOString(),
         });
       },
