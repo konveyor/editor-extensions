@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import type { PendingBatchReviewFile } from "@editor-extensions/shared";
 import { filterLineEndingOnlyChanges } from "@editor-extensions/shared";
 import { useExtensionStore } from "../../store/store";
+import { getWorkspaceRelativePath } from "../../utils/workspacePath";
 import "./AgentFileReview.css";
 
 interface DiffStats {
@@ -22,19 +23,8 @@ function computeDiffStats(diff: string): DiffStats {
   return { additions, deletions };
 }
 
-function stripWorkspaceRoot(filePath: string, workspaceRoot: string): string {
-  let root = (workspaceRoot || "").replace(/\\/g, "/");
-  if (root.startsWith("file:///")) {
-    root = root.slice("file://".length);
-  } else if (root.startsWith("file:")) {
-    root = root.slice("file:".length);
-  }
-  root = root.replace(/\/$/, "");
-  const normalized = filePath.replace(/\\/g, "/");
-  if (root && normalized.startsWith(root)) {
-    return normalized.slice(root.length + 1) || normalized.split("/").pop() || filePath;
-  }
-  return normalized;
+function stripWorkspaceRoot(filePath: string, workspaceRoots: string[]): string {
+  return getWorkspaceRelativePath(filePath, workspaceRoots) ?? filePath.replace(/\\/g, "/");
 }
 
 interface ParsedDiffLine {
@@ -97,9 +87,7 @@ const InlineDiff: React.FC<{ diff: string }> = React.memo(({ diff }) => {
                     ? "@@"
                     : " "}
             </span>
-            <span className="afr-diff__content">
-              {line.content}
-            </span>
+            <span className="afr-diff__content">{line.content}</span>
           </div>
         ))}
       </pre>
@@ -209,6 +197,7 @@ export const AgentFileReview: React.FC = () => {
   const pendingFiles = useExtensionStore((s) => s.pendingBatchReview || []);
   const isBatchOperationInProgress = useExtensionStore((s) => s.isBatchOperationInProgress);
   const workspaceRoot = useExtensionStore((s) => s.workspaceRoot);
+  const workspaceRoots = useExtensionStore((s) => s.workspaceRoots);
   const setBatchOperationInProgress = useExtensionStore((s) => s.setBatchOperationInProgress);
 
   const [expandedTokens, setExpandedTokens] = useState<Set<string>>(new Set());
@@ -377,7 +366,10 @@ export const AgentFileReview: React.FC = () => {
           <FileItem
             key={file.messageToken}
             file={file}
-            displayPath={stripWorkspaceRoot(file.path, workspaceRoot)}
+            displayPath={stripWorkspaceRoot(
+              file.path,
+              workspaceRoots.length > 0 ? workspaceRoots : [workspaceRoot],
+            )}
             isExpanded={expandedTokens.has(file.messageToken)}
             isProcessing={processingTokens.has(file.messageToken)}
             isBusy={busy || processingTokens.has(file.messageToken)}

@@ -44,6 +44,7 @@ interface ExtensionStore {
 
   // Config state
   workspaceRoot: string;
+  workspaceRoots: string[];
   configErrors: ConfigError[];
   solutionState: SolutionState;
   solutionScope?: Scope;
@@ -178,6 +179,7 @@ export const useExtensionStore = create<ExtensionStore>()(
       isInitializingServer: false,
       activeDecorators: {},
       workspaceRoot: "/",
+      workspaceRoots: [],
       configErrors: [],
       solutionState: "none",
       solutionScope: undefined,

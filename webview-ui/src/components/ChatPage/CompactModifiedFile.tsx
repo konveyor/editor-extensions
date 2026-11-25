@@ -16,7 +16,12 @@ interface CompactModifiedFileProps {
  */
 export const CompactModifiedFile: React.FC<CompactModifiedFileProps> = React.memo(({ data }) => {
   const workspaceRoot = useExtensionStore((s) => s.workspaceRoot);
-  const { isNew, isDeleted, diff, fileName } = useModifiedFileData(data, workspaceRoot);
+  const workspaceRoots = useExtensionStore((s) => s.workspaceRoots);
+  const { isNew, isDeleted, diff, fileName } = useModifiedFileData(
+    data,
+    workspaceRoot,
+    workspaceRoots,
+  );
   const noChanges = !diff || diff.trim() === "";
 
   const label = isNew ? "created" : isDeleted ? "deleted" : noChanges ? "unchanged" : "modified";

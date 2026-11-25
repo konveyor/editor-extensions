@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ModifiedFileMessageValue } from "@editor-extensions/shared";
+import { getWorkspaceRelativePath } from "../../../utils/workspacePath";
 
 /**
  * Normalized data for read-only ModifiedFile display
@@ -19,26 +20,17 @@ export interface NormalizedFileData {
 export const useModifiedFileData = (
   data: ModifiedFileMessageValue,
   workspaceRoot?: string,
+  workspaceRoots: string[] = [],
 ): NormalizedFileData => {
   return useMemo(() => {
     const normalizedPath = data.path.replace(/\\/g, "/");
-    let fileName: string;
 
-    if (workspaceRoot) {
-      let root = workspaceRoot.replace(/\\/g, "/");
-      if (root.startsWith("file:///")) {
-        root = root.slice("file://".length);
-      } else if (root.startsWith("file:")) {
-        root = root.slice("file:".length);
-      }
-      root = root.replace(/\/$/, "");
-
-      fileName = normalizedPath.startsWith(root)
-        ? normalizedPath.slice(root.length + 1) || normalizedPath.split("/").pop() || "Unnamed File"
-        : normalizedPath.split("/").pop() || data.path || "Unnamed File";
-    } else {
-      fileName = normalizedPath.split("/").pop() || data.path || "Unnamed File";
-    }
+    const roots = workspaceRoots.length > 0 ? workspaceRoots : workspaceRoot ? [workspaceRoot] : [];
+    const fileName =
+      getWorkspaceRelativePath(data.path, roots) ||
+      normalizedPath.split("/").pop() ||
+      data.path ||
+      "Unnamed File";
 
     return {
       path: data.path,
@@ -50,5 +42,5 @@ export const useModifiedFileData = (
       originalContent: data.originalContent || "",
       fileName,
     };
-  }, [data, workspaceRoot]);
+  }, [data, workspaceRoot, workspaceRoots]);
 };

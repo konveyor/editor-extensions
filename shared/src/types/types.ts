@@ -142,6 +142,8 @@ export interface PendingBatchReviewFile {
 
 export interface ExtensionData {
   workspaceRoot: string;
+  /** All workspace folders as `file://` URIs, in workspace order. */
+  workspaceRoots?: string[];
   ruleSets: RuleSet[];
   enhancedIncidents: EnhancedIncident[];
   isAnalyzing: boolean;

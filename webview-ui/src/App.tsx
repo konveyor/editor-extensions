@@ -38,6 +38,7 @@ const App: React.FC = () => {
         solutionServerConnected: windowData.solutionServerConnected ?? false,
         isInTreeMode: windowData.isInTreeMode ?? false,
         workspaceRoot: windowData.workspaceRoot ?? "/",
+        workspaceRoots: Array.isArray(windowData.workspaceRoots) ? windowData.workspaceRoots : [],
         activeProfileId: windowData.activeProfileId ?? null,
         activeDecorators: windowData.activeDecorators ?? {},
         profiles: Array.isArray(windowData.profiles) ? windowData.profiles : [],

@@ -100,6 +100,9 @@ class VsCodeExtension {
       serverState: "initial",
       solutionScope: undefined,
       workspaceRoot: paths.workspaceRepo.toString(true),
+      workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map((folder) =>
+        folder.uri.toString(true),
+      ),
       chatMessages: [],
       solutionState: "none",
       solutionServerEnabled: false,
