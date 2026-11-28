@@ -589,7 +589,7 @@ const commandsMap: (
       resolutionProvider?.showWebviewPanel();
     },
     [`${EXTENSION_NAME}.openAnalysisDetails`]: async (item: IncidentTypeItem) => {
-      logger.info("Open details for item", { item });
+      logger.info("Open details for item", { msg: item.msg, files: item.files.length });
       const sidebarProvider = state.webviewProviders?.get("sidebar");
       sidebarProvider?.showWebviewPanel();
 
