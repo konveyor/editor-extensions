@@ -1,0 +1,3 @@
+kind: bugfix
+description: >
+  Opening issue details from the sidebar no longer fails with "RangeError: Invalid string length". The command logged the whole tree item, which links back to every incident of the analysis, and the logger now caps the depth, length and node count of every record so a large object cannot stall the extension host or flood the log file.

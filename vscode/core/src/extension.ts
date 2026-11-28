@@ -53,6 +53,7 @@ import { getCacheForModelProvider } from "./modelProvider/utils";
 import { ChatOpenAI } from "@langchain/openai";
 import { BaseMessage } from "@langchain/core/messages";
 import winston from "winston";
+import { boundedLogFormat } from "./utilities/boundedLogFormat";
 import * as pathlib from "path";
 import { OutputChannelTransport } from "winston-transport-vscode";
 // Removed - replaced with vertical diff system
@@ -1375,6 +1376,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Konvey
     format: winston.format.combine(
       winston.format.timestamp(),
       winston.format.errors({ stack: true }),
+      boundedLogFormat(),
       winston.format.json(),
     ),
     transports: [
